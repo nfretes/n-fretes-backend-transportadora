@@ -1,0 +1,7 @@
+.history/
+.git/
+.github/
+dist/
+node_modules/
+Dockerfile
+docker-compose.yaml

@@ -1,0 +1,40 @@
+
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import typeorm from './config/typeorm';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import configuration from './config/configuration';
+import { AuthModule } from '@components/auth/auth.module';
+
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [typeorm],
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) =>
+        configService.get('typeorm'),
+    }),
+
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+      envFilePath: '.env',
+    }),
+    ScheduleModule.forRoot(),
+    AuthModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply().forRoutes('*');
+  }
+}
