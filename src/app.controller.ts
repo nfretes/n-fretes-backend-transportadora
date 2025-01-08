@@ -3,12 +3,12 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
 @Controller()
-@ApiTags('Healthcheck') 
+@ApiTags('Healthcheck')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get('healthcheck')
-  @ApiOperation({ summary: 'Verifica o status da API' }) 
+  @ApiOperation({ summary: 'Verifica o status da API' })
   @ApiResponse({
     status: 200,
     description: 'A API está funcionando corretamente.',

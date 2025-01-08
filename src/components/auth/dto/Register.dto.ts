@@ -18,7 +18,10 @@ export class RegisterDto {
   @IsString()
   email: string;
 
-  @ApiProperty({ description: 'Cnpj da empresa', example: '45.896.154/0001-41' })
+  @ApiProperty({
+    description: 'Cnpj da empresa',
+    example: '45.896.154/0001-41',
+  })
   @IsNotEmpty()
   @IsString()
   cnpj: string;
@@ -28,8 +31,10 @@ export class RegisterDto {
   @IsString()
   cpf: string;
 
-
-  @ApiProperty({ description: 'Número de telefone do usuário', example: '(00) 00000-0000'})
+  @ApiProperty({
+    description: 'Número de telefone do usuário',
+    example: '(00) 00000-0000',
+  })
   @IsOptional()
   @IsString()
   phoneNumber: string;

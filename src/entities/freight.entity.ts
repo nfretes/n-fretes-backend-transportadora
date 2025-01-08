@@ -104,7 +104,6 @@ export class Freight {
 
   @Column({ default: true })
   openSolicitations: boolean;
-  
 
   @Column({ nullable: true })
   @Column()
@@ -120,7 +119,6 @@ export class Freight {
   @ManyToOne(() => ContactCompany, (contactCompany) => contactCompany.freights)
   @JoinColumn({ name: 'contactCompanyId' })
   contactCompany: ContactCompany;
-
 
   @CreateDateColumn()
   createdAt: Date;

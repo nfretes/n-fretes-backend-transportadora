@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis'; 
+import Redis from 'ioredis';
 
 @Injectable()
 export class RedisService {
-  private redisClient: Redis; 
+  private redisClient: Redis;
 
   constructor(private configService: ConfigService) {
     const host = this.configService.get<string>('REDIS_HOST');

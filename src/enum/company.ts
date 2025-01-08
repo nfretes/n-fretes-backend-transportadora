@@ -1,8 +1,5 @@
 export enum TransportCategory {
-    CARRIER = 'Transportadora',
-    AGENCY = 'Agencia',
-    SHIPPER = 'Autonomo',
-  }
-  
-
-  
+  CARRIER = 'Transportadora',
+  AGENCY = 'Agencia',
+  SHIPPER = 'Autonomo',
+}

@@ -9,19 +9,19 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
-  app.useGlobalFilters(new HttpExceptionFilter())
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // CORS
   app.enableCors();
 
-  app.use(json({ limit: '50mb' })); 
+  app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // Swagger Config
   const config = new DocumentBuilder()
     .setTitle('NFretes Transportadora')
     .setDescription(
-      'API do Backend para Gerenciamento de Transportadora. Esta API oferece funcionalidades como registro e autenticação de usuários (transportadora), rastreamento de geolocalização, gerenciamento de fretes disponíveis e correspondência de fretes com base nas preferências dos caminhoneiros. Além disso, permite que os caminhoneiros acessem informações detalhadas sobre os fretes listados, possibilitando um sistema eficiente para otimizar o processo de transporte e carga. A API inclui endpoints para login, registro de novos usuários, geolocalização em tempo real e match entre fretes e caminhoneiros.'
+      'API do Backend para Gerenciamento de Transportadora. Esta API oferece funcionalidades como registro e autenticação de usuários (transportadora), rastreamento de geolocalização, gerenciamento de fretes disponíveis e correspondência de fretes com base nas preferências dos caminhoneiros. Além disso, permite que os caminhoneiros acessem informações detalhadas sobre os fretes listados, possibilitando um sistema eficiente para otimizar o processo de transporte e carga. A API inclui endpoints para login, registro de novos usuários, geolocalização em tempo real e match entre fretes e caminhoneiros.',
     )
     .setVersion('2.0')
     .build();

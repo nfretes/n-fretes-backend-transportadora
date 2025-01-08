@@ -9,7 +9,7 @@ export class AwsService {
 
   constructor(private configService: ConfigService) {
     AWS.config.update({
-      region: this.configService.get<string>('AWS_REGION', 'us-east-1'), 
+      region: this.configService.get<string>('AWS_REGION', 'us-east-1'),
       accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
       secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY'),
     });
@@ -18,23 +18,27 @@ export class AwsService {
     this.rekognition = new AWS.Rekognition();
   }
 
-  async uploadFile(bucketName: string, key: string, fileContent: Buffer): Promise<string> {
+  async uploadFile(
+    bucketName: string,
+    key: string,
+    fileContent: Buffer,
+  ): Promise<string> {
     const params = {
       Bucket: bucketName,
       Key: key,
       Body: fileContent,
-      ContentType: 'image/jpeg', 
+      ContentType: 'image/jpeg',
     };
 
     const uploadResult = await this.s3.upload(params).promise();
-    return uploadResult.Location; 
+    return uploadResult.Location;
   }
 
   async compareFaces(sourceImage: Buffer, targetImage: Buffer) {
     const params = {
       SourceImage: { Bytes: sourceImage },
       TargetImage: { Bytes: targetImage },
-      SimilarityThreshold: 70, 
+      SimilarityThreshold: 70,
     };
 
     const result = await this.rekognition.compareFaces(params).promise();

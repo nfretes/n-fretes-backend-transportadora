@@ -61,11 +61,9 @@ export class AuthService {
         from: 'thiagolimadesenvolvedor@gmail.com',
         subject: 'Cadastro enviado para análise',
         templateId: this.configService.get<string>('TEMPLATE_ID_WELCOME'),
-      
       };
 
-   await sgMail.send(msg);
-  
+      await sgMail.send(msg);
 
       return { message: 'Cadastro enviado para análise' };
     } catch (error) {

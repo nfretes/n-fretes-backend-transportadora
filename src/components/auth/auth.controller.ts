@@ -27,7 +27,9 @@ export class AuthController {
     status: 400,
     description: 'Erro ao registrar o usuário, como CPF já registrado',
   })
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponseRegisterDto> {
+  async register(
+    @Body() registerDto: RegisterDto,
+  ): Promise<AuthResponseRegisterDto> {
     return this.authService.register(registerDto);
   }
 
@@ -91,5 +93,5 @@ export class AuthController {
     return this.authService.changePasswordByRecoveryCode(resetPasswordDto);
   }
 
-   /********************************************************************************** */
+  /********************************************************************************** */
 }

@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 import { Vehicle } from './vehicles.entity';
 
-
 @Entity({ schema: 'public', name: 'users_drive' })
 export class UsersDrive {
   @PrimaryColumn({ default: () => 'gen_random_uuid()' })
@@ -90,6 +89,4 @@ export class UsersDrive {
 
   @OneToMany(() => Vehicle, (vehicle) => vehicle.user)
   vehicles: Vehicle[];
-
-  
 }

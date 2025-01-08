@@ -11,7 +11,6 @@ import {
 import { ContactCompany } from './contact-company.entity';
 import { Freight } from './freight.entity';
 
-
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
   @PrimaryColumn({ default: () => 'gen_random_uuid()' })
@@ -45,7 +44,6 @@ export class Company {
 
   @Column({ type: 'json', nullable: true })
   socios: any;
-
 
   @Column({ nullable: true })
   transportCategory: string;
@@ -106,5 +104,4 @@ export class Company {
 
   @OneToMany(() => Freight, (freight) => freight.company)
   freights: Freight[];
-
 }
