@@ -21,6 +21,7 @@ export class ContactCompany {
 
   @Column({ nullable: true })
   phoneNumber: string;
+  
   @Column()
   companyId: string;
 

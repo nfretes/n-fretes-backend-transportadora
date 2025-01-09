@@ -6,10 +6,13 @@ import {
   PrimaryColumn,
   Index,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 
 import { ContactCompany } from './contact-company.entity';
 import { Freight } from './freight.entity';
+import { SubscriptionCompany } from './subscription-company.entity';
+import { CompanyUsersContacts } from './company-users-contacts.entity';
 
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
@@ -104,4 +107,10 @@ export class Company {
 
   @OneToMany(() => Freight, (freight) => freight.company)
   freights: Freight[];
+
+  @OneToOne(() => SubscriptionCompany, (subscription) => subscription.company)
+  subscription: SubscriptionCompany;
+
+  @OneToMany(() => CompanyUsersContacts, (company) => company.contacts)
+  CompanyUsersContacts: CompanyUsersContacts[];
 }

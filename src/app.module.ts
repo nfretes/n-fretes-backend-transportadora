@@ -7,6 +7,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { AuthModule } from '@components/auth/auth.module';
+import { SubscriptionModule } from '@components/subscriptions-company/subscription-company.module';
+import { ContactCompanyModule } from '@components/contact-company/contact-company.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { AuthModule } from '@components/auth/auth.module';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
+    SubscriptionModule,
+    ContactCompanyModule
   ],
   controllers: [AppController],
   providers: [AppService],
