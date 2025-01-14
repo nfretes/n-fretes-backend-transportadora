@@ -33,6 +33,9 @@ export class CompanyUsersContacts {
   @CreateDateColumn()
   createdAt: Date;
 
+  @Column({ default: true })
+  isActive: boolean;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

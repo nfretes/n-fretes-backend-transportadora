@@ -9,6 +9,7 @@ import configuration from './config/configuration';
 import { AuthModule } from '@components/auth/auth.module';
 import { SubscriptionModule } from '@components/subscriptions-company/subscription-company.module';
 import { ContactCompanyModule } from '@components/contact-company/contact-company.module';
+import { UsersContactCompanyModule } from '@components/users-contact-company/users-contact.module';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { ContactCompanyModule } from '@components/contact-company/contact-compan
     ScheduleModule.forRoot(),
     AuthModule,
     SubscriptionModule,
-    ContactCompanyModule
+    ContactCompanyModule,
+    UsersContactCompanyModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -37,7 +37,7 @@ lerna-debug.log*
 service-account-prod.json
 service-account.json
 
-/src/migrations/
+
 
 .env
 .env.production
