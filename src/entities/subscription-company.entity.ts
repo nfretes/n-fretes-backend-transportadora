@@ -8,7 +8,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { SubscriptionStates } from 'src/enum/subscription-company';
+
 import { Company } from './company.entity';
 import { PlansCompany } from './plans-company.entity';
 
@@ -17,9 +17,8 @@ export class SubscriptionCompany {
   @PrimaryColumn({ default: () => 'gen_random_uuid()' })
   id: string;
 
-  @Column({ type: 'enum', enum: SubscriptionStates })
-  status: SubscriptionStates;
-
+  @Column({ nullable: true, default: 1 })
+  status: number;
   @Column({ nullable: true })
   merchantOrderId?: string;
 

@@ -10,6 +10,7 @@ import { AuthModule } from '@components/auth/auth.module';
 import { SubscriptionModule } from '@components/subscriptions-company/subscription-company.module';
 import { ContactCompanyModule } from '@components/contact-company/contact-company.module';
 import { UsersContactCompanyModule } from '@components/users-contact-company/users-contact.module';
+import { FreightModule } from '@components/freight/freight.module';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { UsersContactCompanyModule } from '@components/users-contact-company/use
     AuthModule,
     SubscriptionModule,
     ContactCompanyModule,
-    UsersContactCompanyModule
+    UsersContactCompanyModule,
+    FreightModule
   ],
   controllers: [AppController],
   providers: [AppService],
