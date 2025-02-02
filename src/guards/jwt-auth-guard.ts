@@ -6,12 +6,22 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
 
+interface JwtPayload {
+  username: string;
+  sub: string;
+  role: string;
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private configService: ConfigService,
+  ) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
@@ -22,8 +32,19 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = this.configService.get<string>('JWT_SECRET');
+      const payload = jwt.verify(token, secret) as JwtPayload;
       request.user = payload;
+      const requiredRole = this.reflector.get<string>(
+        'role',
+        context.getHandler(),
+      );
+
+      if (requiredRole && requiredRole !== payload.role) {
+        throw new UnauthorizedException(
+          'Acesso negado, você não tem permissão para esta rota',
+        );
+      }
       return true;
     } catch (e) {
       throw new HttpException(

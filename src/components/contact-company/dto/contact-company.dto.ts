@@ -10,9 +10,7 @@ export class CreateContactCompanyDto {
   @IsNotEmpty()
   phoneNumber: string;
 
-  @IsUUID()
-  @IsNotEmpty()
-  companyId?: string;
+
 }
 
 export class UpdateContactCompanyDto extends PartialType(

@@ -56,17 +56,9 @@ export class AuthService {
 
       await this.companyRepository.save(newUser);
 
-      const msg = {
-        to: newUser.email,
-        from: 'thiagolimadesenvolvedor@gmail.com',
-        subject: 'Cadastro enviado para análise',
-        templateId: this.configService.get<string>('TEMPLATE_ID_WELCOME'),
-      };
-
-      await sgMail.send(msg);
-
       return { message: 'Cadastro enviado para análise' };
     } catch (error) {
+      console.log(error, 'Resposta')
       throw new HttpException(
         error?.message || 'Erro interno no servidor',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -206,5 +198,32 @@ export class AuthService {
     await this.companyRepository.save(user);
 
     return { message: 'Senha alterada com sucesso' };
+  }
+
+
+  async getUserByToken(token: string): Promise<Company> {
+    try {
+      const secret = this.configService.get<string>('JWT_SECRET');
+
+      console.log(secret, 'Retorno')
+      const decoded = jwt.verify(token, secret) as { sub: string };
+
+      const user = await this.companyRepository.findOne({
+        where: { id: decoded.sub },
+        select: ['id', 'name', 'email',  'isActive', 'cpf', 'createdAt', 'cnpj', 'antt', 'phoneContact'],
+        relations: ['freights', 'subscription', 'contacts', 'CompanyUsersContacts']
+      });
+
+      if (!user) {
+        throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      return user;
+    } catch (error) {
+      throw new HttpException(
+       error,
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
   }
 }

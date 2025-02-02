@@ -13,7 +13,7 @@ export enum SpecieOfLoad {
   BIGBAG = 'Big Bag',
   COIL = 'Bobina',
   BOX = 'Caixas',
-  CONTAINER = 'Contaier',
+  CONTAINER = 'Container',
   OTHERS = 'Diversos',
   BALES = 'Fardos',
   FRACTIONAL = 'Fracionada',

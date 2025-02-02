@@ -151,15 +151,6 @@ export class CreateFreightDto {
   bodyTypes?: BodyType[];
 
   @ApiProperty({
-    description: 'Método de pagamento',
-    enum: PaymentMethod,
-    required: false,
-  })
-  @IsEnum(PaymentMethod)
-  @IsNotEmpty()
-  paymentMethod?: PaymentMethod;
-
-  @ApiProperty({
     description: 'Valor do frete',
     required: false,
     type: 'number',
@@ -223,7 +214,7 @@ export class CreateFreightDto {
 
   @ApiProperty({ description: 'ID da empresa', required: false })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   companyId?: string;
 
   @ApiProperty({ description: 'ID do contato da empresa', required: false })

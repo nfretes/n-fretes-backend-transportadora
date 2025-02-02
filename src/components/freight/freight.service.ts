@@ -20,9 +20,14 @@ export class FreightService {
 
   async createFreightCompany(
     createFreightDto: CreateFreightDto,
+    userId: string
   ): Promise<CreateFreightDto> {
     try {
-      const create = this.freightRepository.create(createFreightDto);
+      const data = {
+        ...createFreightDto,
+        companyId: userId
+      }
+      const create = this.freightRepository.create(data);
       const save = await this.freightRepository.save(create);
 
       return save;

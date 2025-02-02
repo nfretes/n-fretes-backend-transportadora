@@ -63,8 +63,27 @@ export class Freight {
   @Column({ nullable: true })
   weightOfLoad: string;
 
-  @Column({ type: 'enum', enum: UnityMetric })
-  unityMetric: UnityMetric;
+  @Column({ nullable: true })
+  weightOfLoadLenght: string;
+
+  @Column({ nullable: true })
+  weightOfLoadHeight: string;
+
+  @Column({ nullable: true })
+  weightOfLoadWidth: string;
+
+  @Column({
+    type: 'enum',
+    enum: UnityMetric,
+    nullable: true,
+    default: null,
+  })
+  unityMetric: UnityMetric | null;
+
+  @Column({
+    nullable: true,
+  })
+  valueCall: string;
 
   @Column({ nullable: true })
   volume: string;
@@ -78,23 +97,21 @@ export class Freight {
   @Column({ type: 'simple-array', nullable: true })
   bodyTypes: BodyType[];
 
-  @Column({ type: 'enum', enum: PaymentMethod })
-  paymentMethod: PaymentMethod;
+  @Column({ type: 'float', default: 0, nullable: true })
+  valueAdvance: number;
 
   @Column({ type: 'float', default: 0, nullable: true })
-  valueFreight: number;
+  Valuefreight: number;
 
   @Column({ type: 'enum', enum: PaymentMethod })
   calValue: PaymentMethod;
+
 
   @Column({ type: 'enum', enum: Toll })
   Toll: Toll;
 
   @Column({ nullable: true })
   methodPayment: string;
-
-  @Column({ type: 'float', default: 0, nullable: true })
-  advance: number;
 
   @Column({ nullable: true })
   observation: string;

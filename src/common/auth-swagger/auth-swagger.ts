@@ -28,3 +28,40 @@ export const recoveryPasswordAndCode = {
     required: ['email', 'newPassword'],
   },
 };
+
+
+export const ResponseAuthMe = {
+  status: 200,
+  description: 'Retorna os dados do usuário autenticado (exceto a senha)',
+  schema: {
+    example: {
+      id: '1a2b3c4d5e',
+      name: 'João da Silva',
+      email: 'joao.silva@email.com',
+      role: 'CLIENT',
+    },
+  },
+};
+
+export const ResponseAuthMeTokenInvalid = {
+  status: 401,
+  description: 'Token inválido ou expirado',
+  schema: {
+    example: {
+      statusCode: 401,
+      message: 'Token inválido ou expirado',
+    },
+  },
+};
+
+export const NotFoundUser = {
+  status: 404,
+  description: 'Usuário não encontrado',
+  schema: {
+    example: {
+      statusCode: 404,
+      message: 'Usuário não encontrado',
+    },
+  }
+
+}

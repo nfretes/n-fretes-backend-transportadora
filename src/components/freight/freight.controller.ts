@@ -1,15 +1,18 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
 import { FreightService } from './freight.service';
 import { CreateFreightDto } from './dto/freight.dto';
 import { ParamsFreight } from './interface/IFreight';
+import { GetUserId } from 'src/decorators/get-user-decorator';
+import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 
 @ApiTags('freight')
 @Controller('freight')
 export class FreightController {
   constructor(private readonly freightService: FreightService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post('/create')
   @ApiOperation({
     summary: 'Criação do frete da empresa',
@@ -20,8 +23,12 @@ export class FreightController {
   })
   async createFreightCompany(
     @Body() createFreightCompany: CreateFreightDto,
+    @GetUserId() userId: string,
   ): Promise<CreateFreightDto> {
-    return this.freightService.createFreightCompany(createFreightCompany);
+    return this.freightService.createFreightCompany(
+      createFreightCompany,
+      userId,
+    );
   }
 
   /********************************************************************************** */
@@ -69,6 +76,7 @@ export class FreightController {
   /********************************************************************************** */
 
   @Get('freight')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Realiza a busca por todos os fretes passando algum parametro de busca ou não',

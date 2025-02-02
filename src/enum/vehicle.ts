@@ -10,6 +10,17 @@ export enum VehicleType {
   CART_LS = 'Cart LS',
   ROAD_TRAIN = 'Road Train',
   VANDERLEIA = 'Vanderleia',
+  ALLLIGHT= 'allLight',
+  THREE_FOUR = 'threeFour',
+  TOCO= 'toco',
+  ALLWEIGHT= 'allWeight',
+  TRAINWHELL= 'train wheel',
+  ALLAVERAGE= 'allAverage',
+
+
+
+
+
 }
 
 export enum BodyType {
@@ -26,7 +37,9 @@ export enum BodyType {
   BUG_CONTAINER_DOOR = 'Bug Container Door',
   PRATTLE = 'Prattle',
   BLINKER = 'Blinker',
+  CAVAQUEIRA = 'Cavaqueira',
   CAGE = 'Cage',
+  CONTAINER = 'Container',
   HOPPER = 'Hopper',
   MUNK = 'Munk',
   SILO = 'Silo',

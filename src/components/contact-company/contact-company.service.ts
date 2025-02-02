@@ -23,11 +23,14 @@ export class ContactCompanyService {
 
   async createContactCompany(
     createContactCompanyDto: CreateContactCompanyDto,
+    userId: string,
   ): Promise<ContactCompanyResponseDto> {
     try {
-      const createContactCompany = this.contactCompanyRepository.create(
-        createContactCompanyDto,
-      );
+      const body = {
+        ...createContactCompanyDto,
+        companyId: userId,
+      };
+      const createContactCompany = this.contactCompanyRepository.create(body);
       const savedContactCompany =
         await this.contactCompanyRepository.save(createContactCompany);
 
@@ -107,11 +110,8 @@ export class ContactCompanyService {
     try {
       const queryBuilder =
         this.contactCompanyRepository.createQueryBuilder('contact-company');
-      const { take, page } =
+      const { take = 10, page = 1 } =
         this.paginationService.getDefaultPaginationParams(params);
-
-  
-
 
       if (params.companyId) {
         queryBuilder.andWhere('contact-company.companyId = :companyId', {
@@ -134,8 +134,8 @@ export class ContactCompanyService {
       const [result, total] = await queryBuilder
         .leftJoin('contact-company.company', 'company')
         .addSelect('company.email')
-        .addSelect('company.cnpj') 
-        .addSelect('company.name') 
+        .addSelect('company.cnpj')
+        .addSelect('company.name')
         .orderBy('contact-company.name', 'ASC')
         .skip((page - 1) * take)
         .take(take)

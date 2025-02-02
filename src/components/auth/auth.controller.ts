@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -7,9 +7,14 @@ import { AuthResponseDto, AuthResponseRegisterDto } from './dto/Auth.dto';
 import { EmailJson } from './interfaces/IAuth';
 import {
   AuthcodeEmail,
+  NotFoundUser,
   recoveryPasswordAndCode,
+  ResponseAuthMe,
+  ResponseAuthMeTokenInvalid,
 } from 'src/common/auth-swagger/auth-swagger';
 import { ResetPasswordDto } from './dto/Password.dto';
+import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
+import { Company } from '@entities/company.entity';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -94,4 +99,17 @@ export class AuthController {
   }
 
   /********************************************************************************** */
+
+   @UseGuards(JwtAuthGuard)
+   @Get('me')
+   @ApiOperation({ summary: 'Obter informações do usuário autenticado' })
+   @ApiResponse(ResponseAuthMe)
+   @ApiResponse(ResponseAuthMeTokenInvalid)
+   @ApiResponse(NotFoundUser)
+   async getProfile(
+     @Headers('authorization') authHeader: string,
+   ): Promise<Company> {
+     const token = authHeader.replace('Bearer ', '');
+     return this.authService.getUserByToken(token);
+   }
 }

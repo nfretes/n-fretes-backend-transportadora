@@ -23,14 +23,17 @@ import {
   UpdateContactSucess,
 } from 'src/common/contact-company-swagger/contact-company';
 import { ContactCompanyService } from './contact-company.service';
-import { JwtAuthGuard } from '@components/guards/jwt-auth-guard';
+import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { ParamsContactCompany } from './interfaces/IContact';
+import { GetUserId } from 'src/decorators/get-user-decorator';
 
 @ApiTags('contact-company')
 @Controller('contact-company')
 export class ContactCompanyController {
   constructor(private readonly contactCompanyService: ContactCompanyService) {}
 
+
+  @UseGuards(JwtAuthGuard)
   @Post('/create')
   @ApiOperation({
     summary: 'Criação do contacto da empresa',
@@ -42,9 +45,11 @@ export class ContactCompanyController {
   })
   async createContactCompany(
     @Body() createContactCompany: CreateContactCompanyDto,
+    @GetUserId() userId: string,
   ): Promise<ContactCompanyResponseDto> {
     return this.contactCompanyService.createContactCompany(
       createContactCompany,
+      userId
     );
   }
 
@@ -92,6 +97,7 @@ export class ContactCompanyController {
   }
 
   /********************************************************************************** */
+
 
 
   @Get('company/contact')
