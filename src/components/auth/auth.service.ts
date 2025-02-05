@@ -58,7 +58,7 @@ export class AuthService {
 
       return { message: 'Cadastro enviado para análise' };
     } catch (error) {
-      console.log(error, 'Resposta')
+      console.log(error, 'Resposta');
       throw new HttpException(
         error?.message || 'Erro interno no servidor',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -98,27 +98,37 @@ export class AuthService {
     userId: string,
     changePasswordDto: ChangePasswordDto,
   ): Promise<{ message: string }> {
-    const { oldPassword, newPassword } = changePasswordDto;
+    try {
+      const { oldPassword, newPassword } = changePasswordDto;
 
-    const user = await this.companyRepository.findOne({
-      where: { id: userId },
-    });
+      const user = await this.companyRepository.findOne({
+        where: { id: userId },
+      });
 
-    if (!user) {
-      throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
+      if (!user) {
+        throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const isOldPasswordValid = await bcrypt.compare(
+        oldPassword,
+        user.password,
+      );
+      if (!isOldPasswordValid) {
+        throw new HttpException(
+          'Senha antiga inválida',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedNewPassword;
+      await this.companyRepository.save(user);
+      return {
+        message: 'Senha alterada com sucesso',
+      };
+    } catch (error) {
+      throw new HttpException(error, HttpStatus.BAD_REQUEST);
     }
-
-    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
-    if (!isOldPasswordValid) {
-      throw new HttpException('Senha antiga inválida', HttpStatus.BAD_REQUEST);
-    }
-
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedNewPassword;
-    await this.companyRepository.save(user);
-    return {
-      message: 'Senha alterada com sucesso',
-    };
   }
 
   async generateRecoveryCodeAndSendEmail(
@@ -200,18 +210,32 @@ export class AuthService {
     return { message: 'Senha alterada com sucesso' };
   }
 
-
   async getUserByToken(token: string): Promise<Company> {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
 
-      console.log(secret, 'Retorno')
+      console.log(secret, 'Retorno');
       const decoded = jwt.verify(token, secret) as { sub: string };
 
       const user = await this.companyRepository.findOne({
         where: { id: decoded.sub },
-        select: ['id', 'name', 'email',  'isActive', 'cpf', 'createdAt', 'cnpj', 'antt', 'phoneContact'],
-        relations: ['freights', 'subscription', 'contacts', 'CompanyUsersContacts']
+        select: [
+          'id',
+          'name',
+          'email',
+          'isActive',
+          'cpf',
+          'createdAt',
+          'cnpj',
+          'antt',
+          'phoneContact',
+        ],
+        relations: [
+          'freights',
+          'subscription',
+          'contacts',
+          'CompanyUsersContacts',
+        ],
       });
 
       if (!user) {
@@ -220,10 +244,7 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      throw new HttpException(
-       error,
-        HttpStatus.UNAUTHORIZED,
-      );
+      throw new HttpException(error, HttpStatus.UNAUTHORIZED);
     }
   }
 }

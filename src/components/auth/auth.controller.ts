@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Headers, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -12,9 +21,10 @@ import {
   ResponseAuthMe,
   ResponseAuthMeTokenInvalid,
 } from 'src/common/auth-swagger/auth-swagger';
-import { ResetPasswordDto } from './dto/Password.dto';
+import { ChangePasswordDto, ResetPasswordDto } from './dto/Password.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Company } from '@entities/company.entity';
+import { GetUserId } from 'src/decorators/get-user-decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -100,16 +110,36 @@ export class AuthController {
 
   /********************************************************************************** */
 
-   @UseGuards(JwtAuthGuard)
-   @Get('me')
-   @ApiOperation({ summary: 'Obter informações do usuário autenticado' })
-   @ApiResponse(ResponseAuthMe)
-   @ApiResponse(ResponseAuthMeTokenInvalid)
-   @ApiResponse(NotFoundUser)
-   async getProfile(
-     @Headers('authorization') authHeader: string,
-   ): Promise<Company> {
-     const token = authHeader.replace('Bearer ', '');
-     return this.authService.getUserByToken(token);
-   }
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @ApiOperation({ summary: 'Obter informações do usuário autenticado' })
+  @ApiResponse(ResponseAuthMe)
+  @ApiResponse(ResponseAuthMeTokenInvalid)
+  @ApiResponse(NotFoundUser)
+  async getProfile(
+    @Headers('authorization') authHeader: string,
+  ): Promise<Company> {
+    const token = authHeader.replace('Bearer ', '');
+    return this.authService.getUserByToken(token);
+  }
+
+  /********************************************************************************** */
+
+  @UseGuards(JwtAuthGuard)
+  @Put('/password/reset')
+  @ApiOperation({
+    summary: 'Troca senha do usuário transportadora logado',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Erro ao criar a contato da empresa',
+  })
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @GetUserId() userId: string,
+  ): Promise<{ message: string }> {
+    return this.authService.changePassword(userId, changePasswordDto);
+  }
+
+  /********************************************************************************** */
 }
