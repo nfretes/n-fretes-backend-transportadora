@@ -69,7 +69,7 @@ export class AuthService {
   async login(loginDto: LoginDto, ip: string): Promise<AuthResponseDto> {
     const { cnpj, password } = loginDto;
     const user = await this.companyRepository.findOne({ where: { cnpj } });
-
+    
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.BAD_REQUEST);
     }
@@ -229,6 +229,13 @@ export class AuthService {
           'cnpj',
           'antt',
           'phoneContact',
+          'photoUrl',
+          'phoneNumber',
+          'city',
+          'nameFantasy',
+          'state',
+          'zipcode',
+          'street'
         ],
         relations: [
           'freights',

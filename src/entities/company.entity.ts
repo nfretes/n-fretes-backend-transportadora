@@ -102,6 +102,10 @@ export class Company {
   @Column({ nullable: true })
   district: string;
 
+  @Column({ nullable: true })
+  photoUrl: string;
+
+
   @OneToMany(() => ContactCompany, (contact) => contact.company)
   contacts: ContactCompany[];
 
