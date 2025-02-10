@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
@@ -24,6 +25,7 @@ import {
   GetUsersCompanySucess,
 } from 'src/common/users-contact-company-swagger/users-contact-company-swagger';
 import { ParamsUsersContactCompany } from './interfaces/IUsersContanctCompany';
+import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 
 @ApiTags('users-contact-company')
 @Controller('users-contact-company')
@@ -32,6 +34,7 @@ export class UsersContactCompanyController {
     private readonly usersContactCompanyService: UsersContactCompanyService,
   ) {}
 
+      @UseGuards(JwtAuthGuard)
   @Post('/create')
   @ApiOperation({
     summary: 'Criação do contacto da empresa de caminhoneiro',
@@ -51,6 +54,8 @@ export class UsersContactCompanyController {
 
   /********************************************************************************** */
 
+  
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Atualização de contato da empresa' })
   @ApiParam({
@@ -76,6 +81,7 @@ export class UsersContactCompanyController {
 
   /********************************************************************************** */
 
+ 
   @Get('get-all')
   @ApiOperation({
     summary: 'Traz o contato espefico pelo parametro passado pelo usuário',

@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
 import { SubscriptionCompanyService } from './subscription-company.service';
@@ -13,6 +13,7 @@ import {
   SubscriptionNotFound,
   UpdateSubscriptionSucess,
 } from 'src/common/subscription-company-swagger/subscription-company-swagger';
+import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 
 @ApiTags('subscription-company')
 @Controller('subscription-company')
@@ -20,7 +21,7 @@ export class SubscriptionCompanyController {
   constructor(
     private readonly subscriptionCompanyService: SubscriptionCompanyService,
   ) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post('/create')
   @ApiOperation({
     summary: 'Criação da subinscrição do usuário transportadora',
@@ -39,6 +40,7 @@ export class SubscriptionCompanyController {
   }
 
   /********************************************************************************** */
+    @UseGuards(JwtAuthGuard)
   @Patch('update/:companyId')
   @ApiOperation({ summary: 'Update da subscrição do usuário' })
   @ApiParam({

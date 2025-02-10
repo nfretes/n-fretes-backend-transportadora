@@ -4,5 +4,6 @@ export interface ParamsUsersContactCompany {
     take?: number;
     page?: number;
     isActive?: boolean
+    companyId?: string
   }
   

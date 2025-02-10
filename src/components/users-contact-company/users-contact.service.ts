@@ -94,6 +94,14 @@ export class UsersContactCompanyService {
         });
       }
 
+
+      if (params.companyId) {
+        queryBuilder.andWhere('company-users-contacts.companyId = :companyId', {
+          companyId: params.companyId,
+        });
+      }
+
+
       if (params.isActive) {
         queryBuilder.andWhere('company-users-contacts.isActive = :isActive', {
           isActive: params.isActive,
@@ -107,10 +115,20 @@ export class UsersContactCompanyService {
       }
 
       const [result, total] = await queryBuilder
-        .leftJoinAndSelect('company-users-contacts.contacts', 'company')
-        .leftJoinAndSelect('company-users-contacts.users', 'users_drive')
-        .addSelect('users_drive.name')
-        .orderBy('users_drive.name', 'ASC')
+        .leftJoin('company-users-contacts.contacts', 'company')
+        .leftJoin('company-users-contacts.users', 'users_drive')
+        .leftJoin('users_drive.vehicles', 'vehicle')
+        .leftJoin('users_drive.locations', 'location')
+        .addSelect([
+          'users_drive.name',
+          'users_drive.photoFaceURL',
+          'users_drive.phoneNumber',
+          'users_drive.id',
+          'vehicle.vehicleType',
+          'vehicle.bodyType',
+          'location.city'
+  
+        ])
         .skip((page - 1) * take)
         .take(take)
         .getManyAndCount();

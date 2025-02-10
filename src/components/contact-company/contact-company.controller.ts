@@ -54,7 +54,7 @@ export class ContactCompanyController {
   }
 
   /********************************************************************************** */
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Atualização de contato da empresa' })
   @ApiParam({
@@ -79,7 +79,7 @@ export class ContactCompanyController {
 
   /********************************************************************************** */
 
-
+  @UseGuards(JwtAuthGuard)
   @Get('contact/:id')
   @ApiOperation({ summary: 'Traz o contato espefico por Id da empresa' })
   @ApiParam({
@@ -99,7 +99,7 @@ export class ContactCompanyController {
   /********************************************************************************** */
 
 
-
+  @UseGuards(JwtAuthGuard)
   @Get('company/contact')
   @ApiOperation({ summary: 'Traz o contato espefico por Id da empresa' })
   @ApiResponse(GetCompanySucess)

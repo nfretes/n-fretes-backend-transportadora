@@ -75,6 +75,7 @@ export class FreightController {
 
   /********************************************************************************** */
 
+  @UseGuards(JwtAuthGuard)
   @Get('freight')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({

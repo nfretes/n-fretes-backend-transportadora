@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Vehicle } from './vehicles.entity';
 import { CompanyUsersContacts } from './company-users-contacts.entity';
+import { UsersLocation } from './users-location.entity';
 
 @Entity({ schema: 'public', name: 'users_drive' })
 export class UsersDrive {
@@ -93,4 +94,7 @@ export class UsersDrive {
 
   @OneToMany(() => CompanyUsersContacts, (company) => company.users)
   CompanyUsersContacts: CompanyUsersContacts[];
+
+  @OneToMany(() => UsersLocation, (location) => location.user)
+  locations: UsersLocation[];
 }
