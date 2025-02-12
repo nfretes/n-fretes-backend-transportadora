@@ -145,4 +145,38 @@ export class UsersContactCompanyService {
       );
     }
   }
+
+  async softDeleteUsersContactCompany(id: string): Promise<string> {
+    const queryRunner = this.usersContactCompanyRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
+
+    try {
+      const usersContactCompany = await queryRunner.manager.findOne(CompanyUsersContacts, {
+        where: { id },
+      });
+
+      if (!usersContactCompany) {
+        throw new HttpException(
+          'Não foi localizado um contato para essa empresa',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      await queryRunner.manager.update(
+        CompanyUsersContacts,
+        { id },
+        { isActive: false },
+      );
+      await queryRunner.commitTransaction();
+
+      return 'Contato desativado com sucesso';
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(
+        error?.message || 'Erro ao desativar contato da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

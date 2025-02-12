@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -93,5 +94,20 @@ export class UsersContactCompanyController {
     const result =
       await this.usersContactCompanyService.getContactParamsUsers(params);
     return result;
+  }
+
+    /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Remove da lista de contatos da empresa',
+  })
+
+  @ApiParam({
+    name: 'id', 
+    description: 'ID do contato da empresa', 
+    type: String, 
+  })
+  @Delete(':id/soft-delete')
+  async softDelete(@Param('id') id: string): Promise<string> {
+    return this.usersContactCompanyService.softDeleteUsersContactCompany(id);
   }
 }
