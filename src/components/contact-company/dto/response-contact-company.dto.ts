@@ -16,6 +16,9 @@ export class ContactCompanyResponseDto {
   })
   name: string;
 
+
+  
+
   @ApiProperty({
     description: 'Número de telefone do contato da empresa.',
     example: '+5511999999999',

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -99,6 +100,7 @@ export class ContactCompanyController {
   /********************************************************************************** */
 
 
+
   @UseGuards(JwtAuthGuard)
   @Get('company/contact')
   @ApiOperation({ summary: 'Traz o contato espefico por Id da empresa' })
@@ -109,4 +111,19 @@ export class ContactCompanyController {
     const result = await this.contactCompanyService.getCompanyId(params);
     return result;
   }
+
+  /********************************************************************************** */
+    @ApiOperation({
+      summary: 'Remove da lista de contatos da empresa',
+    })
+  
+    @ApiParam({
+      name: 'id', 
+      description: 'ID do contato da empresa', 
+      type: String, 
+    })
+    @Delete(':id/soft-delete')
+    async softDelete(@Param('id') id: string): Promise<string> {
+      return this.contactCompanyService.softDeleteUsersContactCompany(id);
+    }
 }
