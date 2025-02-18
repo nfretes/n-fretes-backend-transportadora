@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
 import { FreightService } from './freight.service';
@@ -75,7 +84,6 @@ export class FreightController {
 
   /********************************************************************************** */
 
-  @UseGuards(JwtAuthGuard)
   @Get('freight')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
@@ -85,5 +93,32 @@ export class FreightController {
   async getCompanyIdParams(@Query() params: ParamsFreight) {
     const result = await this.freightService.getFreightsByTransporter(params);
     return result;
+  }
+
+  @Get('myfreights')
+  @UseGuards(JwtAuthGuard)
+  async geyMyFreightsParams(
+    @Query() params: ParamsFreight,
+    @GetUserId() userId: string,
+  ) {
+    const result = await this.freightService.getFreightsByUserId(
+      params,
+      userId,
+    );
+    return result;
+  }
+
+  /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Desativa o frete da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete da empresa',
+    type: String,
+  })
+  @Delete(':id/soft-delete')
+  async softDelete(@Param('id') id: string): Promise<string> {
+    return this.freightService.softDeleteFreight(id);
   }
 }

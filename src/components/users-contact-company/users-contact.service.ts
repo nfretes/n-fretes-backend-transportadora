@@ -12,11 +12,14 @@ import {
 } from './dto/response-contact-company.dto';
 import { ParamsUsersContactCompany } from './interfaces/IUsersContanctCompany';
 import { PaginationService } from '@components/pagination/pagination.service';
+import { UsersDrive } from '@entities/users-drive.entity';
 
 export class UsersContactCompanyService {
   constructor(
     @InjectRepository(CompanyUsersContacts)
     private usersContactCompanyRepository: Repository<CompanyUsersContacts>,
+    @InjectRepository(UsersDrive)
+    private usersDriveRepository: Repository<UsersDrive>,
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -94,13 +97,11 @@ export class UsersContactCompanyService {
         });
       }
 
-
       if (params.companyId) {
         queryBuilder.andWhere('company-users-contacts.companyId = :companyId', {
           companyId: params.companyId,
         });
       }
-
 
       if (params.isActive) {
         queryBuilder.andWhere('company-users-contacts.isActive = :isActive', {
@@ -126,8 +127,7 @@ export class UsersContactCompanyService {
           'users_drive.id',
           'vehicle.vehicleType',
           'vehicle.bodyType',
-          'location.city'
-  
+          'location.city',
         ])
         .skip((page - 1) * take)
         .take(take)
@@ -147,13 +147,17 @@ export class UsersContactCompanyService {
   }
 
   async softDeleteUsersContactCompany(id: string): Promise<string> {
-    const queryRunner = this.usersContactCompanyRepository.manager.connection.createQueryRunner();
+    const queryRunner =
+      this.usersContactCompanyRepository.manager.connection.createQueryRunner();
     await queryRunner.startTransaction();
 
     try {
-      const usersContactCompany = await queryRunner.manager.findOne(CompanyUsersContacts, {
-        where: { id },
-      });
+      const usersContactCompany = await queryRunner.manager.findOne(
+        CompanyUsersContacts,
+        {
+          where: { id },
+        },
+      );
 
       if (!usersContactCompany) {
         throw new HttpException(
@@ -178,5 +182,32 @@ export class UsersContactCompanyService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async searchUsersByCpf(cpf: string, userId: string) {
+    const companyId = userId;
+    const findUser = await this.usersDriveRepository.findOne({
+      where: { cpf },
+      select: {
+        id: true,
+        city: true,
+        photoFaceURL: true,
+        name: true,
+        email: true,
+        vehicles: true,
+        phoneNumber: true,
+      },
+    });
+
+    const isAlreadyRegistered =
+      await this.usersContactCompanyRepository.findOne({
+        where: { userId: findUser.id, companyId },
+      });
+
+    if (isAlreadyRegistered) {
+      return {};
+    }
+
+    return findUser;
   }
 }

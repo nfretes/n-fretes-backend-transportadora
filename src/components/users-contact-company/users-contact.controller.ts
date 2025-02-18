@@ -27,6 +27,7 @@ import {
 } from 'src/common/users-contact-company-swagger/users-contact-company-swagger';
 import { ParamsUsersContactCompany } from './interfaces/IUsersContanctCompany';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
+import { GetUserId } from 'src/decorators/get-user-decorator';
 
 @ApiTags('users-contact-company')
 @Controller('users-contact-company')
@@ -35,7 +36,7 @@ export class UsersContactCompanyController {
     private readonly usersContactCompanyService: UsersContactCompanyService,
   ) {}
 
-      @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('/create')
   @ApiOperation({
     summary: 'Criação do contacto da empresa de caminhoneiro',
@@ -55,7 +56,6 @@ export class UsersContactCompanyController {
 
   /********************************************************************************** */
 
-  
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Atualização de contato da empresa' })
@@ -81,8 +81,7 @@ export class UsersContactCompanyController {
   }
 
   /********************************************************************************** */
-
- 
+  @UseGuards(JwtAuthGuard)
   @Get('get-all')
   @ApiOperation({
     summary: 'Traz o contato espefico pelo parametro passado pelo usuário',
@@ -96,18 +95,33 @@ export class UsersContactCompanyController {
     return result;
   }
 
-    /********************************************************************************** */
+  /********************************************************************************** */
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Remove da lista de contatos da empresa',
   })
-
   @ApiParam({
-    name: 'id', 
-    description: 'ID do contato da empresa', 
-    type: String, 
+    name: 'id',
+    description: 'ID do contato da empresa',
+    type: String,
   })
   @Delete(':id/soft-delete')
   async softDelete(@Param('id') id: string): Promise<string> {
     return this.usersContactCompanyService.softDeleteUsersContactCompany(id);
+  }
+
+  /********************************************************************************** */
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Remove da lista de contatos da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do contato da empresa',
+    type: String,
+  })
+  @Get(':cpf/contact')
+  async searchByCpf(@Param('cpf') cpf: string,@GetUserId() userId: string,) {
+    return this.usersContactCompanyService.searchUsersByCpf(cpf, userId);
   }
 }
