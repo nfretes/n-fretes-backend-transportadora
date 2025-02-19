@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -117,8 +118,42 @@ export class FreightController {
     description: 'ID do frete da empresa',
     type: String,
   })
+  @UseGuards(JwtAuthGuard)
   @Delete(':id/soft-delete')
   async softDelete(@Param('id') id: string): Promise<string> {
     return this.freightService.softDeleteFreight(id);
+  }
+
+  /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Ativação do frete da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete da empresa',
+    type: String,
+  })
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/active-freight')
+  async activeFreight(@Param('id') id: string): Promise<string> {
+    return this.freightService.activateFreight(id);
+  }
+
+  /********************************************************************************** */
+
+  @ApiOperation({
+    summary:
+      'Rota que tras cidades do frete baseado em suas região Norte, Sul, Sudeste',
+  })
+  @ApiParam({
+    name: 'useriD',
+    description: 'TokenId',
+    type: String,
+  })
+  @Get('filtersCityOrDestiny')
+  @UseGuards(JwtAuthGuard)
+  async getFiltersDestinyOrCity(@GetUserId() userId: string) {
+    const result = await this.freightService.classifyRegionByState(userId);
+    return result;
   }
 }

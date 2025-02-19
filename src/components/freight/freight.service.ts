@@ -9,12 +9,18 @@ import { ParamsFreight } from './interface/IFreight';
 import { PaginationService } from '@components/pagination/pagination.service';
 
 export class FreightService {
+  private readonly regionMapping = {
+    norte: ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+    nordeste: ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+    centroOeste: ['DF', 'GO', 'MS', 'MT'],
+    sudeste: ['ES', 'MG', 'RJ', 'SP'],
+    sul: ['PR', 'RS', 'SC'],
+  };
   constructor(
     @InjectRepository(Freight)
     private freightRepository: Repository<Freight>,
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
-
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -115,6 +121,19 @@ export class FreightService {
     }
   }
 
+  private ensureArray(value: any): any[] {
+    if (typeof value === 'string') {
+      try {
+       
+        return JSON.parse(value);
+      } catch (error) {
+        
+        return [value];
+      }
+    }
+    return Array.isArray(value) ? value : [value];
+  }
+
   async getFreightsByUserId(
     params: ParamsFreight,
     userId: string,
@@ -125,8 +144,6 @@ export class FreightService {
       const { take, page } = this.paginationService.getDefaultPaginationParams(params);
   
       const likeFilters = {
-        originCity: `unaccent(LOWER(freight.originCity)) ILIKE unaccent(LOWER(:originCity))`,
-        destinyCity: `unaccent(LOWER(freight.destinyCity)) ILIKE unaccent(LOWER(:destinyCity))`,
         typeOfLoad: `freight.typeOfLoad = :typeOfLoad`,
         specieOfLoad: `freight.specieOfLoad = :specieOfLoad`,
         vehicleTypes: `freight.vehicleTypes = :vehicleTypes`,
@@ -144,26 +161,50 @@ export class FreightService {
         createdAt: `freight.createdAt = :createdAt`,
       };
   
+   
       queryBuilder.where('freight.companyId = :companyId', { companyId });
   
+      
+      if (params.originCity) {
+        const originCities = this.ensureArray(params.originCity);
+        queryBuilder.andWhere('freight.originCity IN (:...originCity)', { originCity: originCities });
+      }
+  
+     
+      if (params.destinyCity) {
+        const destinyCities = this.ensureArray(params.destinyCity);
+        queryBuilder.andWhere('freight.destinyCity IN (:...destinyCity)', { destinyCity: destinyCities });
+      }
+  
+     
       Object.entries(likeFilters).forEach(([key, condition]) => {
         if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
-          queryBuilder.andWhere(condition, { [key]: `%${params[key]}%` });
+          if (Array.isArray(params[key])) {
+            queryBuilder.andWhere(`freight.${key} IN (:...${key})`, {
+              [key]: params[key],
+            });
+          } else {
+            queryBuilder.andWhere(
+              `unaccent(LOWER(freight.${key})) ILIKE unaccent(LOWER(:${key}))`,
+              { [key]: `%${params[key]}%` }
+            );
+          }
         }
       });
   
+      // Aplica os filtros exatos
       Object.entries(exactFilters).forEach(([key, condition]) => {
         if (params[key] !== undefined && params[key] !== null) {
           queryBuilder.andWhere(condition, { [key]: params[key] });
         }
       });
   
+      // Aplica os filtros de data
       Object.entries(dateFilters).forEach(([key, condition]) => {
         if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
           queryBuilder.andWhere(condition, { [key]: params[key] });
         }
       });
-  
   
       const [result, total] = await queryBuilder
         .orderBy('freight.createdAt', 'DESC')
@@ -175,14 +216,15 @@ export class FreightService {
         .createQueryBuilder('freight')
         .where('freight.companyId = :companyId', { companyId })
         .andWhere('freight.isActive = :isActive', { isActive: false })
-        .andWhere('freight.openSolicitations = :openSolicitations', { openSolicitations: false })
+        .andWhere('freight.openSolicitations = :openSolicitations', {
+          openSolicitations: false,
+        })
         .getCount();
   
- 
       return {
         data: result,
         count: total,
-        freightDesactive: inactiveFreightsCount,  
+        freightDesactive: inactiveFreightsCount,
       };
     } catch (error) {
       throw new HttpException(
@@ -191,39 +233,148 @@ export class FreightService {
       );
     }
   }
-  
   async softDeleteFreight(id: string): Promise<string> {
-      const queryRunner = this.freightRepository.manager.connection.createQueryRunner();
-      await queryRunner.startTransaction();
-  
-      try {
-        const freight = await queryRunner.manager.findOne(Freight, {
-          where: { id },
-        });
-  
-        if (!freight) {
-          throw new HttpException(
-            'Não foi localizado um frete para essa empresa',
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-        await queryRunner.manager.update(
-          Freight,
-          { id },
-          { isActive: false, openSolicitations: false },
-        );
-        await queryRunner.commitTransaction();
-  
-        return 'frete desativado com sucesso';
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
+    const queryRunner =
+      this.freightRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
+
+    try {
+      const freight = await queryRunner.manager.findOne(Freight, {
+        where: { id },
+      });
+
+      if (!freight) {
         throw new HttpException(
-          error?.message || 'Erro ao desativar frete da empresa',
-          HttpStatus.INTERNAL_SERVER_ERROR,
+          'Não foi localizado um frete para essa empresa',
+          HttpStatus.BAD_REQUEST,
         );
-      } finally {
-        await queryRunner.release();
+      }
+      await queryRunner.manager.update(
+        Freight,
+        { id },
+        { isActive: false, openSolicitations: false },
+      );
+      await queryRunner.commitTransaction();
+
+      return 'frete desativado com sucesso';
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(
+        error?.message || 'Erro ao desativar frete da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async activateFreight(id: string): Promise<string> {
+    const queryRunner =
+      this.freightRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
+
+    try {
+      const freight = await queryRunner.manager.findOne(Freight, {
+        where: { id },
+      });
+
+      if (!freight) {
+        throw new HttpException(
+          'Não foi localizado um frete para essa empresa',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      await queryRunner.manager.update(
+        Freight,
+        { id },
+        { isActive: true, openSolicitations: true },
+      );
+      await queryRunner.commitTransaction();
+
+      return 'frete desativado com sucesso';
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(
+        error?.message || 'Erro ao desativar frete da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /****************************************FILTERS REGIONS****************************************** */
+  async classifyRegionByState(userId: string): Promise<any> {
+    try {
+      const freights = await this.freightRepository.find({
+        where: { companyId: userId },
+      });
+  
+      const regions = {
+        origin: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+        destiny: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+      };
+  
+      freights.forEach((freight) => {
+        this.classifyCity(freight.originState, `${freight.originCity}`, regions.origin);
+        this.classifyCity(freight.destinyState, `${freight.destinyCity}`, regions.destiny);
+      });
+  
+      const formatRegions = (data: Record<string, Set<string>>) => {
+        return Object.entries(data)
+          .filter(([_, cities]) => cities.size > 0)
+          .reduce((acc, [region, cities]) => {
+            acc[region] = Array.from(cities);
+            return acc;
+          }, {});
+      };
+  
+      return {
+        origin: formatRegions(regions.origin),
+        destiny: formatRegions(regions.destiny),
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao classificar as regiões',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+  
+  private classifyCity(state: string, city: string, regions: any): void {
+    const region = this.getRegionByState(state);
+    if (region) {
+      regions[region].add(city);
+    }
+  }
+  
+  private getRegionByState(state: string): string | null {
+    const regionMapping = {
+      norte: ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+      nordeste: ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+      centroOeste: ['DF', 'GO', 'MS', 'MT'],
+      sudeste: ['ES', 'MG', 'RJ', 'SP'],
+      sul: ['PR', 'RS', 'SC'],
+    };
+  
+    for (const [region, states] of Object.entries(regionMapping)) {
+      if (states.includes(state)) {
+        return region;
       }
     }
-  
+    return null;
+  }
+  /****************************************FILTERS REGIONS****************************************** */
 }
