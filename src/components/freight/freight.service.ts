@@ -148,6 +148,7 @@ export class FreightService {
         specieOfLoad: `freight.specieOfLoad = :specieOfLoad`,
         vehicleTypes: `freight.vehicleTypes = :vehicleTypes`,
         bodyTypes: `freight.bodyTypes = :bodyTypes`,
+        product: `unaccent(LOWER(freight.product)) ILIKE unaccent(LOWER(:product))`,
       };
   
       const exactFilters = {
@@ -192,14 +193,14 @@ export class FreightService {
         }
       });
   
-      // Aplica os filtros exatos
+
       Object.entries(exactFilters).forEach(([key, condition]) => {
         if (params[key] !== undefined && params[key] !== null) {
           queryBuilder.andWhere(condition, { [key]: params[key] });
         }
       });
   
-      // Aplica os filtros de data
+   
       Object.entries(dateFilters).forEach(([key, condition]) => {
         if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
           queryBuilder.andWhere(condition, { [key]: params[key] });
@@ -208,18 +209,21 @@ export class FreightService {
   
       const [result, total] = await queryBuilder
         .orderBy('freight.createdAt', 'DESC')
+        .leftJoinAndSelect('freight.contactCompany', 'contactCompany') 
         .skip((page - 1) * take)
         .take(take)
         .getManyAndCount();
   
       const inactiveFreightsCount = await this.freightRepository
-        .createQueryBuilder('freight')
-        .where('freight.companyId = :companyId', { companyId })
-        .andWhere('freight.isActive = :isActive', { isActive: false })
-        .andWhere('freight.openSolicitations = :openSolicitations', {
-          openSolicitations: false,
-        })
-        .getCount();
+      .createQueryBuilder('freight')
+      .leftJoinAndSelect('freight.contactCompany', 'contactCompany') 
+      .where('freight.companyId = :companyId', { companyId })
+      .andWhere('freight.isActive = :isActive', { isActive: false })
+      .andWhere('freight.openSolicitations = :openSolicitations', {
+        openSolicitations: false,
+      })
+      .getCount();
+       
   
       return {
         data: result,
