@@ -6,16 +6,18 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
 import { FreightService } from './freight.service';
-import { CreateFreightDto } from './dto/freight.dto';
+import { CreateFreightDto, UpdateFreightDto } from './dto/freight.dto';
 import { ParamsFreight } from './interface/IFreight';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
+import { Freight } from '@entities/freight.entity';
 
 @ApiTags('freight')
 @Controller('freight')
@@ -155,5 +157,44 @@ export class FreightController {
   async getFiltersDestinyOrCity(@GetUserId() userId: string) {
     const result = await this.freightService.classifyRegionByState(userId);
     return result;
+  }
+
+  /********************************************************************************** */
+
+  @ApiOperation({
+    summary: 'Edição do frete da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete da empresa',
+    type: String,
+  })
+  @UseGuards(JwtAuthGuard)
+  @Put(':id/edit')
+  async editFreight(
+    @Param('id') id: string,
+    @Body() updateFreight: UpdateFreightDto,
+  ): Promise<UpdateFreightDto> {
+    return this.freightService.editFreight(updateFreight, id);
+  }
+  
+
+
+   /************************************* GET FREIGHT ID********************************************* */
+
+   @ApiOperation({
+    summary: 'Localizar  frete da por UID empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete da empresa',
+    type: String,
+  })
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async getFreightID(
+    @Param('id') id: string,
+  ): Promise<Freight> {
+    return this.freightService.getFreightById(id);
   }
 }

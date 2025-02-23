@@ -8,7 +8,7 @@ import {
   IsNumber,
   IsDateString,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import {
   FreightLocal,
   PaymentMethod,
@@ -222,3 +222,7 @@ export class CreateFreightDto {
   @IsNotEmpty()
   contactCompanyId?: string;
 }
+
+
+
+export class UpdateFreightDto extends PartialType(CreateFreightDto) {}
