@@ -22,6 +22,7 @@ import { BodyType, VehicleType } from 'src/enum/vehicle';
 import { ContactCompany } from './contact-company.entity';
 import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
+import { ReviewUserDrive } from './review-users-drive.entity';
 
 @Entity({ schema: 'public', name: 'freight' })
 export class Freight {
@@ -141,10 +142,13 @@ export class Freight {
   contactCompany: ContactCompany;
 
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.freight)
-  FreightRequest: FreightRequest[];
+  freightRequest: FreightRequest[];
+
+  @OneToMany(() => ReviewUserDrive, (reviewUserDrive) => reviewUserDrive.freight)
+  reviewUserDrive: ReviewUserDrive[];
 
   @OneToOne(() => FreightRequest, (freightRequest) => freightRequest.freight)
-  FreightRoutes: FreightRoutes;
+  freightRoutes: FreightRoutes;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -6,9 +6,10 @@ import { FreightRequest } from '@entities/freight-requests.entity';
 import { PaginationService } from '@components/pagination/pagination.service';
 import { FreightRoutes } from '@entities/freight-routes.entity';
 import { Freight } from '@entities/freight.entity';
+import { UsersDrive } from '@entities/users-drive.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FreightRequest, FreightRoutes, Freight])],
+  imports: [TypeOrmModule.forFeature([FreightRequest, FreightRoutes, Freight, UsersDrive])],
   controllers: [FreightRequestController],
   providers: [FreightRequestService, PaginationService],
 })

@@ -13,6 +13,8 @@ import { CompanyUsersContacts } from './company-users-contacts.entity';
 import { UsersLocation } from './users-location.entity';
 import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
+import { ReviewUserDrive } from './review-users-drive.entity';
+import { UserDriveAchievement } from './users-drive-achivement.entity';
 
 @Entity({ schema: 'public', name: 'users_drive' })
 export class UsersDrive {
@@ -92,6 +94,9 @@ export class UsersDrive {
   @Column({ nullable: true, type: 'float', default: 0.0 })
   similiary: number;
 
+  @Column({ type: 'boolean', default: false })
+  isOnRoute: boolean;
+
   @OneToMany(() => Vehicle, (vehicle) => vehicle.user)
   vehicles: Vehicle[];
 
@@ -102,8 +107,20 @@ export class UsersDrive {
   locations: UsersLocation[];
 
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.userDrive)
-  FreightRequest: FreightRequest[];
+  freightRequest: FreightRequest[];
 
-  @OneToOne(() => FreightRequest, (freightRequest) => freightRequest.freight)
-  FreightRoutes: FreightRoutes;
+  @OneToMany(
+    () => ReviewUserDrive,
+    (reviewUserDrive) => reviewUserDrive.userDrive,
+  )
+  reviewUserDrive: ReviewUserDrive[];
+
+  @OneToOne(() => FreightRoutes, (freightRoutes) => freightRoutes.userDrive)
+  freightRoutes: FreightRoutes;
+
+  @OneToMany(
+    () => UserDriveAchievement,
+    (userDriveAchivement) => userDriveAchivement.userDrive,
+  )
+  userDriveAchievement: UserDriveAchievement[];
 }

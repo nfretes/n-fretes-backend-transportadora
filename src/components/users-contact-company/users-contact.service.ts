@@ -88,36 +88,39 @@ export class UsersContactCompanyService {
         this.usersContactCompanyRepository.createQueryBuilder(
           'company-users-contacts',
         );
+  
       const { take, page } =
         this.paginationService.getDefaultPaginationParams(params);
-
+  
       if (params.id) {
         queryBuilder.andWhere('company-users-contacts.id = :id', {
           id: params.id,
         });
       }
-
+  
       if (params.companyId) {
         queryBuilder.andWhere('company-users-contacts.companyId = :companyId', {
           companyId: params.companyId,
         });
       }
-
+  
       if (params.isActive) {
         queryBuilder.andWhere('company-users-contacts.isActive = :isActive', {
           isActive: params.isActive,
         });
       }
+  
       if (params.name) {
         queryBuilder.andWhere(
           '(unaccent(LOWER(users_drive.name)) ILIKE unaccent(LOWER(:name)))',
           { name: `%${params.name}%` },
         );
       }
-
-      const [result, total] = await queryBuilder
+  
+      queryBuilder
         .leftJoin('company-users-contacts.contacts', 'company')
         .leftJoin('company-users-contacts.users', 'users_drive')
+        .leftJoin('users_drive.reviewUserDrive', 'reviews_user_drive')
         .leftJoin('users_drive.vehicles', 'vehicle')
         .leftJoin('users_drive.locations', 'location')
         .addSelect([
@@ -125,14 +128,17 @@ export class UsersContactCompanyService {
           'users_drive.photoFaceURL',
           'users_drive.phoneNumber',
           'users_drive.id',
+          'users_drive.isOnRoute',
           'vehicle.vehicleType',
           'vehicle.bodyType',
+          'reviews_user_drive.rating',
           'location.city',
         ])
         .skip((page - 1) * take)
-        .take(take)
-        .getManyAndCount();
-
+        .take(take);
+  
+      const [result, total] = await queryBuilder.getManyAndCount();
+  
       return {
         //@ts-ignore
         data: result,
@@ -145,6 +151,7 @@ export class UsersContactCompanyService {
       );
     }
   }
+  
 
   async softDeleteUsersContactCompany(id: string): Promise<string> {
     const queryRunner =

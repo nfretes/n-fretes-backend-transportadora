@@ -31,19 +31,19 @@ export class FreightRequest {
   @Column({ nullable: true })
   companyId: string | null;
 
-  @ManyToOne(() => Freight, (freight) => freight.FreightRequest, {
+  @ManyToOne(() => Freight, (freight) => freight.freightRequest, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'freightId' })
   freight: Freight;
 
-  @ManyToOne(() => UsersDrive, (userDrive) => userDrive.FreightRequest, {
+  @ManyToOne(() => UsersDrive, (userDrive) => userDrive.freightRequest, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'userDriveId' })
   userDrive: UsersDrive;
 
-  @ManyToOne(() => Company, (company) => company.FreightRequest, {
+  @ManyToOne(() => Company, (company) => company.freightRequest, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'companyId' })

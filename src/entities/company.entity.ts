@@ -15,6 +15,7 @@ import { SubscriptionCompany } from './subscription-company.entity';
 import { CompanyUsersContacts } from './company-users-contacts.entity';
 import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
+import { ReviewUserDrive } from './review-users-drive.entity';
 
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
@@ -120,8 +121,14 @@ export class Company {
   CompanyUsersContacts: CompanyUsersContacts[];
 
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.company)
-  FreightRequest: FreightRequest[];
+  freightRequest: FreightRequest[];
 
   @OneToOne(() => FreightRoutes, (freightRoutes) => freightRoutes.company)
-  FreightRoutes: FreightRoutes;
+  freightRoutes: FreightRoutes;
+
+  @OneToMany(
+    () => ReviewUserDrive,
+    (reviewUserDrive) => reviewUserDrive.company,
+  )
+  reviewUserDrive: ReviewUserDrive[];
 }

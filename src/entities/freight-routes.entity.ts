@@ -31,19 +31,19 @@ export class FreightRoutes {
   @Column({ nullable: true })
   companyId: string | null;
 
-  @ManyToOne(() => Freight, (freight) => freight.FreightRoutes, {
+  @ManyToOne(() => Freight, (freight) => freight.freightRoutes, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'freightId' })
   freight: Freight;
 
-  @ManyToOne(() => UsersDrive, (userDrive) => userDrive.FreightRoutes, {
+  @ManyToOne(() => UsersDrive, (userDrive) => userDrive.freightRoutes, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'userDriveId' })
   userDrive: UsersDrive;
 
-  @ManyToOne(() => Company, (company) => company.FreightRoutes, {
+  @ManyToOne(() => Company, (company) => company.freightRoutes, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'companyId' })
@@ -58,6 +58,12 @@ export class FreightRoutes {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @Column({ default: false })
+  avalationCompany: boolean;
+
+  @Column({ default: false })
+  avalationUserDrive: boolean;
 
   @CreateDateColumn()
   startedAt: Date;
