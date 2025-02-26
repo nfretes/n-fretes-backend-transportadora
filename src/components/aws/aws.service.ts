@@ -45,7 +45,6 @@ export class AwsService {
     return result.FaceMatches;
   }
 
-
   async uploadAvatar(
     bucketName: string,
     key: string,
@@ -54,14 +53,12 @@ export class AwsService {
     const base64Data = base64String.replace(/^data:image\/\w+;base64,/, '');
 
     const buffer = Buffer.from(base64Data, 'base64');
-  
 
     const params = {
       Bucket: bucketName,
       Key: key,
       Body: buffer,
       ContentType: 'image/jpeg',
-
     };
 
     const uploadResult = await this.s3.upload(params).promise();

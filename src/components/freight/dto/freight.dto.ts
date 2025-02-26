@@ -223,6 +223,4 @@ export class CreateFreightDto {
   contactCompanyId?: string;
 }
 
-
-
 export class UpdateFreightDto extends PartialType(CreateFreightDto) {}

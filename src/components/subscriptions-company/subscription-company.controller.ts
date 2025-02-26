@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
 import { SubscriptionCompanyService } from './subscription-company.service';
@@ -40,7 +48,7 @@ export class SubscriptionCompanyController {
   }
 
   /********************************************************************************** */
-    @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch('update/:companyId')
   @ApiOperation({ summary: 'Update da subscrição do usuário' })
   @ApiParam({

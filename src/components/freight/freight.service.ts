@@ -442,6 +442,3 @@ export class FreightService {
     }
   }
 }
-
-
-

@@ -121,7 +121,7 @@ export class UsersContactCompanyController {
     type: String,
   })
   @Get(':cpf/contact')
-  async searchByCpf(@Param('cpf') cpf: string,@GetUserId() userId: string,) {
+  async searchByCpf(@Param('cpf') cpf: string, @GetUserId() userId: string) {
     return this.usersContactCompanyService.searchUsersByCpf(cpf, userId);
   }
 }

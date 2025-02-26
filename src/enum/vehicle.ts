@@ -10,17 +10,12 @@ export enum VehicleType {
   CART_LS = 'Cart LS',
   ROAD_TRAIN = 'Road Train',
   VANDERLEIA = 'Vanderleia',
-  ALLLIGHT= 'allLight',
+  ALLLIGHT = 'allLight',
   THREE_FOUR = 'threeFour',
-  TOCO= 'toco',
-  ALLWEIGHT= 'allWeight',
-  TRAINWHELL= 'train wheel',
-  ALLAVERAGE= 'allAverage',
-
-
-
-
-
+  TOCO = 'toco',
+  ALLWEIGHT = 'allWeight',
+  TRAINWHELL = 'train wheel',
+  ALLAVERAGE = 'allAverage',
 }
 
 export enum BodyType {

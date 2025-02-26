@@ -61,7 +61,8 @@ export const companyUpdateDtoSwagger = {
       },
     },
     400: {
-      description: 'Erro ao atualizar empresa (exemplo: empresa não encontrada).',
+      description:
+        'Erro ao atualizar empresa (exemplo: empresa não encontrada).',
       content: {
         'application/json': {
           example: {

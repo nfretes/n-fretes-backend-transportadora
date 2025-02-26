@@ -1,5 +1,5 @@
-import { CompanyUsersContactsDto } from "@components/users-contact-company/dto/users-contact.dto";
-import { GetCompanyUsersContactsResponseDto } from "@components/users-contact-company/dto/response-contact-company.dto";
+import { CompanyUsersContactsDto } from '@components/users-contact-company/dto/users-contact.dto';
+import { GetCompanyUsersContactsResponseDto } from '@components/users-contact-company/dto/response-contact-company.dto';
 
 export const CreateContactUsersCompanySucess = {
   status: 200,
@@ -11,7 +11,6 @@ export const CreateContactUsersCompanySucess = {
     },
   },
 };
-
 
 export const GetUsersCompanySucess = {
   status: 200,

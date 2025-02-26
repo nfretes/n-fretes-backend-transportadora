@@ -132,7 +132,7 @@ export class ContactCompanyService {
       }
 
       const [result, total] = await queryBuilder
-      
+
         .leftJoin('contact-company.company', 'company')
         .addSelect('company.email')
         .addSelect('company.cnpj')
@@ -154,38 +154,41 @@ export class ContactCompanyService {
     }
   }
 
+  async softDeleteUsersContactCompany(id: string): Promise<string> {
+    const queryRunner =
+      this.contactCompanyRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
 
-   async softDeleteUsersContactCompany(id: string): Promise<string> {
-      const queryRunner = this.contactCompanyRepository.manager.connection.createQueryRunner();
-      await queryRunner.startTransaction();
-  
-      try {
-        const usersContactCompany = await queryRunner.manager.findOne(ContactCompany, {
+    try {
+      const usersContactCompany = await queryRunner.manager.findOne(
+        ContactCompany,
+        {
           where: { id },
-        });
-  
-        if (!usersContactCompany) {
-          throw new HttpException(
-            'Não foi localizado um contato para essa empresa',
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-        await queryRunner.manager.update(
-          ContactCompany,
-          { id },
-          { isActive: false },
-        );
-        await queryRunner.commitTransaction();
-  
-        return 'Contato desativado com sucesso';
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
+        },
+      );
+
+      if (!usersContactCompany) {
         throw new HttpException(
-          error?.message || 'Erro ao desativar contato da empresa',
-          HttpStatus.INTERNAL_SERVER_ERROR,
+          'Não foi localizado um contato para essa empresa',
+          HttpStatus.BAD_REQUEST,
         );
-      } finally {
-        await queryRunner.release();
       }
+      await queryRunner.manager.update(
+        ContactCompany,
+        { id },
+        { isActive: false },
+      );
+      await queryRunner.commitTransaction();
+
+      return 'Contato desativado com sucesso';
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(
+        error?.message || 'Erro ao desativar contato da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
     }
+  }
 }

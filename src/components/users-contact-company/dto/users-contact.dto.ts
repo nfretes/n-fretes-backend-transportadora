@@ -1,10 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CompanyUsersContactsDto {
   @ApiProperty({
@@ -47,4 +42,6 @@ export class CompanyUsersContactsDto {
   @IsOptional()
   updatedAt?: Date;
 }
-export class updateCompanyUsersContactsDto extends PartialType(CompanyUsersContactsDto) {}
+export class updateCompanyUsersContactsDto extends PartialType(
+  CompanyUsersContactsDto,
+) {}

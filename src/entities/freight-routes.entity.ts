@@ -11,7 +11,6 @@ import { Freight } from './freight.entity';
 import { UsersDrive } from './users-drive.entity';
 import { Company } from './company.entity';
 
-
 export enum RouteStatus {
   IN_PROGRESS = 'PROGUESS',
   COMPLETED = 'COMPLETED',
@@ -43,7 +42,6 @@ export class FreightRoutes {
   })
   @JoinColumn({ name: 'userDriveId' })
   userDrive: UsersDrive;
-
 
   @ManyToOne(() => Company, (company) => company.FreightRoutes, {
     onDelete: 'CASCADE',

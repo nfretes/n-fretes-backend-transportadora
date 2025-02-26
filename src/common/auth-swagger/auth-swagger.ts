@@ -29,7 +29,6 @@ export const recoveryPasswordAndCode = {
   },
 };
 
-
 export const ResponseAuthMe = {
   status: 200,
   description: 'Retorna os dados do usuário autenticado (exceto a senha)',
@@ -62,6 +61,5 @@ export const NotFoundUser = {
       statusCode: 404,
       message: 'Usuário não encontrado',
     },
-  }
-
-}
+  },
+};

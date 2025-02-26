@@ -1,7 +1,10 @@
 import { SubscriptionCompany } from '@entities/subscription-company.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UpdateSubscriptionCompanyDto,  CreateSubscriptionDto} from './dto/subscription-company.dto';
+import {
+  UpdateSubscriptionCompanyDto,
+  CreateSubscriptionDto,
+} from './dto/subscription-company.dto';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import {
   SubscriptionCompanyResponseDto,

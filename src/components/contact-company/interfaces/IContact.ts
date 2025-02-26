@@ -3,5 +3,5 @@ export interface ParamsContactCompany {
   companyId?: string;
   take?: number;
   page?: number;
-  isActive?: boolean
+  isActive?: boolean;
 }

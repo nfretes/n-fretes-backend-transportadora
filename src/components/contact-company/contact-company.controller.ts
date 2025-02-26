@@ -33,7 +33,6 @@ import { GetUserId } from 'src/decorators/get-user-decorator';
 export class ContactCompanyController {
   constructor(private readonly contactCompanyService: ContactCompanyService) {}
 
-
   @UseGuards(JwtAuthGuard)
   @Post('/create')
   @ApiOperation({
@@ -50,7 +49,7 @@ export class ContactCompanyController {
   ): Promise<ContactCompanyResponseDto> {
     return this.contactCompanyService.createContactCompany(
       createContactCompany,
-      userId
+      userId,
     );
   }
 
@@ -99,8 +98,6 @@ export class ContactCompanyController {
 
   /********************************************************************************** */
 
-
-
   @UseGuards(JwtAuthGuard)
   @Get('company/contact')
   @ApiOperation({ summary: 'Traz o contato espefico por Id da empresa' })
@@ -113,17 +110,16 @@ export class ContactCompanyController {
   }
 
   /********************************************************************************** */
-    @ApiOperation({
-      summary: 'Remove da lista de contatos da empresa',
-    })
-  
-    @ApiParam({
-      name: 'id', 
-      description: 'ID do contato da empresa', 
-      type: String, 
-    })
-    @Delete(':id/soft-delete')
-    async softDelete(@Param('id') id: string): Promise<string> {
-      return this.contactCompanyService.softDeleteUsersContactCompany(id);
-    }
+  @ApiOperation({
+    summary: 'Remove da lista de contatos da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do contato da empresa',
+    type: String,
+  })
+  @Delete(':id/soft-delete')
+  async softDelete(@Param('id') id: string): Promise<string> {
+    return this.contactCompanyService.softDeleteUsersContactCompany(id);
+  }
 }

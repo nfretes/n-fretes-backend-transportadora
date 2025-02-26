@@ -177,12 +177,10 @@ export class FreightController {
   ): Promise<UpdateFreightDto> {
     return this.freightService.editFreight(updateFreight, id);
   }
-  
 
+  /************************************* GET FREIGHT ID********************************************* */
 
-   /************************************* GET FREIGHT ID********************************************* */
-
-   @ApiOperation({
+  @ApiOperation({
     summary: 'Localizar  frete da por UID empresa',
   })
   @ApiParam({
@@ -192,9 +190,7 @@ export class FreightController {
   })
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  async getFreightID(
-    @Param('id') id: string,
-  ): Promise<Freight> {
+  async getFreightID(@Param('id') id: string): Promise<Freight> {
     return this.freightService.getFreightById(id);
   }
 }

@@ -1,15 +1,5 @@
-import {
-  Body,
-  Controller,
-  UseGuards,
-  Put,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBody,
-} from '@nestjs/swagger';
+import { Body, Controller, UseGuards, Put } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 
@@ -27,7 +17,10 @@ export class CompanyController {
 
   @UseGuards(JwtAuthGuard)
   @Put('update')
-  @ApiOperation({ summary: companyUpdateDtoSwagger.summary, description: companyUpdateDtoSwagger.description })
+  @ApiOperation({
+    summary: companyUpdateDtoSwagger.summary,
+    description: companyUpdateDtoSwagger.description,
+  })
   @ApiBody(companyUpdateDtoSwagger.requestBody)
   @ApiResponse(companyUpdateDtoSwagger.responses[200])
   @ApiResponse(companyUpdateDtoSwagger.responses[400])

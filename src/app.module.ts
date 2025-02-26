@@ -14,7 +14,6 @@ import { FreightModule } from '@components/freight/freight.module';
 import { CompanyModule } from '@components/company/company.module';
 import { FreightRequestModule } from './components/freight-request/freight-request.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -40,7 +39,6 @@ import { FreightRequestModule } from './components/freight-request/freight-reque
     FreightModule,
     CompanyModule,
     FreightRequestModule,
-   
   ],
   controllers: [AppController],
   providers: [AppService],

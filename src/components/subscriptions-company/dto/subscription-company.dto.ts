@@ -44,4 +44,6 @@ export class CreateSubscriptionDto {
   interval?: number;
 }
 
-export class UpdateSubscriptionCompanyDto extends PartialType(CreateSubscriptionDto) {}
+export class UpdateSubscriptionCompanyDto extends PartialType(
+  CreateSubscriptionDto,
+) {}

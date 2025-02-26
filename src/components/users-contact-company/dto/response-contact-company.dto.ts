@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty } from '@nestjs/swagger';
 
 export class UsersContactUpdateCompanyResponseDto {
   @ApiProperty({
@@ -7,8 +7,6 @@ export class UsersContactUpdateCompanyResponseDto {
   })
   message: string;
 }
-
-
 
 export class GetCompanyUsersContactsResponseDto {
   @ApiProperty({
@@ -54,7 +52,7 @@ export class GetCompanyUsersContactsResponseDto {
     nullable: true,
   })
   users?: {
-    name: string; 
+    name: string;
   };
 
   @ApiProperty({
