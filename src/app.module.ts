@@ -12,6 +12,8 @@ import { ContactCompanyModule } from '@components/contact-company/contact-compan
 import { UsersContactCompanyModule } from '@components/users-contact-company/users-contact.module';
 import { FreightModule } from '@components/freight/freight.module';
 import { CompanyModule } from '@components/company/company.module';
+import { FreightRequestModule } from './components/freight-request/freight-request.module';
+
 
 @Module({
   imports: [
@@ -36,7 +38,9 @@ import { CompanyModule } from '@components/company/company.module';
     ContactCompanyModule,
     UsersContactCompanyModule,
     FreightModule,
-    CompanyModule
+    CompanyModule,
+    FreightRequestModule,
+   
   ],
   controllers: [AppController],
   providers: [AppService],

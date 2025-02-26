@@ -13,6 +13,8 @@ import { ContactCompany } from './contact-company.entity';
 import { Freight } from './freight.entity';
 import { SubscriptionCompany } from './subscription-company.entity';
 import { CompanyUsersContacts } from './company-users-contacts.entity';
+import { FreightRequest } from './freight-requests.entity';
+import { FreightRoutes } from './freight-routes.entity';
 
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
@@ -105,7 +107,6 @@ export class Company {
   @Column({ nullable: true })
   photoUrl: string;
 
-
   @OneToMany(() => ContactCompany, (contact) => contact.company)
   contacts: ContactCompany[];
 
@@ -117,4 +118,10 @@ export class Company {
 
   @OneToMany(() => CompanyUsersContacts, (company) => company.contacts)
   CompanyUsersContacts: CompanyUsersContacts[];
+
+  @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.company)
+  FreightRequest: FreightRequest[];
+
+  @OneToOne(() => FreightRoutes, (freightRoutes) => freightRoutes.company)
+  FreightRoutes: FreightRoutes;
 }

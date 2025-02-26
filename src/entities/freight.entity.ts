@@ -6,6 +6,8 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Company } from './company.entity';
 import {
@@ -18,6 +20,8 @@ import {
 } from 'src/enum/freight';
 import { BodyType, VehicleType } from 'src/enum/vehicle';
 import { ContactCompany } from './contact-company.entity';
+import { FreightRequest } from './freight-requests.entity';
+import { FreightRoutes } from './freight-routes.entity';
 
 @Entity({ schema: 'public', name: 'freight' })
 export class Freight {
@@ -106,7 +110,6 @@ export class Freight {
   @Column({ type: 'enum', enum: PaymentMethod })
   calValue: PaymentMethod;
 
-
   @Column({ type: 'enum', enum: Toll })
   Toll: Toll;
 
@@ -136,6 +139,12 @@ export class Freight {
   @ManyToOne(() => ContactCompany, (contactCompany) => contactCompany.freights)
   @JoinColumn({ name: 'contactCompanyId' })
   contactCompany: ContactCompany;
+
+  @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.freight)
+  FreightRequest: FreightRequest[];
+
+  @OneToOne(() => FreightRequest, (freightRequest) => freightRequest.freight)
+  FreightRoutes: FreightRoutes;
 
   @CreateDateColumn()
   createdAt: Date;

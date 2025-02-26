@@ -6,10 +6,13 @@ import {
   PrimaryColumn,
   Index,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Vehicle } from './vehicles.entity';
 import { CompanyUsersContacts } from './company-users-contacts.entity';
 import { UsersLocation } from './users-location.entity';
+import { FreightRequest } from './freight-requests.entity';
+import { FreightRoutes } from './freight-routes.entity';
 
 @Entity({ schema: 'public', name: 'users_drive' })
 export class UsersDrive {
@@ -97,4 +100,10 @@ export class UsersDrive {
 
   @OneToMany(() => UsersLocation, (location) => location.user)
   locations: UsersLocation[];
+
+  @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.userDrive)
+  FreightRequest: FreightRequest[];
+
+  @OneToOne(() => FreightRequest, (freightRequest) => freightRequest.freight)
+  FreightRoutes: FreightRoutes;
 }
