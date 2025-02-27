@@ -4,10 +4,35 @@ import { Freight } from './freight.entity';
 import { Company } from './company.entity';
 
 export enum ReviewTags {
-  OTIMO_MOTORISTA = 1,
-  VEICULO_BOM_ESTADO = 2,
-  EDUCADO = 3,
-  ENTREGOU_NO_PRAZO = 4,
+  // 🚗 Veículo+1
+  VEICULO_BOM_ESTADO = 1, 
+
+  // ✅ Pontualidade+10
+  ENTREGA_NO_PRAZO = 10,
+  ATRASADO = 11,
+  ATRASO_NA_ENTREGA = 12,
+  CUMPRE_HORARIO = 13,
+  NAO_CUMPRE_HORARIO = 14,
+  PONTUAL = 15,
+
+  // 🗣️ Comunicação+20
+  BOA_COMUNICACAO = 20,
+  CONVERSA_DIFICIL = 21,
+  RESPONDE_RAPIDO = 22,
+  DEMORA_RESPONDER = 23,
+  FACIL_CONVERSA = 24,
+
+  // 🏅 Confiabilidade+30
+  MUITO_CONFIAVEL = 30,
+  POUCO_CONFIAVEL = 31,
+  ABAIXO_DA_MEDIA = 32,
+
+  // 👤 Comportamento+40
+  EDUCADO = 40,
+  DESRESPEITOSO = 41,
+
+  // 🏆 Motorista+50
+  OTIMO_MOTORISTA = 50,
 }
 
 @Entity('reviews_user_drive')

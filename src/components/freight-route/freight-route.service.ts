@@ -19,6 +19,7 @@ export class FreightRouteService {
       const take = params.take ?? 10;
       const page = params.page ?? 1;
 
+      console.log(params, 'Retorno')
       const queryBuilder = this.freightRoutesRepository
       .createQueryBuilder('freight_routes')
       .leftJoinAndSelect('freight_routes.freight', 'freight')
