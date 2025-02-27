@@ -18,6 +18,7 @@ import { ParamsFreight } from './interface/IFreight';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Freight } from '@entities/freight.entity';
+import { GetNearbyDriversDto } from './dto/GetNearbyDrivers.dto';
 
 @ApiTags('freight')
 @Controller('freight')
@@ -178,6 +179,19 @@ export class FreightController {
     return this.freightService.editFreight(updateFreight, id);
   }
 
+  
+/**************************************** Get all users drivers ****************************************** */
+@ApiOperation({ summary: 'Busca motoristas próximos à carga' })
+@Get('getAll')
+async getNearbyDrivers(@Query() query: GetNearbyDriversDto) {
+  const { latitude, longitude, radius } = query;
+  return this.freightService.getNearbyDrivers(
+    parseFloat(latitude),
+    parseFloat(longitude),
+    parseFloat(radius),
+  );
+}
+
   /************************************* GET FREIGHT ID********************************************* */
 
   @ApiOperation({
@@ -193,4 +207,10 @@ export class FreightController {
   async getFreightID(@Param('id') id: string): Promise<Freight> {
     return this.freightService.getFreightById(id);
   }
+
+
+
 }
+
+
+

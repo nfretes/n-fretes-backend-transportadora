@@ -97,6 +97,12 @@ export class UsersDrive {
   @Column({ type: 'boolean', default: false })
   isOnRoute: boolean;
 
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number;
+
   @OneToMany(() => Vehicle, (vehicle) => vehicle.user)
   vehicles: Vehicle[];
 

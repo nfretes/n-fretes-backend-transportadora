@@ -5,8 +5,11 @@ import { CreateFreightDto, UpdateFreightDto } from './dto/freight.dto';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ResponseFreightDto } from './dto/response-freight.dto';
 import { Company } from '@entities/company.entity';
+import { UsersDrive } from '@entities/users-drive.entity';
 import { ParamsFreight } from './interface/IFreight';
 import { PaginationService } from '@components/pagination/pagination.service';
+import { Between } from 'typeorm';
+
 
 export class FreightService {
   private readonly regionMapping = {
@@ -22,6 +25,8 @@ export class FreightService {
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
     private readonly paginationService: PaginationService,
+    @InjectRepository(UsersDrive )
+    private readonly userDrivesRepository: Repository<UsersDrive >,
   ) {}
 
   /****************************************CREATE FREIGHT****************************************** */
@@ -441,4 +446,26 @@ export class FreightService {
       );
     }
   }
+  /**************************************** Get all users drivers ****************************************** */
+
+
+  async getNearbyDrivers(latitude: number, longitude: number, radius: number) {
+    try {
+      const drivers = await this.userDrivesRepository.find({
+        where: {
+          isOnRoute: false,
+          latitude: Between(latitude - radius, latitude + radius),
+          longitude: Between(longitude - radius, longitude + radius),
+        },
+      });
+      return drivers;
+    } catch (error) {
+      throw new HttpException(
+        `Erro ao buscar motoristas: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+  
 }
+
