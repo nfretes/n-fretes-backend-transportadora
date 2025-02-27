@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { FreightRequestStatus } from '@entities/freight-requests.entity';
@@ -12,7 +20,7 @@ export class FreightRouteController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  findAll(@GetUserId() userId: string, @Query()params: ParamsFreightRoute) {
+  findAll(@GetUserId() userId: string, @Query() params: ParamsFreightRoute) {
     return this.freightRouteService.findAll(userId, params);
   }
 
@@ -23,5 +31,10 @@ export class FreightRouteController {
     @Body('status') status: RouteStatus,
   ) {
     return this.freightRouteService.updateStatus(routeId, status);
+  }
+
+  @Get(':userId/statics')
+  async getStatics(@Param('userId') userId: string) {
+    return this.freightRouteService.getStaticsUserRoute(userId);
   }
 }

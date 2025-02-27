@@ -37,6 +37,12 @@ export class Vehicle {
   @Column({ nullable: true })
   chassi: string;
 
+  @Column({ default: false })
+  tracker: boolean;
+
+  @Column({ default: false })
+  locator: boolean;
+
   @ManyToOne(() => UsersDrive, (user) => user.vehicles, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: UsersDrive;

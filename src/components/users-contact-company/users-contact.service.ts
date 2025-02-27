@@ -123,16 +123,30 @@ export class UsersContactCompanyService {
         .leftJoin('users_drive.reviewUserDrive', 'reviews_user_drive')
         .leftJoin('users_drive.vehicles', 'vehicle')
         .leftJoin('users_drive.locations', 'location')
+        .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts')
         .addSelect([
           'users_drive.name',
+          'users_drive.cpf',
+          'users_drive.cnh',
+          'users_drive.antt',
+          'users_drive.similiary',
           'users_drive.photoFaceURL',
           'users_drive.phoneNumber',
           'users_drive.id',
+          'users_drive.zipcode',
           'users_drive.isOnRoute',
           'vehicle.vehicleType',
           'vehicle.bodyType',
+          'vehicle.plateState',
+          'vehicle.isPlateValid',
+          'vehicle.isRenavamValid',
+          'vehicle.tracker',
+          'vehicle.locator',
           'reviews_user_drive.rating',
           'location.city',
+          'location.longitude',
+          'location.latitude',
+          'CompanyUsersContacts.isActive'
         ])
         .skip((page - 1) * take)
         .take(take);

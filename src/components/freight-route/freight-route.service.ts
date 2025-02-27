@@ -19,47 +19,50 @@ export class FreightRouteService {
       const take = params.take ?? 10;
       const page = params.page ?? 1;
 
-      console.log(params, 'Retorno')
+      console.log(params, 'Retorno');
       const queryBuilder = this.freightRoutesRepository
-      .createQueryBuilder('freight_routes')
-      .leftJoinAndSelect('freight_routes.freight', 'freight')
-      .leftJoin('freight.contactCompany', 'contact_company')
-      .leftJoin('freight_routes.userDrive', 'users_drive')
-      .leftJoin('users_drive.vehicles', 'vehicle')
-      .leftJoin('users_drive.locations', 'location')
-      .leftJoin('users_drive.reviewUserDrive', 'reviewUserDrive')
-      .loadRelationCountAndMap('freight_routes.reviewCount', 'users_drive.reviewUserDrive')
-      .addSelect([
-        'contact_company.name',
-        'contact_company.phoneNumber',
-        'users_drive.name',
-        'users_drive.cnh',
-        'users_drive.antt',
-        'users_drive.pushToken',
-        'users_drive.city',
-        'users_drive.photoFaceURL',
-        'users_drive.phoneNumber',
-        'users_drive.id',
-        'users_drive.street',
-        'users_drive.number',
-        'users_drive.state',
-        'users_drive.zipcode',
-        'vehicle.vehicleType',
-        'vehicle.bodyType',
-        'location.city',
-        'location.latitude',
-        'location.longitude',
-        'reviewUserDrive.rating',
-      ])
-      .where('freight_routes.companyId = :companyId', { companyId: userId });
-    
+        .createQueryBuilder('freight_routes')
+        .leftJoinAndSelect('freight_routes.freight', 'freight')
+        .leftJoin('freight.contactCompany', 'contact_company')
+        .leftJoin('freight_routes.userDrive', 'users_drive')
+        .leftJoin('users_drive.vehicles', 'vehicle')
+        .leftJoin('users_drive.locations', 'location')
+        .leftJoin('users_drive.reviewUserDrive', 'reviewUserDrive')
+        .loadRelationCountAndMap(
+          'freight_routes.reviewCount',
+          'users_drive.reviewUserDrive',
+        )
+        .addSelect([
+          'contact_company.name',
+          'contact_company.phoneNumber',
+          'users_drive.name',
+          'users_drive.cnh',
+          'users_drive.antt',
+          'users_drive.pushToken',
+          'users_drive.city',
+          'users_drive.photoFaceURL',
+          'users_drive.phoneNumber',
+          'users_drive.id',
+          'users_drive.street',
+          'users_drive.number',
+          'users_drive.state',
+          'users_drive.zipcode',
+          'vehicle.vehicleType',
+          'vehicle.bodyType',
+          'location.city',
+          'location.latitude',
+          'location.longitude',
+          'reviewUserDrive.rating',
+        ])
+        .where('freight_routes.companyId = :companyId', { companyId: userId });
+
       const filters: Record<string, any> = {
         'freight_routes.id': params.id,
         'freight_routes.userDriveId': params.userDriveId,
         'freight_routes.freightId': params.freightId,
         'freight_routes.status': params.status,
         'freight_routes.isActive': params.isActive,
-        'freight_routes.avalationUserDrive': params.avalationUserDrive
+        'freight_routes.avalationUserDrive': params.avalationUserDrive,
       };
 
       Object.entries(filters).forEach(([key, value]) => {
@@ -111,7 +114,10 @@ export class FreightRouteService {
       userDrive.isOnRoute = false;
       await this.userDriveRepository.save(userDrive);
 
-      return { message: `Frete ${status.toLowerCase()} com sucesso!`, result: true };
+      return {
+        message: `Frete ${status.toLowerCase()} com sucesso!`,
+        result: true,
+      };
     } catch (error) {
       console.error('Erro ao atualizar status do frete:', error);
       throw new HttpException(
@@ -120,4 +126,54 @@ export class FreightRouteService {
       );
     }
   }
+
+  async getStaticsUserRoute(userId: string) {
+    try {
+      const freightRoutes = await this.freightRoutesRepository.find({
+        where: { userDriveId: userId },
+        relations: ['freight', 'freight.company'],
+      });
+  
+      const values = freightRoutes
+        .map((route) => Number(route.freight?.Valuefreight) || 0)
+        .filter((value) => value > 0);
+  
+      const distinctCompanies = new Set(
+        freightRoutes.map((route) => route.freight?.company?.id).filter(Boolean),
+      ).size;
+  
+      const count = values.length;
+      const mediaFreights = count
+        ? (values.reduce((sum, v) => sum + v, 0) / count).toFixed(2)
+        : '0.00';
+      const maiorFreight = count ? Math.max(...values).toFixed(2) : '0.00';
+  
+    
+      const destinationCount: Record<string, number> = {};
+      freightRoutes.forEach((route) => {
+        const destination = route.freight?.destinyCity;
+        if (destination) {
+          destinationCount[destination] = (destinationCount[destination] || 0) + 1;
+        }
+      });
+  
+   
+      const principalRoute = Object.entries(destinationCount).reduce(
+        (max, entry) => (entry[1] > max[1] ? entry : max),
+        ['', 0],
+      )[0];
+  
+      return {
+        count,
+        distinctCompanies,
+        mediaFreights,
+        maiorFreight,
+        principalRoute, 
+      };
+    } catch (error) {
+      console.error('Erro no getStaticsUserRoute:', error);
+      throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+  
 }
