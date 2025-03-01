@@ -142,6 +142,7 @@ export class UsersContactCompanyService {
           'vehicle.isRenavamValid',
           'vehicle.tracker',
           'vehicle.locator',
+          'vehicle.plateNumber',
           'reviews_user_drive.rating',
           'location.city',
           'location.longitude',
