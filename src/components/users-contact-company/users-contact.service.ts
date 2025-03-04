@@ -120,7 +120,7 @@ export class UsersContactCompanyService {
       queryBuilder
         .leftJoin('company-users-contacts.contacts', 'company')
         .leftJoin('company-users-contacts.users', 'users_drive')
-        .leftJoin('users_drive.reviewUserDrive', 'reviews_user_drive')
+        .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
         .leftJoin('users_drive.vehicles', 'vehicle')
         .leftJoin('users_drive.locations', 'location')
         .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts')
@@ -143,7 +143,6 @@ export class UsersContactCompanyService {
           'vehicle.tracker',
           'vehicle.locator',
           'vehicle.plateNumber',
-          'reviews_user_drive.rating',
           'location.city',
           'location.longitude',
           'location.latitude',

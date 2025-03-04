@@ -19,7 +19,6 @@ export class FreightRouteService {
       const take = params.take ?? 10;
       const page = params.page ?? 1;
 
-      console.log(params, 'Retorno');
       const queryBuilder = this.freightRoutesRepository
         .createQueryBuilder('freight_routes')
         .leftJoinAndSelect('freight_routes.freight', 'freight')
@@ -27,7 +26,8 @@ export class FreightRouteService {
         .leftJoin('freight_routes.userDrive', 'users_drive')
         .leftJoin('users_drive.vehicles', 'vehicle')
         .leftJoin('users_drive.locations', 'location')
-        .leftJoin('users_drive.reviewUserDrive', 'reviewUserDrive')
+        .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
+        .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts')
         .loadRelationCountAndMap(
           'freight_routes.reviewCount',
           'users_drive.reviewUserDrive',
@@ -40,8 +40,11 @@ export class FreightRouteService {
           'users_drive.antt',
           'users_drive.pushToken',
           'users_drive.city',
+          'users_drive.cpf',
+          'users_drive.similiary',
           'users_drive.photoFaceURL',
           'users_drive.phoneNumber',
+          'users_drive.isOnRoute',
           'users_drive.id',
           'users_drive.street',
           'users_drive.number',
@@ -49,10 +52,16 @@ export class FreightRouteService {
           'users_drive.zipcode',
           'vehicle.vehicleType',
           'vehicle.bodyType',
+          'vehicle.plateState',
+          'vehicle.isPlateValid',
+          'vehicle.isRenavamValid',
+          'vehicle.tracker',
+          'vehicle.locator',
+          'vehicle.plateNumber',
           'location.city',
           'location.latitude',
           'location.longitude',
-          'reviewUserDrive.rating',
+          'CompanyUsersContacts.isActive'
         ])
         .where('freight_routes.companyId = :companyId', { companyId: userId });
 
