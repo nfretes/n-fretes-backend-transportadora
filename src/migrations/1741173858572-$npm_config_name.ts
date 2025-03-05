@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class  $npmConfigName1740676951386 implements MigrationInterface {
-    name = ' $npmConfigName1740676951386'
+export class  $npmConfigName1741173858572 implements MigrationInterface {
+    name = ' $npmConfigName1741173858572'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "vehicles" ADD "tracker" boolean NOT NULL DEFAULT false`);

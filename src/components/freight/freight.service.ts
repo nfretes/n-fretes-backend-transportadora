@@ -9,13 +9,6 @@ import { ParamsFreight } from './interface/IFreight';
 import { PaginationService } from '@components/pagination/pagination.service';
 
 export class FreightService {
-  private readonly regionMapping = {
-    norte: ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
-    nordeste: ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
-    centroOeste: ['DF', 'GO', 'MS', 'MT'],
-    sudeste: ['ES', 'MG', 'RJ', 'SP'],
-    sul: ['PR', 'RS', 'SC'],
-  };
   constructor(
     @InjectRepository(Freight)
     private freightRepository: Repository<Freight>,
@@ -96,6 +89,169 @@ export class FreightService {
 
   /****************************************ALL FREIGHT USERID****************************************** */
 
+  async getFreightsAll(params: ParamsFreight, userId: string): Promise<any> {
+    try {
+      const queryBuilder = this.freightRepository.createQueryBuilder('freight');
+      const companyId = userId;
+      const { take, page } =
+        this.paginationService.getDefaultPaginationParams(params);
+
+      const hasActiveSubscription = await this.companyRepository
+        .createQueryBuilder('company')
+        .leftJoin('company.subscription', 'subscription')
+        .where('company.id = :companyId', { companyId })
+        .andWhere('subscription.status = 1')
+        .getOne();
+
+      const maxFreights = hasActiveSubscription ? take : 3;
+
+     
+
+      if (params.originCity) {
+        const originCities = this.ensureArray(params.originCity);
+        queryBuilder.andWhere('freight.originCity IN (:...originCity)', {
+          originCity: originCities,
+        });
+      }
+
+      if (params.destinyCity) {
+        const destinyCities = this.ensureArray(params.destinyCity);
+        queryBuilder.andWhere('freight.destinyCity IN (:...destinyCity)', {
+          destinyCity: destinyCities,
+        });
+      }
+
+      const likeFilters = {
+        typeOfLoad: `freight.typeOfLoad = :typeOfLoad`,
+        specieOfLoad: `freight.specieOfLoad = :specieOfLoad`,
+        vehicleTypes: `freight.vehicleTypes = :vehicleTypes`,
+        bodyTypes: `freight.bodyTypes = :bodyTypes`,
+        product: `unaccent(LOWER(freight.product)) ILIKE unaccent(LOWER(:product))`,
+      };
+
+      const exactFilters = {
+        isActive: `freight.isActive = :isActive`,
+        openSolicitations: `freight.openSolicitations = :openSolicitations`,
+      };
+
+      const dateFilters = {
+        dateOrigin: `freight.dateOrigin = :dateOrigin`,
+        dateReceiver: `freight.dateReceiver = :dateReceiver`,
+        createdAt: `freight.createdAt = :createdAt`,
+      };
+
+      Object.entries(likeFilters).forEach(([key, condition]) => {
+        if (
+          params[key] !== undefined &&
+          params[key] !== null &&
+          params[key] !== ''
+        ) {
+          if (Array.isArray(params[key])) {
+            queryBuilder.andWhere(`freight.${key} IN (:...${key})`, {
+              [key]: params[key],
+            });
+          } else {
+            queryBuilder.andWhere(
+              `unaccent(LOWER(freight.${key})) ILIKE unaccent(LOWER(:${key}))`,
+              { [key]: `%${params[key]}%` },
+            );
+          }
+        }
+      });
+
+      Object.entries(exactFilters).forEach(([key, condition]) => {
+        if (params[key] !== undefined && params[key] !== null) {
+          queryBuilder.andWhere(condition, { [key]: params[key] });
+        }
+      });
+
+      Object.entries(dateFilters).forEach(([key, condition]) => {
+        if (
+          params[key] !== undefined &&
+          params[key] !== null &&
+          params[key] !== ''
+        ) {
+          queryBuilder.andWhere(condition, { [key]: params[key] });
+        }
+      });
+
+      queryBuilder
+        .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
+
+        .leftJoin('freight.company', 'company')
+        .addSelect(['company.id', 'company.name', 'company.photoUrl'])
+        .leftJoin('company.subscription', 'subscription-company')
+        .addSelect('subscription-company.status')
+        .addSelect(
+          'CASE WHEN subscription-company.status = 1 THEN 0 ELSE 1 END',
+          'status_priority',
+        )
+        .addOrderBy('status_priority', 'ASC')
+        .addOrderBy('freight.createdAt', 'DESC')
+
+    
+    
+
+      const [result, total] = await queryBuilder
+        .skip((page - 1) * maxFreights)
+        .take(maxFreights)
+        .getManyAndCount();
+
+        
+        const regions = {
+          origin: {
+            norte: new Set<string>(),
+            nordeste: new Set<string>(),
+            centroOeste: new Set<string>(),
+            sudeste: new Set<string>(),
+            sul: new Set<string>(),
+          },
+          destiny: {
+            norte: new Set<string>(),
+            nordeste: new Set<string>(),
+            centroOeste: new Set<string>(),
+            sudeste: new Set<string>(),
+            sul: new Set<string>(),
+          },
+        };
+
+        result.forEach((freight) => {
+          this.classifyCity(
+            freight.originState,
+            `${freight.originCity}`,
+            regions.origin,
+          );
+          this.classifyCity(
+            freight.destinyState,
+            `${freight.destinyCity}`,
+            regions.destiny,
+          );
+        });
+
+        const formatRegions = (data: Record<string, Set<string>>) => {
+          return Object.entries(data)
+            .filter(([_, cities]) => cities.size > 0)
+            .reduce((acc, [region, cities]) => {
+              acc[region] = Array.from(cities);
+              return acc;
+            }, {});
+        };
+
+
+      return {
+        data: result,
+        count: total,
+        origin: formatRegions(regions.origin),
+        destiny: formatRegions(regions.destiny),
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar fretes',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async getFreightsByTransporter(params: ParamsFreight): Promise<any> {
     try {
       const queryBuilder = this.freightRepository.createQueryBuilder('freight');
@@ -138,9 +294,11 @@ export class FreightService {
         .take(take)
         .getManyAndCount();
 
+
       return {
         data: result,
         count: total,
+
       };
     } catch (error) {
       throw new HttpException(
@@ -442,8 +600,5 @@ export class FreightService {
     }
   }
 
-   /****************************************FREIGHT STATICS****************************************** */
-
-
-   
+  /****************************************FREIGHT STATICS****************************************** */
 }

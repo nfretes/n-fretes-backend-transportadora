@@ -87,14 +87,17 @@ export class FreightController {
 
   /********************************************************************************** */
 
-  @Get('freight')
+  @Get()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Realiza a busca por todos os fretes passando algum parametro de busca ou não',
   })
-  async getCompanyIdParams(@Query() params: ParamsFreight) {
-    const result = await this.freightService.getFreightsByTransporter(params);
+  async getFreightsAll(
+    @Query() params: ParamsFreight,
+    @GetUserId() userId: string,
+  ) {
+    const result = await this.freightService.getFreightsAll(params, userId);
     return result;
   }
 
