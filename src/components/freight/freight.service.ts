@@ -105,8 +105,6 @@ export class FreightService {
 
       const maxFreights = hasActiveSubscription ? take : 3;
 
-     
-
       if (params.originCity) {
         const originCities = this.ensureArray(params.originCity);
         queryBuilder.andWhere('freight.originCity IN (:...originCity)', {
@@ -121,11 +119,28 @@ export class FreightService {
         });
       }
 
+      if (params.vehicleTypes) {
+        const vehicleTypesFormatted = `%${params.vehicleTypes}%`;
+
+        queryBuilder.andWhere(
+          `unaccent(LOWER(freight.vehicleTypes)) ILIKE unaccent(LOWER(:vehicleTypes))`,
+          { vehicleTypes: vehicleTypesFormatted },
+        );
+      }
+
+      if (params.bodyTypes) {
+        const bodyTypesFormatted = `%${params.bodyTypes}%`;
+
+        queryBuilder.andWhere(
+          `unaccent(LOWER(freight.bodyTypes)) ILIKE unaccent(LOWER(:bodyTypes))`,
+          { bodyTypes: bodyTypesFormatted },
+        );
+      }
+
       const likeFilters = {
         typeOfLoad: `freight.typeOfLoad = :typeOfLoad`,
         specieOfLoad: `freight.specieOfLoad = :specieOfLoad`,
-        vehicleTypes: `freight.vehicleTypes = :vehicleTypes`,
-        bodyTypes: `freight.bodyTypes = :bodyTypes`,
+
         product: `unaccent(LOWER(freight.product)) ILIKE unaccent(LOWER(:product))`,
       };
 
@@ -179,7 +194,7 @@ export class FreightService {
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
 
         .leftJoin('freight.company', 'company')
-        .addSelect(['company.id', 'company.name', 'company.photoUrl'])
+        .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber'])
         .leftJoin('company.subscription', 'subscription-company')
         .addSelect('subscription-company.status')
         .addSelect(
@@ -187,56 +202,51 @@ export class FreightService {
           'status_priority',
         )
         .addOrderBy('status_priority', 'ASC')
-        .addOrderBy('freight.createdAt', 'DESC')
-
-    
-    
+        .addOrderBy('freight.createdAt', 'DESC');
 
       const [result, total] = await queryBuilder
         .skip((page - 1) * maxFreights)
         .take(maxFreights)
         .getManyAndCount();
 
-        
-        const regions = {
-          origin: {
-            norte: new Set<string>(),
-            nordeste: new Set<string>(),
-            centroOeste: new Set<string>(),
-            sudeste: new Set<string>(),
-            sul: new Set<string>(),
-          },
-          destiny: {
-            norte: new Set<string>(),
-            nordeste: new Set<string>(),
-            centroOeste: new Set<string>(),
-            sudeste: new Set<string>(),
-            sul: new Set<string>(),
-          },
-        };
+      const regions = {
+        origin: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+        destiny: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+      };
 
-        result.forEach((freight) => {
-          this.classifyCity(
-            freight.originState,
-            `${freight.originCity}`,
-            regions.origin,
-          );
-          this.classifyCity(
-            freight.destinyState,
-            `${freight.destinyCity}`,
-            regions.destiny,
-          );
-        });
+      result.forEach((freight) => {
+        this.classifyCity(
+          freight.originState,
+          `${freight.originCity}`,
+          regions.origin,
+        );
+        this.classifyCity(
+          freight.destinyState,
+          `${freight.destinyCity}`,
+          regions.destiny,
+        );
+      });
 
-        const formatRegions = (data: Record<string, Set<string>>) => {
-          return Object.entries(data)
-            .filter(([_, cities]) => cities.size > 0)
-            .reduce((acc, [region, cities]) => {
-              acc[region] = Array.from(cities);
-              return acc;
-            }, {});
-        };
-
+      const formatRegions = (data: Record<string, Set<string>>) => {
+        return Object.entries(data)
+          .filter(([_, cities]) => cities.size > 0)
+          .reduce((acc, [region, cities]) => {
+            acc[region] = Array.from(cities);
+            return acc;
+          }, {});
+      };
 
       return {
         data: result,
@@ -294,11 +304,9 @@ export class FreightService {
         .take(take)
         .getManyAndCount();
 
-
       return {
         data: result,
         count: total,
-
       };
     } catch (error) {
       throw new HttpException(
@@ -505,8 +513,10 @@ export class FreightService {
   async classifyRegionByState(userId: string): Promise<any> {
     try {
       const freights = await this.freightRepository.find({
-        where: { companyId: userId },
+        where: { companyId: userId, openSolicitations: true },
       });
+
+
 
       const regions = {
         origin: {
