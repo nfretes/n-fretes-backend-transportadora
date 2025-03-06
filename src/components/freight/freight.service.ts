@@ -121,6 +121,10 @@ export class FreightService {
 
       const maxFreights = hasActiveSubscription ? take : 3;
 
+      if(params.id) {
+        queryBuilder.andWhere('freight.id = :id', { id: params.id })
+      }
+
       if (params.originCity) {
         const originCities = this.ensureArray(params.originCity);
         queryBuilder.andWhere('freight.originCity IN (:...originCity)', {
@@ -210,7 +214,7 @@ export class FreightService {
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
 
         .leftJoin('freight.company', 'company')
-        .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber', 'company.createdAt'])
+        .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber', 'company.createdAt', 'company.city'])
         .leftJoin('company.subscription', 'subscription-company')
         .addSelect('subscription-company.status')
         .addSelect(
