@@ -214,7 +214,7 @@ export class AuthService {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
 
-      console.log(secret, 'Retorno');
+      
       const decoded = jwt.verify(token, secret) as { sub: string };
 
       const user = await this.companyRepository.findOne({

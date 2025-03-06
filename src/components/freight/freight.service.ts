@@ -38,7 +38,23 @@ export class FreightService {
       );
     }
   }
-
+  /****************************************FIND FREIGHT COUNT****************************************** */
+  async freightCountCompany(userId: string): Promise<any> {
+    try {
+      const totalCount = await this.freightRepository.count({
+        where: { companyId: userId, isActive: true, openSolicitations: true }
+      });
+  
+      return {
+        count: totalCount
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao contar os fretes da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
   /****************************************EDIT FREIGHT****************************************** */
   async editFreight(
     update: UpdateFreightDto,
@@ -194,7 +210,7 @@ export class FreightService {
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
 
         .leftJoin('freight.company', 'company')
-        .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber'])
+        .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber', 'company.createdAt'])
         .leftJoin('company.subscription', 'subscription-company')
         .addSelect('subscription-company.status')
         .addSelect(

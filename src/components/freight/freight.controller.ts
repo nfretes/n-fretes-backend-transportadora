@@ -196,4 +196,21 @@ export class FreightController {
   async getFreightID(@Param('id') id: string): Promise<Freight> {
     return this.freightService.getFreightById(id);
   }
+
+  @ApiOperation({
+    summary: 'Localizar  frete da por UID empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete da empresa',
+    type: String,
+  })
+  @UseGuards(JwtAuthGuard)
+  @Get(':userId/countFreight')
+  async freightCountCompany(@Param('userId') userId: string) {
+    return this.freightService.freightCountCompany(userId);
+  }
+
+
+  
 }
