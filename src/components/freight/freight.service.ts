@@ -212,7 +212,13 @@ export class FreightService {
 
       queryBuilder
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
-
+        .leftJoin(
+          'freight.freightRequest', 
+          'freightRequest', 
+          'freightRequest.status = :status',
+          { status: 'PENDING' }
+      )
+        .addSelect(['freightRequest.id', 'freightRequest.status'])
         .leftJoin('freight.company', 'company')
         .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber', 'company.createdAt', 'company.city'])
         .leftJoin('company.subscription', 'subscription-company')
@@ -221,6 +227,7 @@ export class FreightService {
           'CASE WHEN subscription-company.status = 1 THEN 0 ELSE 1 END',
           'status_priority',
         )
+        
         .addOrderBy('status_priority', 'ASC')
         .addOrderBy('freight.createdAt', 'DESC');
 
@@ -431,6 +438,13 @@ export class FreightService {
       const [result, total] = await queryBuilder
         .orderBy('freight.createdAt', 'DESC')
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
+        .leftJoin(
+          'freight.freightRequest', 
+          'freightRequest', 
+          'freightRequest.status = :status',
+          { status: 'PENDING' }
+      )
+        .addSelect(['freightRequest.id', 'freightRequest.status'])
         .skip((page - 1) * take)
         .take(take)
         .getManyAndCount();

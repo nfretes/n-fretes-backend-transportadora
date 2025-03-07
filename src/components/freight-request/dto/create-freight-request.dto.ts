@@ -8,14 +8,14 @@ export class CreateFreightRequestDto {
     description: 'ID do frete',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @IsUUID()
+  @IsString()
   freightId: string;
 
   @ApiProperty({
     description: 'Transportador id empresa',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @IsUUID()
+  @IsString()
   companyId: string;
 
   @ApiProperty({

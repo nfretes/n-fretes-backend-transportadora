@@ -16,6 +16,9 @@ import { FreightRequestModule } from './components/freight-request/freight-reque
 import { FreightRouteModule } from '@components/freight-route/freight-route.module';
 import { ReviewUserDriveModule } from '@components/review-users-drive/review-users-drive.module';
 
+//Croon
+import { FreightRequestCronModule } from '@components/cron/freight-requests/freight-request-croon-module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -42,7 +45,8 @@ import { ReviewUserDriveModule } from '@components/review-users-drive/review-use
     CompanyModule,
     FreightRequestModule,
     FreightRouteModule,
-    ReviewUserDriveModule
+    ReviewUserDriveModule,
+    FreightRequestCronModule
   ],
   controllers: [AppController],
   providers: [AppService],

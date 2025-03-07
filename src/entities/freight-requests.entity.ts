@@ -15,6 +15,7 @@ export enum FreightRequestStatus {
   PENDING = 'PENDING',
   ACCEPTED = 'ACCEPTED',
   REJECTED = 'REJECTED',
+  AWAITING_USER_DRIVE_RESPONSE = 'AWAITING_USER_DRIVE_RESPONSE',
 }
 
 @Entity('freight_requests')
@@ -61,4 +62,12 @@ export class FreightRequest {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date | null; 
+
+ 
+  @Column({ nullable: true, default: 0 })
+  solicitationsOrder: number;
+  
 }
