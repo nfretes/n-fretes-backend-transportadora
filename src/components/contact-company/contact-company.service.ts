@@ -113,6 +113,8 @@ export class ContactCompanyService {
       const { take = 10, page = 1 } =
         this.paginationService.getDefaultPaginationParams(params);
 
+      const safePage = Math.max(1, page);
+
       if (params.companyId) {
         queryBuilder.andWhere('contact-company.companyId = :companyId', {
           companyId: params.companyId,
@@ -138,7 +140,7 @@ export class ContactCompanyService {
         .addSelect('company.cnpj')
         .addSelect('company.name')
         .orderBy('contact-company.name', 'ASC')
-        .skip((page - 1) * take)
+        .skip((safePage - 1) * take)
         .take(take)
         .getManyAndCount();
 
