@@ -75,6 +75,7 @@ export class FreightRequestService {
         .leftJoin('freight_requests.userDrive', 'users_drive')
         .leftJoin('users_drive.vehicles', 'vehicle')
         .leftJoin('users_drive.locations', 'location')
+        .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
         .addSelect([
           'contact_company.name',
           'contact_company.phoneNumber',
