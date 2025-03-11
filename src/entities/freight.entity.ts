@@ -144,11 +144,29 @@ export class Freight {
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.freight)
   freightRequest: FreightRequest[];
 
-  @OneToMany(() => ReviewUserDrive, (reviewUserDrive) => reviewUserDrive.freight)
+  @OneToMany(
+    () => ReviewUserDrive,
+    (reviewUserDrive) => reviewUserDrive.freight,
+  )
   reviewUserDrive: ReviewUserDrive[];
 
   @OneToOne(() => FreightRequest, (freightRequest) => freightRequest.freight)
   freightRoutes: FreightRoutes;
+
+  @Column({ nullable: true })
+  originLongitude: string;
+
+  @Column({ nullable: true })
+  originLatitude: string;
+
+  @Column({ nullable: true })
+  destinyLongitude: string;
+
+  @Column({ nullable: true })
+  destinyLatitude: string;
+
+  @Column({ nullable: true })
+  distance: string;
 
   @CreateDateColumn()
   createdAt: Date;

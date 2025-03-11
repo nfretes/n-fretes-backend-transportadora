@@ -44,7 +44,6 @@ export class CreateFreightDto {
     required: false,
     format: 'date-time',
   })
-  @IsDateString()
   @IsOptional()
   dateOrigin?: Date;
 
@@ -63,7 +62,6 @@ export class CreateFreightDto {
     required: false,
     format: 'date-time',
   })
-  @IsDateString()
   @IsOptional()
   dateReceiver?: Date;
 
@@ -122,6 +120,33 @@ export class CreateFreightDto {
   @IsString()
   @IsOptional()
   volume?: string;
+
+
+  @ApiProperty({ description: 'Longitude e Latitude da origem', required: false })
+  @IsString()
+  @IsOptional()
+  originLongitude?: string;
+
+  @ApiProperty({ description: 'Longitude e Latitude da origem', required: false })
+  @IsString()
+  @IsOptional()
+  originLatitude?: string;
+
+  @ApiProperty({ description: 'Longitude e Latitude do destino', required: false })
+  @IsString()
+  @IsOptional()
+  destinyLongitude?: string;
+
+  @ApiProperty({ description: 'Longitude e Latitude do destino', required: false })
+  @IsString()
+  @IsOptional()
+  destinyLatitude?: string;
+
+  
+  @ApiProperty({ description: 'Distancia total do percurso', required: false })
+  @IsString()
+  @IsOptional()
+  distance?: string;
 
   @ApiProperty({ description: 'Possui seguro', required: false, default: true })
   @IsBoolean()
