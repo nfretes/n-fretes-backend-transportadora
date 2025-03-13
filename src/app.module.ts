@@ -7,7 +7,17 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import configuration from './config/configuration';
 import { AuthModule } from '@components/auth/auth.module';
+import { SubscriptionModule } from '@components/subscriptions-company/subscription-company.module';
+import { ContactCompanyModule } from '@components/contact-company/contact-company.module';
+import { UsersContactCompanyModule } from '@components/users-contact-company/users-contact.module';
+import { FreightModule } from '@components/freight/freight.module';
+import { CompanyModule } from '@components/company/company.module';
+import { FreightRequestModule } from './components/freight-request/freight-request.module';
+import { FreightRouteModule } from '@components/freight-route/freight-route.module';
+import { ReviewUserDriveModule } from '@components/review-users-drive/review-users-drive.module';
 
+//Croon
+import { FreightRequestCronModule } from '@components/cron/freight-requests/freight-request-croon-module';
 
 @Module({
   imports: [
@@ -28,7 +38,15 @@ import { AuthModule } from '@components/auth/auth.module';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
-  
+    SubscriptionModule,
+    ContactCompanyModule,
+    UsersContactCompanyModule,
+    FreightModule,
+    CompanyModule,
+    FreightRequestModule,
+    FreightRouteModule,
+    ReviewUserDriveModule,
+    FreightRequestCronModule
   ],
   controllers: [AppController],
   providers: [AppService],

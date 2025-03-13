@@ -1,0 +1,22 @@
+import { SpecieOfLoad, TypeOfLoad } from 'src/enum/freight';
+import { BodyType, VehicleType } from 'src/enum/vehicle';
+
+export interface ParamsFreight {
+  originCity?: string;
+  originState?: string;
+  take?: number;
+  page?: number;
+  isActive?: boolean;
+  dateOrigin?: Date;
+  destinyCity?: string;
+  destinyState?: string;
+  dateReceiver?: Date;
+  typeOfLoad?: TypeOfLoad[];
+  specieOfLoad?: SpecieOfLoad[];
+  vehicleTypes?: VehicleType[];
+  bodyTypes?: BodyType[];
+  openSolicitations?: boolean;
+  createdAt?: Date;
+  companyId?: string;
+  id?: string
+}
