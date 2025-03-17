@@ -30,7 +30,7 @@ export class AuthService {
   async generateJwt(payload: any) {
     const secret = this.configService.get<string>('JWT_SECRET');
     const expiration = this.configService.get<string>('JWT_EXPIRATION') || '2h';
-    return jwt.sign(payload, secret, { expiresIn: expiration });
+    return jwt.sign(payload, secret, { expiresIn: '2h' });
   }
 
   async register(registerDto: RegisterDto): Promise<AuthResponseRegisterDto> {
