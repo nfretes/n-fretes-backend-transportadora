@@ -4,12 +4,10 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthResponseDto, AuthResponseRegisterDto } from './dto/Auth.dto';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/Login.dto';
 import { ChangePasswordDto, ResetPasswordDto } from './dto/Password.dto';
 import * as jwt from 'jsonwebtoken';
 import sgMail from '@sendgrid/mail';
-import { RedisService } from 'src/libs/redisClient';
 import { EmailJson } from './interfaces/IAuth';
 import { Company } from '@entities/company.entity';
 
@@ -33,7 +31,7 @@ export class AuthService {
     return jwt.sign(payload, secret, { expiresIn: '2h' });
   }
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseRegisterDto> {
+  async register(registerDto: any): Promise<AuthResponseRegisterDto> {
     try {
       const { cnpj, password, name, ...userData } = registerDto;
 
