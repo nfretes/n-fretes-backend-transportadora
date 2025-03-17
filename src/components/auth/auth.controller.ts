@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/Login.dto';
 import { AuthResponseDto, AuthResponseRegisterDto } from './dto/Auth.dto';
 import { EmailJson } from './interfaces/IAuth';
@@ -43,7 +42,7 @@ export class AuthController {
     description: 'Erro ao registrar o usuário, como CPF já registrado',
   })
   async register(
-    @Body() registerDto: RegisterDto,
+    @Body() registerDto: any,
   ): Promise<AuthResponseRegisterDto> {
     return this.authService.register(registerDto);
   }
