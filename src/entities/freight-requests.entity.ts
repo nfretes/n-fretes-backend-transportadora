@@ -64,10 +64,8 @@ export class FreightRequest {
   updatedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  expiresAt: Date | null; 
+  expiresAt: Date | null;
 
- 
   @Column({ nullable: true, default: 0 })
   solicitationsOrder: number;
-  
 }

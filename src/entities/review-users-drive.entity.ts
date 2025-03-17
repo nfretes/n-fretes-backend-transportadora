@@ -2,10 +2,11 @@ import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { UsersDrive } from './users-drive.entity';
 import { Freight } from './freight.entity';
 import { Company } from './company.entity';
+import { FreightRoutes } from './freight-routes.entity';
 
 export enum ReviewTags {
   // 🚗 Veículo+1
-  VEICULO_BOM_ESTADO = 1, 
+  VEICULO_BOM_ESTADO = 1,
 
   // ✅ Pontualidade+10
   ENTREGA_NO_PRAZO = 10,
@@ -35,6 +36,9 @@ export enum ReviewTags {
   OTIMO_MOTORISTA = 50,
 }
 
+//Se isUserReviewingCompany = true, significa que a avaliação foi feita por um usuário para uma empresa.
+//Se isCompanyReviewingUser = true, significa que a avaliação foi feita por uma empresa para um usuário.
+
 @Entity('reviews_user_drive')
 export class ReviewUserDrive {
   @PrimaryColumn({ default: () => 'gen_random_uuid()' })
@@ -48,6 +52,15 @@ export class ReviewUserDrive {
 
   @Column({ nullable: true })
   companyId: string | null;
+
+  @Column({ nullable: true })
+  routeId: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  isUserReviewingCompany: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  isCompanyReviewingUser: boolean;
 
   @ManyToOne(() => UsersDrive, (userDrive) => userDrive.reviewUserDrive, {
     onDelete: 'CASCADE',
@@ -66,6 +79,16 @@ export class ReviewUserDrive {
   })
   @JoinColumn({ name: 'companyId' })
   company: Company;
+
+  @ManyToOne(
+    () => FreightRoutes,
+    (freightRoutes) => freightRoutes.reviewUserDrive,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
+  @JoinColumn({ name: 'routeId' })
+  freightRoute: Company;
 
   @Column({ type: 'int', nullable: true })
   rating: number;

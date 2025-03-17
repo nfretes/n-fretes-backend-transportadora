@@ -16,6 +16,7 @@ import { CompanyUsersContacts } from './company-users-contacts.entity';
 import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
+import { UsersFavoritesCompany } from './users-favorites-company.entity';
 
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
@@ -111,6 +112,12 @@ export class Company {
   @OneToMany(() => ContactCompany, (contact) => contact.company)
   contacts: ContactCompany[];
 
+  @OneToMany(
+    () => UsersFavoritesCompany,
+    (userFavorites) => userFavorites.company,
+  )
+  usersFavoritesCompany: UsersFavoritesCompany[];
+
   @OneToMany(() => Freight, (freight) => freight.company)
   freights: Freight[];
 
@@ -131,4 +138,10 @@ export class Company {
     (reviewUserDrive) => reviewUserDrive.company,
   )
   reviewUserDrive: ReviewUserDrive[];
+
+  /* @OneToMany(
+    () => ReviewsCompany,
+    (reviewCompany) => reviewCompany.company,
+  )
+  reviewCompany: ReviewsCompany[];*/
 }

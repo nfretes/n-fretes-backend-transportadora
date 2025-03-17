@@ -6,10 +6,13 @@ import {
   UpdateDateColumn,
   PrimaryColumn,
   JoinColumn,
+  OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { Freight } from './freight.entity';
 import { UsersDrive } from './users-drive.entity';
 import { Company } from './company.entity';
+import { ReviewUserDrive } from './review-users-drive.entity';
 
 export enum RouteStatus {
   IN_PROGRESS = 'PROGUESS',
@@ -48,6 +51,9 @@ export class FreightRoutes {
   })
   @JoinColumn({ name: 'companyId' })
   company: Company;
+
+  @OneToOne(() => ReviewUserDrive, (review) => review.freightRoute)
+  reviewUserDrive: ReviewUserDrive;
 
   @Column({
     type: 'enum',

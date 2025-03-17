@@ -15,6 +15,8 @@ import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
 import { UserDriveAchievement } from './users-drive-achivement.entity';
+import { UsersFavoritesCompany } from './users-favorites-company.entity';
+import { SubscriptionUsersDrive } from './subscription-users.entity';
 
 @Entity({ schema: 'public', name: 'users_drive' })
 export class UsersDrive {
@@ -103,6 +105,12 @@ export class UsersDrive {
   @OneToMany(() => CompanyUsersContacts, (company) => company.users)
   CompanyUsersContacts: CompanyUsersContacts[];
 
+  @OneToMany(
+    () => UsersFavoritesCompany,
+    (userFavorites) => userFavorites.company,
+  )
+  usersFavoritesCompany: UsersFavoritesCompany[];
+
   @OneToMany(() => UsersLocation, (location) => location.user)
   locations: UsersLocation[];
 
@@ -123,4 +131,10 @@ export class UsersDrive {
     (userDriveAchivement) => userDriveAchivement.userDrive,
   )
   userDriveAchievement: UserDriveAchievement[];
+
+  @OneToOne(
+    () => SubscriptionUsersDrive,
+    (subscription) => subscription.userDrive,
+  )
+  subscription: SubscriptionUsersDrive;
 }
