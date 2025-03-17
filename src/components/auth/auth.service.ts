@@ -19,7 +19,6 @@ export class AuthService {
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
     private configService: ConfigService,
-    private redisService: RedisService,
   ) {
     sgMail.setApiKey(this.configService.get<string>('SENDGRID_API_KEY'));
   }
@@ -153,8 +152,6 @@ export class AuthService {
 
       const recoveryCode = this.generateRecoveryCode();
       const redisKey = `recoveryCode:${email}`;
-      const redisClient = this.redisService.getClient();
-      await redisClient.set(redisKey, recoveryCode, 'EX', 180);
 
       const msg = {
         to: email,
@@ -176,20 +173,8 @@ export class AuthService {
 
   async validateRecoveryCode(email: string, code: string): Promise<boolean> {
     const redisKey = `recoveryCode:${email}`;
-    const redisClient = this.redisService.getClient();
-    const storedCode = await redisClient.get(redisKey);
 
-    if (!storedCode) {
-      throw new HttpException(
-        'Código expirado ou inválido',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
 
-    if (storedCode !== code) {
-      throw new HttpException('Código inválido', HttpStatus.BAD_REQUEST);
-    }
-    await redisClient.del(redisKey);
     return true;
   }
 
