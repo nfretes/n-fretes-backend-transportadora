@@ -54,3 +54,5 @@ COPY --from=builder /home/node/app/src ./src
 ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["yarn", "start:prod"]
+
+
