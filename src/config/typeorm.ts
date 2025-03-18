@@ -13,7 +13,6 @@ const config: ConfigObject = {
   entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: ['dist/migrations/*{.ts,.js}'],
   synchronize: false,
-  logging: `${process.env.DATABASE_QUERY_LOGGING}`,
   schema: 'public',
   uuidExtension: 'uuid-ossp',
   ssl: process.env.DB_SSL,
