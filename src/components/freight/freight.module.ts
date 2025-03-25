@@ -6,9 +6,10 @@ import { Freight } from '@entities/freight.entity';
 import { FreightController } from './freight.controller';
 import { FreightService } from './freight.service';
 import { Company } from '@entities/company.entity';
+import { UsersDrive } from '@entities/users-drive.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Freight, Company])],
+  imports: [TypeOrmModule.forFeature([Freight, Company, UsersDrive])],
   exports: [TypeOrmModule],
   controllers: [FreightController],
   providers: [FreightService, PaginationService],
