@@ -7,6 +7,7 @@ import { ResponseFreightDto } from './dto/response-freight.dto';
 import { Company } from '@entities/company.entity';
 import { ParamsFreight } from './interface/IFreight';
 import { PaginationService } from '@components/pagination/pagination.service';
+import { UsersDrive } from '@entities/users-drive.entity';
 
 export class FreightService {
   constructor(
@@ -14,6 +15,8 @@ export class FreightService {
     private freightRepository: Repository<Freight>,
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
+    @InjectRepository(UsersDrive)
+    private userDriveRepository: Repository<UsersDrive>,
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -80,6 +83,50 @@ export class FreightService {
     }
   }
 
+    /****************************************SUGEST DRIVE****************************************** */
+  async getSuggestedDrivers(
+    params: ParamsFreight
+  ) {
+    const {page = 1, take = 10, id} = params
+
+    const freight = await this.freightRepository.findOne({ where: { id } });
+  
+    if (!freight) {
+      throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+    }
+  
+    const offset = (page - 1) * take;
+
+    const originLat = Number(freight.originLatitude);
+    const originLng = Number(freight.originLongitude);
+
+    const maxOffset = 1;
+    const [result, total] = await this.userDriveRepository
+    .createQueryBuilder('users_drive')
+    .innerJoinAndSelect('users_drive.locations', 'location')
+    .addSelect(`(POWER(location.latitude - ${originLat}, 2) + POWER(location.longitude - ${originLng}, 2))`, 'distance')
+    .where('users_drive.isOnRoute = :isOnRoute', { isOnRoute: false })
+    .andWhere('location.latitude BETWEEN :minLat AND :maxLat', {
+      minLat: originLat - maxOffset,
+      maxLat: originLat + maxOffset,
+    })
+    .andWhere('location.longitude BETWEEN :minLng AND :maxLng', {
+      minLng: originLng - maxOffset,
+      maxLng: originLng + maxOffset,
+    })
+    .orderBy('distance', 'ASC')
+    .skip(offset)
+    .take(take)
+    .getManyAndCount();
+  
+    return {
+      data: result,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / take),
+    };
+  }
+  
   /****************************************GET CONTACT ID****************************************** */
   async getContactId(id: string): Promise<ResponseFreightDto> {
     try {

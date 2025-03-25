@@ -18,6 +18,7 @@ import { ReviewUserDriveModule } from '@components/review-users-drive/review-use
 
 //Croon
 import { FreightRequestCronModule } from '@components/cron/freight-requests/freight-request-croon-module';
+import { SqsModule } from '@components/sqs/sqs.module';
 
 @Module({
   imports: [
@@ -46,7 +47,8 @@ import { FreightRequestCronModule } from '@components/cron/freight-requests/frei
     FreightRequestModule,
     FreightRouteModule,
     ReviewUserDriveModule,
-    FreightRequestCronModule
+    FreightRequestCronModule,
+    SqsModule
   ],
   controllers: [AppController],
   providers: [AppService],

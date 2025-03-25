@@ -114,6 +114,20 @@ export class FreightController {
     return result;
   }
 
+    /********************************************************************************** */
+  @Get('/suggested-drivers')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Filtra os motorista por perto',
+  })
+  async getSuggestedDrivers(
+    @Query() params: ParamsFreight,
+  ) {
+    const result = await this.freightService.getSuggestedDrivers(params);
+    return result;
+  }
+
   /********************************************************************************** */
   @ApiOperation({
     summary: 'Desativa o frete da empresa',
