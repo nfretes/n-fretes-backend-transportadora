@@ -31,6 +31,7 @@ export enum SpecieOfLoad {
 export enum UnityMetric {
   BYTONS = 'Por toneladas',
   BYWEIGHT = 'Por quilos',
+  BYPALLETS = 'Por palhetes',
 }
 
 export enum PaymentMethod {

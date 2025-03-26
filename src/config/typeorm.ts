@@ -6,22 +6,19 @@ dotenvConfig({ path: '.env.development' });
 
 const config: ConfigObject = {
   type: 'postgres',
-  host: `${process.env.DATABASE_HOST}`,
-  username: `${process.env.DATABASE_USERNAME}`,
-  password: `${process.env.DATABASE_PASSWORD}`,
-  database: `${process.env.DATABASE_NAME}`,
+  host: process.env.DATABASE_HOST || 'localhost',
+  username: process.env.DATABASE_USERNAME || 'postgres',
+  password: process.env.DATABASE_PASSWORD || 'postgres',
+  database: process.env.DATABASE_NAME || 'postgres',
   entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: ['dist/migrations/*{.ts,.js}'],
   synchronize: false,
-  logging: `${process.env.DATABASE_QUERY_LOGGING}`,
+  logging: process.env.DATABASE_QUERY_LOGGING,
   schema: 'public',
   uuidExtension: 'uuid-ossp',
-  ssl: process.env.DB_SSL,
+  ssl: false, 
   extra: {
     softDelete: true,
-    ssl: {
-      rejectUnauthorized: false,
-    },
   },
 };
 
