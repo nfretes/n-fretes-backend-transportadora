@@ -191,4 +191,28 @@ export class ContactCompanyService {
       await queryRunner.release();
     }
   }
+
+
+  async getContactCompanyById(id: string): Promise<ContactCompany> {
+    try {
+      const contact = await this.contactCompanyRepository.findOne({ 
+        where: { id }
+      });
+  
+      if (!contact) {
+        throw new HttpException(
+          'Contato não encontrado', 
+          HttpStatus.NOT_FOUND
+        );
+      }
+  
+      return contact;
+      
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar contato',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }
