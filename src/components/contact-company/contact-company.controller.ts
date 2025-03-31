@@ -27,6 +27,7 @@ import { ContactCompanyService } from './contact-company.service';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { ParamsContactCompany } from './interfaces/IContact';
 import { GetUserId } from 'src/decorators/get-user-decorator';
+import { ContactCompany } from '@entities/contact-company.entity';
 
 @ApiTags('contact-company')
 @Controller('contact-company')
@@ -122,4 +123,19 @@ export class ContactCompanyController {
   async softDelete(@Param('id') id: string): Promise<string> {
     return this.contactCompanyService.softDeleteUsersContactCompany(id);
   }
+
+
+    /********************************************************************************** */
+    @ApiOperation({
+      summary: 'Traz o contato espéfico por ID do contato da empresa',
+    })
+    @ApiParam({
+      name: 'id',
+      description: 'ID do contato da empresa',
+      type: String,
+    })
+    @Get(':id')
+    async getContactCompanyById(@Param('id') id: string): Promise<ContactCompany> {
+      return this.contactCompanyService.getContactCompanyById(id);
+    }
 }

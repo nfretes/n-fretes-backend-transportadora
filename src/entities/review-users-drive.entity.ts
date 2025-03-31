@@ -1,4 +1,11 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
 import { UsersDrive } from './users-drive.entity';
 import { Freight } from './freight.entity';
 import { Company } from './company.entity';
@@ -98,4 +105,7 @@ export class ReviewUserDrive {
 
   @Column({ type: 'simple-array' })
   tags: ReviewTags[];
+
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
 }

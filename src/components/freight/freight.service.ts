@@ -104,6 +104,7 @@ export class FreightService {
     const [result, total] = await this.userDriveRepository
     .createQueryBuilder('users_drive')
     .innerJoinAndSelect('users_drive.locations', 'location')
+    .innerJoinAndSelect('users_drive.vehicles', 'vehicles')
     .addSelect(`(POWER(location.latitude - ${originLat}, 2) + POWER(location.longitude - ${originLng}, 2))`, 'distance')
     .where('users_drive.isOnRoute = :isOnRoute', { isOnRoute: false })
     .andWhere('location.latitude BETWEEN :minLat AND :maxLat', {
