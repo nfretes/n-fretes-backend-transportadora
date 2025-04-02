@@ -196,4 +196,63 @@ export class ReviewUserDriveService {
       );
     }
   }
+
+  async getAvaliationSent(params: ParamsReviewUsersDrives) {
+    const { page = 1, take = 10 } = params;
+    try {
+      const queryBuilder = this.reviewRepository.createQueryBuilder('reviews_user_drive');
+
+      queryBuilder
+        .leftJoin('reviews_user_drive.userDrive', 'userDrive')
+        .leftJoin('userDrive.vehicles', 'vehicle')
+        .leftJoin('userDrive.locations', 'location')
+        .leftJoin('userDrive.freightRequest', 'freightRequest')
+        .leftJoin('freightRequest.freight', 'freight')
+        .where('reviews_user_drive.isCompanyReviewingUser = :isCompanyReviewingUser', { isCompanyReviewingUser: true }) 
+        .addSelect([
+          'userDrive.name',
+          'userDrive.cnh',
+          'userDrive.antt',
+          'userDrive.pushToken',
+          'userDrive.city',
+          'userDrive.cpf',
+          'userDrive.similiary',
+          'userDrive.photoFaceURL',
+          'userDrive.phoneNumber',
+          'userDrive.isOnRoute',
+          'userDrive.id',
+          'userDrive.street',
+          'userDrive.number',
+          'userDrive.state',
+          'userDrive.zipcode',
+          'vehicle.vehicleType',
+          'vehicle.bodyType',
+          'vehicle.plateState',
+          'vehicle.isPlateValid',
+          'vehicle.isRenavamValid',
+          'vehicle.tracker',
+          'vehicle.locator',
+          'vehicle.plateNumber',
+          'location.city',
+          'location.latitude',
+          'location.longitude',
+          'freight.originCity',
+          'freight.destinyCity',
+        ])
+        .skip((page - 1) * take)
+        .take(take);
+
+      const [result, total] = await queryBuilder.getManyAndCount();
+
+      return {
+        data: result,
+        count: total,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar reviews da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+}
 }

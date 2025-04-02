@@ -38,4 +38,11 @@ export class ReviewUserDriveController {
     const result = await this.reviewService.getAvaliationReceivers(params);
     return result;
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('company/avaliation/sent')
+  async getAvaliationSent(@Query() params: ParamsReviewUsersDrives) {
+    const result = await this.reviewService.getAvaliationSent(params);
+    return result;
+  }
 }
