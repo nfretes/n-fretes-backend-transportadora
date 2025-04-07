@@ -17,6 +17,8 @@ import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
 import { UsersFavoritesCompany } from './users-favorites-company.entity';
+import { Transactions } from './transactions.entity';
+import { CreditCard } from './credit-card.entity';
 
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
@@ -109,6 +111,10 @@ export class Company {
   @Column({ nullable: true })
   photoUrl: string;
 
+  
+  @Column({ nullable: true })
+  assas_id: string;
+
   @OneToMany(() => ContactCompany, (contact) => contact.company)
   contacts: ContactCompany[];
 
@@ -139,9 +145,10 @@ export class Company {
   )
   reviewUserDrive: ReviewUserDrive[];
 
-  /* @OneToMany(
-    () => ReviewsCompany,
-    (reviewCompany) => reviewCompany.company,
-  )
-  reviewCompany: ReviewsCompany[];*/
+
+  @OneToMany(() => Transactions, (transaction) => transaction.company)
+  transactions: Transactions[];
+
+  @OneToMany(() => CreditCard, (creditCard) => creditCard.company)
+  creditCard: CreditCard[];
 }

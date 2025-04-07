@@ -81,45 +81,13 @@ export class UsersContactCompanyService {
   }
 
   async getContactParamsUsers(
-    params: ParamsUsersContactCompany,
+    params: ParamsUsersContactCompany & { page?: number; limit?: number },
   ): Promise<GetCompanyUsersContactsResponseDto> {
     try {
-      const queryBuilder =
-        this.usersContactCompanyRepository.createQueryBuilder(
-          'company-users-contacts',
-        );
-  
-      const { take, page } =
-        this.paginationService.getDefaultPaginationParams(params);
-  
-      if (params.id) {
-        queryBuilder.andWhere('company-users-contacts.id = :id', {
-          id: params.id,
-        });
-      }
-  
-      if (params.companyId) {
-        queryBuilder.andWhere('company-users-contacts.companyId = :companyId', {
-          companyId: params.companyId,
-        });
-      }
-  
-      if (params.isActive) {
-        queryBuilder.andWhere('company-users-contacts.isActive = :isActive', {
-          isActive: params.isActive,
-        });
-      }
-  
-      if (params.name) {
-        queryBuilder.andWhere(
-          '(unaccent(LOWER(users_drive.name)) ILIKE unaccent(LOWER(:name)))',
-          { name: `%${params.name}%` },
-        );
-      }
-  
-      queryBuilder
-        .leftJoin('company-users-contacts.contacts', 'company')
-        .leftJoin('company-users-contacts.users', 'users_drive')
+      const queryBuilder = this.usersContactCompanyRepository
+        .createQueryBuilder('companyUsersContacts')
+        .leftJoin('companyUsersContacts.contacts', 'company')
+        .leftJoin('companyUsersContacts.users', 'users_drive')
         .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
         .leftJoin('users_drive.vehicles', 'vehicle')
         .leftJoin('users_drive.locations', 'location')
@@ -146,17 +114,48 @@ export class UsersContactCompanyService {
           'location.city',
           'location.longitude',
           'location.latitude',
-          'CompanyUsersContacts.isActive'
-        ])
-        .skip((page - 1) * take)
-        .take(take);
+          'CompanyUsersContacts.isActive',
+        ]);
   
-      const [result, total] = await queryBuilder.getManyAndCount();
+
+      if (params.id) {
+        queryBuilder.andWhere('companyUsersContacts.id = :id', { id: params.id });
+      }
+  
+      if (params.companyId) {
+        queryBuilder.andWhere('companyUsersContacts.companyId = :companyId', {
+          companyId: params.companyId,
+        });
+      }
+  
+      if (params.isActive !== undefined) {
+        queryBuilder.andWhere('companyUsersContacts.isActive = :isActive', {
+          isActive: params.isActive,
+        });
+      }
+  
+      if (params.name) {
+        queryBuilder.andWhere(
+          '(unaccent(LOWER(users_drive.name)) ILIKE unaccent(LOWER(:name)))',
+          { name: `%${params.name}%` },
+        );
+      }
+  
+      const allResults = await queryBuilder.orderBy('users_drive.name', 'ASC').getMany();
+      const total = allResults.length; 
+     const page = params.page || 1;
+      const limit = params.limit || 10;
+      const skip = (page - 1) * limit;
+  
+      const paginatedResults = allResults.slice(skip, skip + limit);
   
       return {
         //@ts-ignore
-        data: result,
+        data: paginatedResults,
         count: total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
       throw new HttpException(

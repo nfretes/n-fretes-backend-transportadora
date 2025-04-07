@@ -15,11 +15,13 @@ import { CompanyModule } from '@components/company/company.module';
 import { FreightRequestModule } from './components/freight-request/freight-request.module';
 import { FreightRouteModule } from '@components/freight-route/freight-route.module';
 import { ReviewUserDriveModule } from '@components/review-users-drive/review-users-drive.module';
+import { AsaasModule } from '@components/asaas/assas.module';
 
 //Croon
 import { FreightRequestCronModule } from '@components/cron/freight-requests/freight-request-croon-module';
 import { SqsModule } from '@components/sqs/sqs.module';
 import { DashboardModule } from '@components/dashboard/dashboard.module';
+import { WebhookAsaasModule } from '@components/webhooks/assas/webhook.assas.module';
 
 @Module({
   imports: [
@@ -50,7 +52,9 @@ import { DashboardModule } from '@components/dashboard/dashboard.module';
     ReviewUserDriveModule,
     FreightRequestCronModule,
     SqsModule,
-    DashboardModule
+    DashboardModule,
+    AsaasModule,
+    WebhookAsaasModule
   ],
   controllers: [AppController],
   providers: [AppService],
