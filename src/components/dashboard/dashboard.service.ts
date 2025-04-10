@@ -22,27 +22,27 @@ export class DashboardService {
 
   async getCompanyDashboard(userId: string) {
     try {
-      // Configurações de data para otimização
+   
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
       
-      // Intervalos de datas
+ 
       const firstDayOfMonth = new Date(currentYear, currentDate.getMonth(), 1);
       const lastDayOfMonth = new Date(currentYear, currentDate.getMonth() + 1, 0);
       const yearStart = new Date(`${currentYear}-01-01`);
       const yearEnd = new Date(`${currentYear}-12-31`);
 
-      // Executa todas as consultas em paralelo
+
       const [
         activeFreights,
         allYearFreights,
         reviews,
         driversCount,
         freightRoutes,
-        allFreights // Nova consulta para obter todos os fretes para análise de destinos
+        allFreights 
       ] = await Promise.all([
-        // Fretes ativos
+    
         this.freightRepository.find({
           where: {
             companyId: userId,
@@ -51,7 +51,7 @@ export class DashboardService {
           },
         }),
         
-        // Todos os fretes do ano
+
         this.freightRepository.find({
           where: {
             companyId: userId,
@@ -59,14 +59,14 @@ export class DashboardService {
           },
         }),
         
-        // Avaliações
+    
         this.reviewRepository.find({
           where: { companyId: userId, isCompanyReviewingUser: true },
           relations: ['userDrive'],
           order: { createdAt: 'DESC' },
         }),
         
-        // Motoristas cadastrados este mês
+   
         this.usersContactCompanyRepository.count({
           where: { 
             companyId: userId, 

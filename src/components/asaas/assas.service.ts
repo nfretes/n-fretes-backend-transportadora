@@ -48,7 +48,7 @@ export class AsaasService {
       access_token: apiToken,
     };
   }
-/***********************************CREATE CUSTOMER************************************************ */
+  /***********************************CREATE CUSTOMER************************************************ */
   async createOrGetCustomer(userId: string) {
     const { baseUrl } = this.getAsaasConfig();
     const user = await this.companyRepository.findOne({
@@ -87,20 +87,21 @@ export class AsaasService {
       this.handleAsaasError(error);
     }
   }
-/***********************************CREATE CREDIT CARD PAYMENY************************************ */
+  /***********************************CREATE CREDIT CARD PAYMENY************************************ */
   async createCreditCardPayment(
     customerId: string,
     creditCardData: CreateSubscriptionDto['creditCard'],
     creditCardHolderInfo: CreateSubscriptionDto['creditCardHolderInfo'],
     clientIp: string,
-    userId: string
+    userId: string,
   ) {
     const { baseUrl } = this.getAsaasConfig();
-    const queryRunner = this.creditCardRepository.manager.connection.createQueryRunner();
-    
+    const queryRunner =
+      this.creditCardRepository.manager.connection.createQueryRunner();
+
     await queryRunner.connect();
     await queryRunner.startTransaction();
-  
+
     try {
       const creditCardTokenData = {
         customer: customerId,
@@ -121,35 +122,37 @@ export class AsaasService {
           phone: creditCardHolderInfo.phone,
         },
       };
-  
+
       const response = await firstValueFrom(
         this.httpService.post(
           `${baseUrl}/creditCard/tokenizeCreditCard`,
           creditCardTokenData,
-          { headers: this.getAuthHeaders() }
-        )
+          { headers: this.getAuthHeaders() },
+        ),
       );
-  
+
       if (!response.data?.creditCardToken) {
-        throw new HttpException('Falha na tokenização do cartão', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Falha na tokenização do cartão',
+          HttpStatus.BAD_REQUEST,
+        );
       }
-  
+
       const savedCard = queryRunner.manager.create(CreditCard, {
-        companyId: userId ,
+        companyId: userId,
         lastFourDigits: creditCardData.number.slice(-4),
         brand: this.detectCardBrand(creditCardData.number),
         holderName: creditCardData.holderName,
         expirationMonth: creditCardData.expiryMonth,
         expirationYear: creditCardData.expiryYear,
         creditCardToken: response.data.creditCardToken,
-        isDefault: true 
+        isDefault: true,
       });
-  
+
       await queryRunner.manager.save(savedCard);
       await queryRunner.commitTransaction();
-  
+
       return response.data.creditCardToken;
-  
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.handleAsaasError(error);
@@ -157,41 +160,43 @@ export class AsaasService {
       await queryRunner.release();
     }
   }
-  
-/*********************************CREATE CREDIT CARD********************************************** */
-async createCreditCard(
+
+  /*********************************CREATE CREDIT CARD********************************************** */
+  async createCreditCard(
     createCreditCardDto: UpdateCreditCardDto,
     clientIp: string,
-    userId: string
+    userId: string,
   ) {
     const { baseUrl } = this.getAsaasConfig();
-    const user = await this.companyRepository.findOne({ where: { id: userId } });
-    
+    const user = await this.companyRepository.findOne({
+      where: { id: userId },
+    });
+
     if (!user || !user.assas_id) {
       throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
     }
-  
-    const queryRunner = this.creditCardRepository.manager.connection.createQueryRunner();
+
+    const queryRunner =
+      this.creditCardRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-  
+
     try {
       const lastFourDigits = createCreditCardDto.creditCard.number.slice(-4);
       const existingCard = await queryRunner.manager.findOne(CreditCard, {
         where: {
           companyId: userId,
-          lastFourDigits
-        }
+          lastFourDigits,
+        },
       });
-  
+
       if (existingCard) {
         throw new HttpException(
           'Cartão com estes últimos 4 dígitos já está cadastrado',
-          HttpStatus.CONFLICT
+          HttpStatus.CONFLICT,
         );
       }
-  
-  
+
       const creditCardTokenData = {
         customer: user.assas_id,
         remoteIp: clientIp,
@@ -205,39 +210,44 @@ async createCreditCard(
         creditCardHolderInfo: {
           name: createCreditCardDto.creditCardHolderInfo.name,
           email: createCreditCardDto.creditCardHolderInfo.email,
-          cpfCnpj: createCreditCardDto.creditCardHolderInfo.cpfCnpj.replace(/[^\d]/g, ''),
+          cpfCnpj: createCreditCardDto.creditCardHolderInfo.cpfCnpj.replace(
+            /[^\d]/g,
+            '',
+          ),
           postalCode: createCreditCardDto.creditCardHolderInfo.postalCode,
           addressNumber: createCreditCardDto.creditCardHolderInfo.addressNumber,
           phone: createCreditCardDto.creditCardHolderInfo.phone,
         },
       };
-  
+
       const response = await firstValueFrom(
         this.httpService.post(
           `${baseUrl}/creditCard/tokenizeCreditCard`,
           creditCardTokenData,
-          { headers: this.getAuthHeaders() }
-        )
+          { headers: this.getAuthHeaders() },
+        ),
       );
-  
+
       if (!response.data?.creditCardToken) {
-        throw new HttpException('Falha na tokenização do cartão', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Falha na tokenização do cartão',
+          HttpStatus.BAD_REQUEST,
+        );
       }
-  
-   
+
       if (createCreditCardDto.isDefault) {
         await queryRunner.manager.update(
           CreditCard,
           { companyId: userId, isDefault: true },
-          { isDefault: false }
+          { isDefault: false },
         );
       }
-  
- 
-      const isDefault = createCreditCardDto.isDefault ?? 
-                       !(await queryRunner.manager.exists(CreditCard, { 
-                         where: { companyId: userId } 
-                       }));
+
+      const isDefault =
+        createCreditCardDto.isDefault ??
+        !(await queryRunner.manager.exists(CreditCard, {
+          where: { companyId: userId },
+        }));
 
       const savedCard = queryRunner.manager.create(CreditCard, {
         companyId: userId,
@@ -247,32 +257,31 @@ async createCreditCard(
         expirationMonth: createCreditCardDto.creditCard.expiryMonth,
         expirationYear: createCreditCardDto.creditCard.expiryYear,
         creditCardToken: response.data.creditCardToken,
-        isDefault
+        isDefault,
       });
-  
+
       await queryRunner.manager.save(savedCard);
       await queryRunner.commitTransaction();
-  
+
       return {
         success: true,
         message: 'Cartão cadastrado com sucesso',
         creditCardId: savedCard.id,
-        isDefault
+        isDefault,
       };
-  
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      
+
       if (error?.response?.message?.includes('já está cadastrado')) {
         throw error;
       }
-      
+
       this.handleAsaasError(error);
     } finally {
       await queryRunner.release();
     }
   }
-/************************************CREATE SUBSCRIPTION****************************************** */
+  /************************************CREATE SUBSCRIPTION****************************************** */
   async createSubscription(
     userId: string,
     createSubscriptionDto: CreateSubscriptionDto,
@@ -299,6 +308,12 @@ async createCreditCard(
         );
       }
 
+      await queryRunner.manager.update(
+        CreditCard,
+        { companyId: userId, isDefault: true },
+        { isDefault: false },
+      );
+
       const { planId } = createSubscriptionDto;
       const plan = await this.plansRepository.findOne({
         where: { id: planId },
@@ -313,7 +328,7 @@ async createCreditCard(
         createSubscriptionDto.creditCard,
         createSubscriptionDto.creditCardHolderInfo,
         clientIp,
-        userId
+        userId,
       );
 
       const subscriptionData = {
@@ -391,7 +406,7 @@ async createCreditCard(
       await queryRunner.release();
     }
   }
-/**********************************DELETE SUBSCRIPTION******************************************** */
+  /**********************************DELETE SUBSCRIPTION******************************************** */
   async deleteSubscription(merchantOrderId: string) {
     const { baseUrl } = this.getAsaasConfig();
 
@@ -413,13 +428,13 @@ async createCreditCard(
       }
 
       const response = await firstValueFrom(
-        this.httpService.delete(`${baseUrl}/subscriptions/${merchantOrderId}`, {
+        this.httpService.put(`${baseUrl}/subscriptions/${merchantOrderId}`, {status: 'INACTIVE'}, {
           headers: this.getAuthHeaders(),
         }),
       );
       subscription.status = 2;
       //@ts-ignore
-      subscription.endDate = new Date()
+      subscription.endDate = new Date();
       await queryRunner.manager.save(SubscriptionCompany, subscription);
 
       await queryRunner.commitTransaction();
@@ -436,68 +451,66 @@ async createCreditCard(
       await queryRunner.release();
     }
   }
-/*********************************CREATE CARD UPDATE********************************************** */
-async creditCardUpdate(
-    userId: string,
-    creditCardId: string
-  ) {
-    const queryRunner = this.creditCardRepository.manager.connection.createQueryRunner();
+  /*********************************CREATE CARD UPDATE********************************************** */
+  async creditCardUpdate(userId: string, creditCardId: string) {
+    const queryRunner =
+      this.creditCardRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-  
+
     try {
       const { baseUrl } = this.getAsaasConfig();
-      
-      // 1. Busca os dados necessários
+
       const user = await queryRunner.manager.findOne(Company, {
         where: { id: userId },
         relations: ['subscription'],
       });
-  
+
       if (!user?.subscription?.merchantOrderId) {
-        throw new HttpException('Assinatura não encontrada', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Assinatura não encontrada',
+          HttpStatus.NOT_FOUND,
+        );
       }
-  
+
       const creditCard = await queryRunner.manager.findOne(CreditCard, {
-        where: { id: creditCardId, companyId: userId }
+        where: { id: creditCardId, companyId: userId },
       });
-  
+
       if (!creditCard) {
         throw new HttpException('Cartão não encontrado', HttpStatus.NOT_FOUND);
       }
-  
-      // 2. Atualiza todos os cartões do usuário para isDefault = false
+
       await queryRunner.manager.update(
         CreditCard,
         { companyId: userId, isDefault: true },
-        { isDefault: false }
+        { isDefault: false },
       );
-  
+
       await queryRunner.manager.update(
         CreditCard,
         { id: creditCardId },
-        { isDefault: true }
+        { isDefault: true },
       );
-  
+
       const response = await firstValueFrom(
         this.httpService.put(
           `${baseUrl}/subscriptions/${user.subscription.merchantOrderId}/creditCard`,
           { creditCardToken: creditCard.creditCardToken },
-          { headers: this.getAuthHeaders() }
-        )
+          { headers: this.getAuthHeaders() },
+        ),
       );
-  
+
       await queryRunner.commitTransaction();
-  
+
       return {
         success: true,
         message: 'Cartão padrão atualizado com sucesso',
         data: {
           asaasResponse: response.data,
-          isDefault: true
-        }
+          isDefault: true,
+        },
       };
-  
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.handleAsaasError(error);
@@ -505,7 +518,7 @@ async creditCardUpdate(
       await queryRunner.release();
     }
   }
-/***********************************HANDLE ASSAS ERROR******************************************* */
+  /***********************************HANDLE ASSAS ERROR******************************************* */
   private handleAsaasError(error: any) {
     const responseData = error?.response?.data;
 
@@ -554,20 +567,25 @@ async creditCardUpdate(
       HttpStatus.BAD_REQUEST,
     );
   }
-/************************************DETECTCARDBRAND********************************************* */
+  /************************************DETECTCARDBRAND********************************************* */
   private detectCardBrand(number: string): string {
     const firstDigit = number[0];
-    switch(firstDigit) {
-      case '4': return 'VISA';
-      case '5': return 'MASTERCARD';
-      case '3': return 'AMEX';
-      case '6': return 'DISCOVER';
-      default: return 'UNKNOWN';
+    switch (firstDigit) {
+      case '4':
+        return 'VISA';
+      case '5':
+        return 'MASTERCARD';
+      case '3':
+        return 'AMEX';
+      case '6':
+        return 'DISCOVER';
+      default:
+        return 'UNKNOWN';
     }
   }
-/*********************************************************************************** */
+  /************************************************************************************************* */
 
-async renoveSubscription(
+  async renoveSubscription(
     userId: string,
     clientIp: string,
     creditCardId: string,
@@ -578,14 +596,17 @@ async renoveSubscription(
       this.subscriptionRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-    const user = await this.companyRepository.findOne({where: {id: userId}, relations: ['subscription']})
+    const user = await this.companyRepository.findOne({
+      where: { id: userId },
+      relations: ['subscription'],
+    });
 
     try {
       const existingSubscription = await this.subscriptionRepository.findOne({
         where: { companyId: userId },
       });
 
-      const customerId = user.assas_id
+      const customerId = user.assas_id;
       if (!customerId) {
         throw new HttpException(
           'Cliente Asaas não foi criado corretamente',
@@ -593,7 +614,22 @@ async renoveSubscription(
         );
       }
 
-      
+      if (!creditCardId) {
+        throw new HttpException(
+          'Cartão não encontrado',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      await this.creditCardRepository.update(
+        { companyId: userId },
+        { isDefault: false },
+      );
+
+      await this.creditCardRepository.update(
+        { id: creditCardId, companyId: userId },
+        { isDefault: true },
+      );
+
       const plan = await this.plansRepository.findOne({
         where: { id: user.subscription.planId },
       });
@@ -602,9 +638,13 @@ async renoveSubscription(
         throw new HttpException('Plano não encontrado', HttpStatus.NOT_FOUND);
       }
 
-  
+      const userCreditToken = await this.creditCardRepository.findOne({
+        where: { id: creditCardId },
+      });
 
-      const userCreditToken = await this.creditCardRepository.findOne({where: { id: creditCardId}})
+      if (userCreditToken.creditCardToken.length === 0) {
+        throw new HttpException('Cartão inválido', HttpStatus.NOT_FOUND);
+      }
 
       const subscriptionData = {
         customer: customerId,
@@ -681,4 +721,53 @@ async renoveSubscription(
       await queryRunner.release();
     }
   }
+
+  async getAllCreditCard(userId: string) {
+    const creditCardAll = await this.creditCardRepository.find({
+      where: { companyId: userId },
+      order: { isDefault: 'DESC' },
+    });
+
+    return creditCardAll;
+  }
+
+  async deleteCreditCard(
+    cardId: string
+  ): Promise<{ success: boolean; message?: string }> {
+    try {
+      const card = await this.creditCardRepository.findOne({
+        where: {
+          id: cardId,
+        },
+      });
+
+      if (!card) {
+        return { success: false, message: 'Cartão não encontrado' };
+      }
+
+      if (card.isDefault) {
+        return {
+          success: false,
+          message: 'Não é possível deletar o cartão padrão',
+        };
+      }
+
+     await this.creditCardRepository.delete({
+        id: cardId,
+        companyId: card.companyId
+      });
+
+     
+      
+
+      return { success: true, message: 'Cartão deletado com sucesso' };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || error,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
+
+/************************************************************************************************* */

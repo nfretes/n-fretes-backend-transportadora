@@ -219,12 +219,15 @@ export class AuthService {
           'state',
           'zipcode',
           'street',
+          'number'
         ],
         relations: [
           'freights',
           'subscription',
+          'subscription.plan',
           'contacts',
           'CompanyUsersContacts',
+          'creditCard'
         ],
       });
 

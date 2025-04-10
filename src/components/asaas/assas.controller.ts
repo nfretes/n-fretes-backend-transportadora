@@ -7,6 +7,7 @@ import {
   Param,
   Put,
   Get,
+  Query,
 } from '@nestjs/common';
 import { AsaasService } from './assas.service';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
@@ -38,7 +39,7 @@ export class AsaasController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete(':merchantOrderId')
+  @Delete(':merchantOrderId/subscriptions')
   async deleteSubscription(@Param('merchantOrderId') merchantOrderId: string) {
     const result = await this.asaasService.deleteSubscription(merchantOrderId);
     return result;
@@ -50,7 +51,7 @@ export class AsaasController {
   @Put('creditCard')
   async updateCreditCard(
     @GetUserId() userId: string,
-    @Param('creditCardId') creditCardId: string,
+    @Query('creditCardId') creditCardId: string,
   ) {
     const result = await this.asaasService.creditCardUpdate(
       userId,
@@ -75,20 +76,38 @@ export class AsaasController {
     return result;
   }
 
- /**********************RENOVAR ASSINATURA ************************* */
+  /**********************RENOVAR ASSINATURA ************************* */
   @UseGuards(JwtAuthGuard)
   @Post('subscriptions/renove')
   async renoveSubscription(
     @GetUserId() userId: string,
     @ClientIp() clientIp: string,
-    @Param('creditCardId') creditCardId: string,
+    @Query('creditCardId') creditCardId: string,
   ) {
     const result = await this.asaasService.renoveSubscription(
       userId,
       clientIp,
-      creditCardId
+      creditCardId,
     );
     return result;
   }
 
+  /********************** TRAZER OS CARTÕES DA EMPRESA ************************* */
+  @UseGuards(JwtAuthGuard)
+  @Get('creditcard')
+  async creditCardAll(@GetUserId() userId: string) {
+    const result = await this.asaasService.getAllCreditCard(userId);
+    return result;
+  }
+
+  /********************** DELETAR  OS CARTÕES DA EMPRESA ************************* */
+
+  @Delete(':cardId/delete')
+  async deleteCreditCard(
+    @Param('cardId') cardId: string
+  ) {
+    const result = await this.asaasService.deleteCreditCard(cardId);
+
+    return result;
+  }
 }

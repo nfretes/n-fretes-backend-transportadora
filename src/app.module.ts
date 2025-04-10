@@ -22,6 +22,7 @@ import { FreightRequestCronModule } from '@components/cron/freight-requests/frei
 import { SqsModule } from '@components/sqs/sqs.module';
 import { DashboardModule } from '@components/dashboard/dashboard.module';
 import { WebhookAsaasModule } from '@components/webhooks/assas/webhook.assas.module';
+import { PlansCompanyModule } from '@components/plans-company/plans.company.module';
 
 @Module({
   imports: [
@@ -54,7 +55,8 @@ import { WebhookAsaasModule } from '@components/webhooks/assas/webhook.assas.mod
     SqsModule,
     DashboardModule,
     AsaasModule,
-    WebhookAsaasModule
+    WebhookAsaasModule,
+    PlansCompanyModule
   ],
   controllers: [AppController],
   providers: [AppService],

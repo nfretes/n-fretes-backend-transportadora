@@ -14,7 +14,7 @@ class CreditCardDto {
   @IsString()
   holderName: string;
 
-  @IsCreditCard()
+  @IsCreditCard({ message: 'Número do cartão inválido' })
   number: string;
 
   @Length(2, 2)
