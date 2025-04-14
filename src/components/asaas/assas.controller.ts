@@ -110,4 +110,24 @@ export class AsaasController {
 
     return result;
   }
+
+
+  /**********************ATUALIZAR O PLANO DA RECORRENCIA********** */
+
+  @UseGuards(JwtAuthGuard)
+  @Put('subscriptions/upgrade/:planId')
+  async upgradePlan(@GetUserId() userId: string,@Param('planId') planId: string,   @ClientIp() clientIp: string) {
+    const result = await this.asaasService.upgradePlan(userId, planId,clientIp);
+    return result;
+  }
+
+    /**********************TRAZ O VALOR DA PRORATA********** */
+
+    @UseGuards(JwtAuthGuard)
+    @Get('prorata/:planId')
+    async getProrataValue(@GetUserId() userId: string,@Param('planId') planId: string) {
+      const result = await this.asaasService.getProrataValue(userId, planId);
+      return result;
+    }
+
 }

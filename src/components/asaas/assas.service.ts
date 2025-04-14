@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '@entities/company.entity';
 import { PlansCompany } from '@entities/plans-company.entity';
+import { Connection } from 'typeorm';
 import {
   CreateSubscriptionDto,
   UpdateCreditCardDto,
@@ -32,6 +33,7 @@ export class AsaasService {
     private creditCardRepository: Repository<CreditCard>,
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
+    private readonly connection: Connection,
   ) {}
 
   private getAsaasConfig() {
@@ -428,9 +430,13 @@ export class AsaasService {
       }
 
       const response = await firstValueFrom(
-        this.httpService.put(`${baseUrl}/subscriptions/${merchantOrderId}`, {status: 'INACTIVE'}, {
-          headers: this.getAuthHeaders(),
-        }),
+        this.httpService.put(
+          `${baseUrl}/subscriptions/${merchantOrderId}`,
+          { status: 'INACTIVE' },
+          {
+            headers: this.getAuthHeaders(),
+          },
+        ),
       );
       subscription.status = 2;
       //@ts-ignore
@@ -583,7 +589,7 @@ export class AsaasService {
         return 'UNKNOWN';
     }
   }
-  /************************************************************************************************* */
+  /*********************************** RENOVE SUBSCRIPTION***************************************** */
 
   async renoveSubscription(
     userId: string,
@@ -721,7 +727,7 @@ export class AsaasService {
       await queryRunner.release();
     }
   }
-
+  /***********************************GET ALL CREDITCARD***************************************** */
   async getAllCreditCard(userId: string) {
     const creditCardAll = await this.creditCardRepository.find({
       where: { companyId: userId },
@@ -730,9 +736,9 @@ export class AsaasService {
 
     return creditCardAll;
   }
-
+  /***********************************DELETE CREDITCARD***************************************** */
   async deleteCreditCard(
-    cardId: string
+    cardId: string,
   ): Promise<{ success: boolean; message?: string }> {
     try {
       const card = await this.creditCardRepository.findOne({
@@ -752,13 +758,10 @@ export class AsaasService {
         };
       }
 
-     await this.creditCardRepository.delete({
+      await this.creditCardRepository.delete({
         id: cardId,
-        companyId: card.companyId
+        companyId: card.companyId,
       });
-
-     
-      
 
       return { success: true, message: 'Cartão deletado com sucesso' };
     } catch (error) {
@@ -767,6 +770,216 @@ export class AsaasService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+  /***********************************UPGRADE PLANO***************************************** */
+
+  async upgradePlan(userId: string, newPlanId: string, clientIp: string) {
+    const queryRunner = this.connection.createQueryRunner();
+
+    try {
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      const user = await queryRunner.manager.findOne(Company, {
+        where: { id: userId },
+        relations: ['subscription', 'subscription.plan', 'creditCard'],
+      });
+
+      const { baseUrl } = this.getAsaasConfig();
+      const merchantOrderId = user.subscription.merchantOrderId;
+
+      if (!user) {
+        throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      if (!user.subscription) {
+        throw new HttpException(
+          'Usuário não possui assinatura ativa',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const currentPlan = user.subscription.plan;
+      const currentSubscription = user.subscription;
+
+      const newPlan = await queryRunner.manager.findOne(PlansCompany, {
+        where: { id: newPlanId },
+      });
+
+      if (!newPlan) {
+        throw new HttpException(
+          'Novo plano não encontrado',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (newPlan.value <= currentPlan.value) {
+        throw new HttpException(
+          'Operação permitida apenas para upgrades',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const prorataValue = this.calculateProrata(
+        currentSubscription,
+        currentPlan,
+        newPlan,
+      );
+
+      const subscriptionData = {
+        customer: user.assas_id,
+        billingType: 'CREDIT_CARD',
+        value: prorataValue.valueToPay,
+        dueDate: new Date().toISOString().split('T')[0],
+        description: `Upgrade para o plano ${newPlan.name}`,
+        creditCardToken: user.creditCard.find((item) => item.isDefault === true)
+          ?.creditCardToken,
+        remoteIp: clientIp,
+      };
+
+      const subscriptionResponse = await firstValueFrom(
+        this.httpService.post(`${baseUrl}/payments`, subscriptionData, {
+          headers: this.getAuthHeaders(),
+        }),
+      );
+
+      if (subscriptionResponse.data.status === 'CONFIRMED') {
+        try {
+          await firstValueFrom(
+            this.httpService.put(
+              `${baseUrl}/subscriptions/${merchantOrderId}`,
+              { value: newPlan.value },
+              {
+                headers: this.getAuthHeaders(),
+              },
+            ),
+          );
+
+          const subscription = await queryRunner.manager.findOne(
+            SubscriptionCompany,
+            {
+              where: { merchantOrderId },
+            },
+          );
+
+          subscription.amount = newPlan.value;
+          subscription.planId = newPlan.id;
+          await queryRunner.manager.save(subscription);
+
+          const transaction = queryRunner.manager.create(Transactions, {
+            amount: newPlan.value,
+            reason: `Upgrade de plano ${newPlan.name}`,
+            companyId: userId,
+            paymentMethod: PaymentMethod.CREDIT_CARD,
+            transactionType: TransactionType.COMPANY,
+          });
+          await queryRunner.manager.save(transaction);
+
+          await queryRunner.commitTransaction();
+        } catch (error) {
+          await queryRunner.rollbackTransaction();
+          console.log(error, 'Retorno do erro');
+          this.handleAsaasError(error);
+          throw error;
+        }
+      } else {
+        throw new HttpException(
+          'Não foi possível realizar pagamento tente novamente com outro cartão',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+
+      this.handleAsaasError(error);
+      throw new HttpException(
+        error?.message || error,
+        error?.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /***********************************TRAZER PRORATA GET***************************************** */
+
+  async getProrataValue(userId: string, planId: string) {
+    const user = await this.companyRepository.findOne({
+      where: { id: userId },
+      relations: ['subscription', 'subscription.plan', 'creditCard'],
+    });
+
+    const currentPlan = user.subscription.plan;
+    const currentSubscription = user.subscription;
+    const newPlan = await this.plansRepository.findOne({
+      where: { id: planId },
+    });
+    const prorataValue = this.calculateProrata(
+      currentSubscription,
+      currentPlan,
+      newPlan,
+    );
+
+    return prorataValue;
+  }
+  /***********************************CALCULATE PRORATA VALUE***************************************** */
+  private calculateProrata(
+    currentSubscription: SubscriptionCompany,
+    currentPlan: PlansCompany,
+    newPlan: PlansCompany,
+  ) {
+    const now = new Date();
+    const cycleEnd = new Date(currentSubscription.nextRecurrency);
+    const createdAt = new Date(currentSubscription.createdAt);
+
+    if (isNaN(cycleEnd.getTime())) {
+      throw new Error('Data de término do ciclo é inválida');
+    }
+    if (isNaN(createdAt.getTime())) {
+      throw new Error('Data de criação da assinatura é inválida');
+    }
+
+    const daysRemaining = Math.ceil(
+      (cycleEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    const totalDaysCycle = Math.ceil(
+      (cycleEnd.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (newPlan.value <= currentPlan.value) {
+      throw new HttpException(
+        'O valor do novo plano deve ser maior que o plano atual para cálculo de prorata',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const daysUsed = totalDaysCycle - daysRemaining;
+    const currentPlanCredit =
+      currentPlan.value * (daysRemaining / totalDaysCycle);
+    const priceDifference = newPlan.value - currentPlan.value;
+    const prorataValue = priceDifference * (daysRemaining / totalDaysCycle);
+    const newPlanPartialValue =
+      newPlan.value * (daysRemaining / totalDaysCycle);
+    const discount = newPlanPartialValue - prorataValue;
+
+    return {
+      valueToPay: Number(prorataValue.toFixed(2)),
+      currentPlanCredit: Number(currentPlanCredit.toFixed(2)),
+      daysUsed: daysUsed,
+      daysRemaining: daysRemaining,
+      totalDaysCycle: totalDaysCycle,
+      discountApplied: Number(discount.toFixed(2)),
+      explanation:
+        `Você utilizou ${daysUsed} dias de um ciclo de ${totalDaysCycle} dias. ` +
+        `Seu crédito do plano atual é R$ ${currentPlanCredit.toFixed(2)} ` +
+        `(${daysRemaining} dias não utilizados). O desconto aplicado foi de R$ ${discount.toFixed(2)}.`,
+    };
   }
 }
 
