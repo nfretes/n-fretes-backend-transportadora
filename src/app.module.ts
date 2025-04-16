@@ -16,13 +16,14 @@ import { FreightRequestModule } from './components/freight-request/freight-reque
 import { FreightRouteModule } from '@components/freight-route/freight-route.module';
 import { ReviewUserDriveModule } from '@components/review-users-drive/review-users-drive.module';
 import { AsaasModule } from '@components/asaas/assas.module';
-
+import {TransactionsModule} from '@components/transactions/transactions.module'
 //Croon
 import { FreightRequestCronModule } from '@components/cron/freight-requests/freight-request-croon-module';
 import { SqsModule } from '@components/sqs/sqs.module';
 import { DashboardModule } from '@components/dashboard/dashboard.module';
 import { WebhookAsaasModule } from '@components/webhooks/assas/webhook.assas.module';
 import { PlansCompanyModule } from '@components/plans-company/plans.company.module';
+import { NotificationModule } from '@components/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -56,7 +57,9 @@ import { PlansCompanyModule } from '@components/plans-company/plans.company.modu
     DashboardModule,
     AsaasModule,
     WebhookAsaasModule,
-    PlansCompanyModule
+    PlansCompanyModule,
+    TransactionsModule,
+    NotificationModule
   ],
   controllers: [AppController],
   providers: [AppService],

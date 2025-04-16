@@ -36,13 +36,14 @@ export class AsaasService {
     private readonly connection: Connection,
   ) {}
 
+   /***********************************ASSAS CONFIG************************************************ */
   private getAsaasConfig() {
     return {
       baseUrl: this.configService.get<string>('ASAAS_BASE_URL'),
       apiToken: this.configService.get<string>('ASAAS_API_KEY'),
     };
   }
-
+ /***********************************AUTH HEADERS************************************************ */
   private getAuthHeaders() {
     const { apiToken } = this.getAsaasConfig();
     return {
@@ -981,6 +982,7 @@ export class AsaasService {
         `(${daysRemaining} dias não utilizados). O desconto aplicado foi de R$ ${discount.toFixed(2)}.`,
     };
   }
+/**************************************************************************************************** */
 }
 
-/************************************************************************************************* */
+
