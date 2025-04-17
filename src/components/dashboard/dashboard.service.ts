@@ -42,6 +42,9 @@ export class DashboardService {
         freightRoutes,
         allFreights 
       ] = await Promise.all([
+
+
+   
     
         this.freightRepository.find({
           where: {
@@ -61,7 +64,7 @@ export class DashboardService {
         
     
         this.reviewRepository.find({
-          where: { companyId: userId, isCompanyReviewingUser: true },
+          where: { companyId: userId, isUserReviewingCompany: true },
           relations: ['userDrive'],
           order: { createdAt: 'DESC' },
         }),
@@ -92,6 +95,8 @@ export class DashboardService {
           select: ['destinyCity']
         })
       ]);
+
+   
 
       // Processamento dos fretes
       const freightCount = activeFreights.length;

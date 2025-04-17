@@ -68,7 +68,8 @@ export class FreightRequestService {
           'freight_requests.userDriveId',
           'freight_requests.companyId',
           'freight_requests.status',
-          'freight_requests.solicitationsOrder'
+          'freight_requests.solicitationsOrder',
+          'freight_requests.expiresAt'
         ])
         .leftJoinAndSelect('freight_requests.freight', 'freight')
         .leftJoin('freight.contactCompany', 'contact_company')
