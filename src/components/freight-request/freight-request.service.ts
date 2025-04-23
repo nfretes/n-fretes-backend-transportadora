@@ -12,6 +12,7 @@ import { FreightRoutes, RouteStatus } from '@entities/freight-routes.entity';
 import { UsersDrive } from '@entities/users-drive.entity';
 import { addHoursToSaoPauloTime } from '@components/utils/formatTime-SP';
 import { SQSService } from '@components/sqs/sqs.service';
+import { EntityType, IconStyles, Notification, NotificationCategory, NotificationStatus } from '@entities/notifications.entity';
 @Injectable()
 export class FreightRequestService {
   constructor(
@@ -24,6 +25,8 @@ export class FreightRequestService {
     @InjectRepository(UsersDrive)
     private readonly userDriveRepository: Repository<UsersDrive>,
     private readonly sqsService: SQSService,
+    @InjectRepository(Notification)
+    private readonly notificationRepository: Repository<Notification>,
   ) {}
 
   async create(
@@ -117,7 +120,7 @@ export class FreightRequestService {
     try {
       const freightRequest = await this.freightRequestRepository.findOne({
         where: { id: freightRequestId },
-        relations: ['freight'],
+        relations: ['freight', 'company'],
       });
   
       if (!freightRequest) {
@@ -155,6 +158,23 @@ export class FreightRequestService {
       freightRequest.expiresAt = time
   
       await this.freightRequestRepository.save(freightRequest);
+      const notification = this.notificationRepository.create({
+        title: 'Frete aceito',
+        message: `A Transportadora ${freightRequest?.company?.name} aceitou seu frete ${freightRequest?.freight?.originCity} → ${freightRequest?.freight?.destinyCity}.`,
+        senderType: EntityType.COMPANY,
+        senderId: freightRequest.companyId,
+        recipientType: EntityType.USER, 
+        recipientId: freightRequest.userDriveId,
+        category: NotificationCategory.FREIGHT,
+        status: NotificationStatus.UNREAD,
+        payload: {
+          message: 'Parabéns! Seu frete foi aceito. Confirme a solicitação para dar início a essa rota.',
+        },
+        iconStyle: IconStyles.FREIGHT_ACCEPTED,
+        createdAt: new Date(),
+      });
+      
+      await this.notificationRepository.save(notification);
 
       await this.sqsService.sendNotificationToDriver({
         freightRequestId,

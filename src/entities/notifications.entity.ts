@@ -27,6 +27,16 @@ export enum EntityType {
   COMPANY = 'company',
 }
 
+export enum IconStyles {
+  FREIGHT_REQUEST = 'freightRequest',
+  FREIGHT_DELIVERY = 'freightDelivery',
+  CHAT = 'chat',
+  FREIGHT_ACCEPTED = 'freightAccepted',
+  WELCOME = 'welcome',
+  UPGRADE = 'upgrade',
+  FREIGHT_RECUSED = 'freightRecused'
+}
+
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
