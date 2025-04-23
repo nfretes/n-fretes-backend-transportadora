@@ -11,6 +11,7 @@ import { Freight } from '@entities/freight.entity';
 import { FreightRoutes, RouteStatus } from '@entities/freight-routes.entity';
 import { UsersDrive } from '@entities/users-drive.entity';
 import { addHoursToSaoPauloTime } from '@components/utils/formatTime-SP';
+import { SQSService } from '@components/sqs/sqs.service';
 @Injectable()
 export class FreightRequestService {
   constructor(
@@ -22,6 +23,7 @@ export class FreightRequestService {
     private readonly freightRoutesRepository: Repository<FreightRoutes>,
     @InjectRepository(UsersDrive)
     private readonly userDriveRepository: Repository<UsersDrive>,
+    private readonly sqsService: SQSService,
   ) {}
 
   async create(
@@ -129,21 +131,7 @@ export class FreightRequestService {
       const userDriveId = freightRequest.userDriveId;
   
    
-      const existingRequest = await this.freightRequestRepository.findOne({
-        where: {
-          freightId: freightId,
-          status: FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE,
-        },
-      });
-  
-      if (existingRequest) {
-        throw new HttpException(
-          'Já existe um motorista aguardando resposta para este frete.',
-          HttpStatus.FORBIDDEN, 
-        );
-      }
-  
-
+    
       const activeRoute = await this.freightRoutesRepository.findOne({
         where: { userDriveId, status: RouteStatus.IN_PROGRESS },
       });
@@ -167,6 +155,14 @@ export class FreightRequestService {
       freightRequest.expiresAt = time
   
       await this.freightRequestRepository.save(freightRequest);
+
+      await this.sqsService.sendNotificationToDriver({
+        freightRequestId,
+        driverId: userDriveId,
+        freightId,
+        status:  FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE,
+        expiresAt: time.toISOString(),
+      })
   
       return {
         success: true,

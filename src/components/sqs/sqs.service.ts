@@ -55,4 +55,38 @@ export class SQSService {
       throw new HttpException(error, HttpStatus.BAD_REQUEST);
     }
   }
+
+  async sendNotificationToDriver(payload: {
+    freightRequestId: string;
+    driverId: string;
+    freightId: string;
+    status: string;
+    expiresAt: string;
+  }) {
+    const params = {
+      QueueUrl: this.queueUrlFreightSharing,
+      MessageBody: JSON.stringify({
+        type: 'FREIGHT_RESPONSE',
+        data: payload,
+        timestamp: new Date().toISOString(),
+      }),
+      MessageAttributes: {
+        EventType: {
+          DataType: 'String',
+          StringValue: 'FREIGHT_RESPONSE',
+        },
+        DriverId: {
+          DataType: 'String',
+          StringValue: payload.driverId,
+        },
+      },
+    };
+
+    try {
+      await this.sqsClient.send(new SendMessageCommand(params));
+    } catch (error) {
+      console.error('Erro ao enviar mensagem para SQS:', error);
+      throw new Error('Falha ao enviar notificação para o motorista');
+    }
+  }
 }

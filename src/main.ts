@@ -32,6 +32,8 @@ async function bootstrap() {
   const port = app.get(ConfigService).get<number>('PORT') || 3001;
 
   app.set('trust proxy', 1);
-  await app.listen(port);
+  await app.listen(port).then(() => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
 }
 bootstrap();
