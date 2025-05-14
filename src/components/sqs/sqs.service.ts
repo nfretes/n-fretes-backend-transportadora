@@ -83,7 +83,8 @@ export class SQSService {
     };
 
     try {
-      await this.sqsClient.send(new SendMessageCommand(params));
+      const response = await this.sqsClient.send(new SendMessageCommand(params));
+
     } catch (error) {
       console.error('Erro ao enviar mensagem para SQS:', error);
       throw new Error('Falha ao enviar notificação para o motorista');

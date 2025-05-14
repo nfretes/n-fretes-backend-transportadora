@@ -154,7 +154,7 @@ export class FreightRequestService {
       freightRequest.status = FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE;
 
       const currentDate = new Date();
-      const time = addHoursToSaoPauloTime(currentDate, 8)
+      const time = addHoursToSaoPauloTime(currentDate, 1)
       freightRequest.expiresAt = time
   
       await this.freightRequestRepository.save(freightRequest);
