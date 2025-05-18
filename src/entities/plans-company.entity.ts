@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { SubscriptionCompany } from './subscription-company.entity';
+import { PlanFeatureLimit } from './plan-feature-limits.entity';
 
 @Entity({ schema: 'public', name: 'plans-company' })
 export class PlansCompany {
@@ -33,4 +34,7 @@ export class PlansCompany {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+    @OneToMany(() => PlanFeatureLimit, (limit) => limit.plan)
+  featureLimits: PlanFeatureLimit[];
 }

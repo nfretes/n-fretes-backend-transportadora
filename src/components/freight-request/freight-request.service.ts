@@ -207,6 +207,92 @@ export class FreightRequestService {
     }
   }
 
+   async confirmedFreightRequest(freightRequestId: string) {
+    try {
+      const freightRequest = await this.freightRequestRepository.findOne({
+        where: { id: freightRequestId,  status: FreightRequestStatus.DRIVER_CONFIRMED_DELIVERY },
+        relations: ['freight', 'company'],
+      });
+  
+      if (!freightRequest) {
+        throw new HttpException(
+          'Freight request not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+  
+      const freightId = freightRequest.freightId;  
+      const userDriveId = freightRequest.userDriveId;
+  
+   
+       const activeRoute = await this.freightRoutesRepository.findOne({
+        where: { userDriveId, status: RouteStatus.IN_PROGRESS, freightId: freightRequest.freightId },
+      });
+
+      
+      if (activeRoute) {
+        activeRoute.status = RouteStatus.COMPLETED;
+        await this.freightRoutesRepository.save(activeRoute);
+      }
+   
+  
+       
+      freightRequest.status = FreightRequestStatus.DELIVERY_COMPLETED;
+
+      const currentDate = new Date();
+      freightRequest.expiresAt = currentDate
+      
+  
+      await this.freightRequestRepository.save(freightRequest);
+      const notification = this.notificationRepository.create({
+        title: 'Frete confirmado',
+        message: `A Transportadora ${freightRequest?.company?.name} confirmou a entrega ${freightRequest?.freight?.originCity} → ${freightRequest?.freight?.destinyCity}.`,
+        senderType: EntityType.COMPANY,
+        senderId: freightRequest.companyId,
+        recipientType: EntityType.USER, 
+        recipientId: freightRequest.userDriveId,
+        category: NotificationCategory.FREIGHT,
+        status: NotificationStatus.UNREAD,
+        payload: {
+          message: 'Frete confirmado entregue não esqueça de avaliar esse frete.',
+        },
+        iconStyle: IconStyles.FREIGHT_ACCEPTED,
+        createdAt: new Date(),
+      });
+      
+      await this.notificationRepository.save(notification);
+
+      await this.sqsService.sendNotificationToDriver({
+        freightRequestId,
+        driverId: userDriveId,
+        freightId,
+        status:  FreightRequestStatus.DELIVERY_COMPLETED,
+        expiresAt: currentDate.toISOString(),
+      })
+  
+      return {
+        success: true,
+        message: 'Frete confirmado.',
+        accepted: true,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const statusCode = error.getStatus();
+        return {
+          code: statusCode,
+          error: response
+        };
+      }
+    
+      console.error('Erro no accept fretes:', error);
+      throw new HttpException(
+        error.message || 'Erro interno',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
 
   async acceptFreightRequestUserDrive(freightRequestId: string, status: FreightRequestStatus) {
     try {

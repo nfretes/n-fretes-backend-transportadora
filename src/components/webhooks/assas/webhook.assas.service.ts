@@ -12,6 +12,7 @@ import { AsaasWebhookEvent, Payment } from './types';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { FeatureUsage } from '@entities/feature-usage.entity';
 
 @Injectable()
 export class AsaasService {
@@ -24,6 +25,8 @@ export class AsaasService {
     private transactionRepository: Repository<Transactions>,
     @InjectRepository(PlansCompany)
     private planRepository: Repository<PlansCompany>,
+        @InjectRepository(FeatureUsage)
+    private featureUsageRepository: Repository<FeatureUsage>,
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
   ) {}
@@ -103,6 +106,8 @@ export class AsaasService {
 
       const plan = await queryRunner.manager.findOne(PlansCompany, {
         where: { id: subscription.planId },
+        relations: ['featureLimits', 'featureLimits.feature'] 
+
       });
 
       if (!plan) {
@@ -136,6 +141,37 @@ export class AsaasService {
       });
 
       await queryRunner.manager.save(transaction);
+
+         if (plan.featureLimits && plan.featureLimits.length > 0) {
+        for (const featureLimit of plan.featureLimits) {
+         
+          const featureUsage = await queryRunner.manager.findOne(FeatureUsage, {
+            where: {
+              subscriptionId: subscription.id,
+              featureId: featureLimit.featureId
+            }
+          });
+
+          if (featureUsage) {
+   
+            featureUsage.quantityUsed = 0; 
+            featureUsage.quantityUsed = featureLimit.monthlyLimit; 
+            await queryRunner.manager.save(featureUsage);
+          } else {
+       
+            const newUsage = this.featureUsageRepository.create({
+              subscriptionId: subscription.id,
+              featureId: featureLimit.featureId,
+              quantityUsed: featureLimit.monthlyLimit, 
+              metadata: {
+                action: 'RENEWAL',
+                cycle: newInterval
+              }
+            });
+            await queryRunner.manager.save(newUsage);
+          }
+        }
+      }
 
       await queryRunner.commitTransaction();
 

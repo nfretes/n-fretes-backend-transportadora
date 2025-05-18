@@ -7,10 +7,12 @@ import {
   PrimaryColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 
 import { Company } from './company.entity';
 import { PlansCompany } from './plans-company.entity';
+import { FeatureUsage } from './feature-usage.entity';
 
 @Entity({ schema: 'public', name: 'subscription-company' })
 export class SubscriptionCompany {
@@ -53,4 +55,7 @@ export class SubscriptionCompany {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => FeatureUsage, (usage) => usage.subscription)
+  featureUsages: FeatureUsage[];
 }

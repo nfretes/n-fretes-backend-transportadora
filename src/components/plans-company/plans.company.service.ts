@@ -11,9 +11,21 @@ export class PlansCompanyService {
   ) {}
 
   async findAllActive(): Promise<PlansCompany[]> {
-    return this.plansCompanyRepository.find({
+
+    try {
+       return this.plansCompanyRepository.find({
       where: { status: true },
       order: { createdAt: 'ASC' },
+
+      relations: [
+        'featureLimits',         
+        'featureLimits.feature'   
+      ]
     });
+    
+    } catch (error) {
+      console.log(error, 'Erro ao trazer os planos')
+    }
+   
   }
 }

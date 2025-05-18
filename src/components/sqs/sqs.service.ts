@@ -83,7 +83,7 @@ export class SQSService {
     };
 
     try {
-      const response = await this.sqsClient.send(new SendMessageCommand(params));
+     await this.sqsClient.send(new SendMessageCommand(params));
 
     } catch (error) {
       console.error('Erro ao enviar mensagem para SQS:', error);

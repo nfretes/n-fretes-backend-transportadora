@@ -26,24 +26,25 @@ export class FreightRequestController {
   }
 
   @Get()
-  findAll(@GetUserId() userId: string, @Query()params: ParamsFreightRequest) {
+  findAll(@GetUserId() userId: string, @Query() params: ParamsFreightRequest) {
     return this.freightRequestService.findAll(userId, params);
   }
 
-
   @Patch(':id/accept')
-  async acceptFreightRequest(
-    @Param('id') id: string,
-  ) {
+  async acceptFreightRequest(@Param('id') id: string) {
     return this.freightRequestService.acceptFreightRequest(id);
   }
-
 
   @Patch(':id/accept-user')
   async acceptFreightRequestUserDrive(
     @Param('id') id: string,
-    @Body() status: FreightRequestStatus
+    @Body() status: FreightRequestStatus,
   ) {
-    return this.freightRequestService.acceptFreightRequestUserDrive(id,status);
+    return this.freightRequestService.acceptFreightRequestUserDrive(id, status);
+  }
+
+  @Patch(':id/confirmed')
+  async confirmedFreightRequest(@Param('id') id: string) {
+    return this.freightRequestService.confirmedFreightRequest(id);
   }
 }

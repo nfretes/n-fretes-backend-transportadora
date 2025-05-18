@@ -145,8 +145,6 @@ export class AuthController {
   
   /********************************************************************************** */
 
-
-  
   @ApiOperation({
     summary: 'Troca de senha',
     description: 'Troca de senha depois da validação do COD enviado no email',
