@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { Like, Repository } from 'typeorm';
+import { Like, MoreThan, Repository } from 'typeorm';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,22 +8,24 @@ import { LoginDto } from './dto/Login.dto';
 import { ChangePasswordDto, ResetPasswordDto } from './dto/Password.dto';
 import * as jwt from 'jsonwebtoken';
 import sgMail from '@sendgrid/mail';
-import { EmailJson } from './interfaces/IAuth';
+import { PhoneJson } from './interfaces/IAuth';
 import { Company } from '@entities/company.entity';
+import { RecoveryCode } from '@entities/recovery-codes.entity';
+import { WhatsappService } from 'src/external/services/WHATSCODE/whatsapp-code.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(Company)
     private companyRepository: Repository<Company>,
+    @InjectRepository(RecoveryCode)
+    private recoverCodeRepository: Repository<RecoveryCode>,
     private configService: ConfigService,
+     private whatsappService: WhatsappService,
   ) {
-    sgMail.setApiKey(this.configService.get<string>('SENDGRID_API_KEY'));
+   
   }
 
-  private generateRecoveryCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  }
 
   async generateJwt(payload: any) {
     const secret = this.configService.get<string>('JWT_SECRET');
@@ -128,59 +130,175 @@ export class AuthService {
     }
   }
 
-  async generateRecoveryCodeAndSendEmail(
-    emailJson: EmailJson,
+    private formatPhoneNumber(phoneNumber: string): string {
+    const cleaned = phoneNumber.replace(/\D/g, '');
+    if (cleaned.startsWith('55')) {
+      return cleaned;
+    }
+    return `55${cleaned}`;
+  }
+
+  async generateRecoveryCodeAndSendNumber(
+    phone: PhoneJson,
   ): Promise<{ status: boolean; message: string }> {
     try {
-      const { email } = emailJson;
+      const { phoneNumber } = phone;
+      const formattedPhone = this.formatPhoneNumber(phoneNumber);
+
+      const phoneNumberVariations = [
+        phoneNumber,
+        phoneNumber.replace(')', ') '),
+      ];
 
       const user = await this.companyRepository.findOne({
-        where: { email: Like(`%${email}%`) },
-        select: ['name'],
+        where: phoneNumberVariations.map((variation) => ({
+          phoneNumber: Like(`%${variation}%`),
+        })),
       });
 
       if (!user) {
         throw new HttpException(
-          'Usuário não encontrado em nossa base de dados',
+          'Não localizamos esse número em nossa base de dados',
           HttpStatus.NOT_FOUND,
         );
       }
 
-      const { name } = user;
+      await this.recoverCodeRepository.delete({
+        phoneNumber: formattedPhone,
+      });
 
-      const recoveryCode = this.generateRecoveryCode();
-      const redisKey = `recoveryCode:${email}`;
+      const code = Math.floor(100000 + Math.random() * 900000);
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-      const msg = {
-        to: email,
-        from: 'thiagolimadesenvolvedor@gmail.com',
-        subject: 'Código de recuperação de senha',
-        text: `Seu código de recuperação de senha é: ${recoveryCode}`,
-        html: `<p>Olá <strong>${name}</strong>, seu código de recuperação de senha é: <strong>${recoveryCode}</strong></p>`,
-      };
-      await sgMail.send(msg);
+      const response = await this.whatsappService.whatsAppCode(
+        formattedPhone,
+        code,
+      );
+
+      if (response.status === 200) {
+        await this.recoverCodeRepository.save({
+          code,
+          phoneNumber: formattedPhone,
+          expiresAt,
+          used: false,
+        });
+      } else {
+        throw new HttpException(
+          'Por favor tente novamente, daqui a pouco',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
       return {
         status: true,
-        message: 'Email enviado com sucesso',
+        message: 'Código enviado com sucesso',
       };
     } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        'Não conseguimos enviar o código de redefinição',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 
-  async validateRecoveryCode(email: string, code: string): Promise<boolean> {
-    const redisKey = `recoveryCode:${email}`;
+  
 
 
-    return true;
+  async validateRecoveryCode(recoveryDto: any): Promise<any> {
+    try {
+      const { phoneNumber, code } = recoveryDto;
+
+      const phoneNumberVariations = [
+        phoneNumber,
+        phoneNumber.replace(')', ') '),
+      ];
+
+      const user = await this.companyRepository.findOne({
+        where: phoneNumberVariations.map((variation) => ({
+          phoneNumber: Like(`%${variation}%`),
+        })),
+      });
+
+      if (!user) {
+        throw new HttpException(
+          'Não conseguimos localizar nenhum usuário com esse número',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const recoveryCode = await this.recoverCodeRepository.findOne({
+        where: {
+          code,
+          used: false,
+          expiresAt: MoreThan(new Date()),
+        },
+      });
+
+      if (!recoveryCode) {
+        throw new HttpException(
+          'Código expirado ou inválido',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      function normalizePhoneNumber(phoneNumber: string): string {
+        let normalized = phoneNumber.replace(/\D/g, '');
+        if (!normalized.startsWith('55') && normalized.length >= 10) {
+          normalized = '55' + normalized;
+        }
+
+        return normalized;
+      }
+
+      const normalizedUserPhone = normalizePhoneNumber(user.phoneNumber);
+      const normalizedRecoveryPhone = normalizePhoneNumber(
+        recoveryCode.phoneNumber,
+      );
+
+      if (normalizedUserPhone !== normalizedRecoveryPhone) {
+        throw new HttpException(
+          'O código não corresponde ao número do usuário',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      await this.recoverCodeRepository.update(recoveryCode.id, {
+        used: true,
+      });
+
+      return {
+        success: true,
+        message: 'Código validado com sucesso',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('Erro na validação do código:', error);
+
+      throw new HttpException(
+        'Ocorreu um erro ao validar o código. Tente novamente',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  async changePasswordByRecoveryCode(
-    resetPasswordDto: ResetPasswordDto,
+ async changePasswordByRecoveryCode(
+    resetPasswordDto: any,
   ): Promise<{ message: string }> {
-    const { email, newPassword } = resetPasswordDto;
-    const user = await this.companyRepository.findOne({ where: { email } });
+    const { phoneNumber, newPassword } = resetPasswordDto;
+    const phoneNumberVariations = [phoneNumber, phoneNumber.replace(')', ') ')];
+
+    const user = await this.companyRepository.findOne({
+      where: phoneNumberVariations.map((variation) => ({
+        phoneNumber: Like(`%${variation}%`),
+      })),
+    });
 
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
@@ -192,7 +310,6 @@ export class AuthService {
 
     return { message: 'Senha alterada com sucesso' };
   }
-
   async getUserByToken(token: string): Promise<Company> {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');

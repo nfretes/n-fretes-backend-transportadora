@@ -12,7 +12,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/Login.dto';
 import { AuthResponseDto, AuthResponseRegisterDto } from './dto/Auth.dto';
-import { EmailJson } from './interfaces/IAuth';
+import { PhoneJson } from './interfaces/IAuth';
 import {
   AuthcodeEmail,
   NotFoundUser,
@@ -68,6 +68,27 @@ export class AuthController {
   }
 
   /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Chega um código de verificação',
+    description: 'Chega um código de verificação para troca de senha',
+  })
+  @ApiBody(AuthcodeEmail)
+  @ApiResponse({
+    status: 201,
+    description: 'Email enviado com sucesso',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Não encontramos usuário em nossa base de dados',
+  })
+  @Post('password/forgot')
+  async sendRecoveryCode(@Body() phoneNumber: PhoneJson) {
+    return this.authService.generateRecoveryCodeAndSendNumber(phoneNumber);
+  }
+
+  /********************************************************************************** */
+
+  /********************************************************************************** */
 
   @ApiOperation({
     summary: 'Chega um código de verificação',
@@ -82,29 +103,9 @@ export class AuthController {
     status: 404,
     description: 'Não encontramos usuário em nossa base de dados',
   })
-  @Post('send-recovery-code')
-  async sendRecoveryCode(@Body() email: EmailJson) {
-    return this.authService.generateRecoveryCodeAndSendEmail(email);
-  }
-
-  /********************************************************************************** */
-
-  @ApiOperation({
-    summary: 'Troca de senha',
-    description: 'Troca de senha depois da validação do COD enviado no email',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Senha alterada com sucesso',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Não encontramos usuário em nossa base de dados',
-  })
-  @ApiBody(recoveryPasswordAndCode)
-  @Post('reset-password')
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.changePasswordByRecoveryCode(resetPasswordDto);
+  @Post('password/code')
+  async validateRecoveryCode(@Body() recoveryDto: any) {
+    return this.authService.validateRecoveryCode(recoveryDto);
   }
 
   /********************************************************************************** */
@@ -140,5 +141,27 @@ export class AuthController {
     return this.authService.changePassword(userId, changePasswordDto);
   }
 
+
+  
   /********************************************************************************** */
+
+
+  
+  @ApiOperation({
+    summary: 'Troca de senha',
+    description: 'Troca de senha depois da validação do COD enviado no email',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Senha alterada com sucesso',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Não encontramos usuário em nossa base de dados',
+  })
+  @ApiBody(recoveryPasswordAndCode)
+  @Post('password/reset-password')
+  async resetPassword(@Body() resetPasswordDto: any) {
+    return this.authService.changePasswordByRecoveryCode(resetPasswordDto);
+  }
 }
