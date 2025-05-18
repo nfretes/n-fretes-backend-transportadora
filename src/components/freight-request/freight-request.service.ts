@@ -241,6 +241,7 @@ export class FreightRequestService {
 
       const currentDate = new Date();
       freightRequest.expiresAt = currentDate
+      freightRequest.updatedAt = currentDate
       
   
       await this.freightRequestRepository.save(freightRequest);
