@@ -84,50 +84,57 @@ export class FreightService {
   }
 
     /****************************************SUGEST DRIVE****************************************** */
-  async getSuggestedDrivers(
-    params: ParamsFreight
-  ) {
-    const {page = 1, take = 10, id} = params
+async getSuggestedDrivers(params: ParamsFreight) {
+  const { page = 1, take = 10, id } = params;
 
-    const freight = await this.freightRepository.findOne({ where: { id } });
-  
-    if (!freight) {
-      throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
-    }
-  
-    const offset = (page - 1) * take;
+  const freight = await this.freightRepository.findOne({ where: { id } });
 
-    const originLat = Number(freight.originLatitude);
-    const originLng = Number(freight.originLongitude);
+  if (!freight) {
+    throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+  }
 
-    const maxOffset = 1;
-    const [result, total] = await this.userDriveRepository
+  const offset = (page - 1) * take;
+
+  const originLat = Number(freight.originLatitude);
+  const originLng = Number(freight.originLongitude);
+  const radiusInKm = 50;
+
+  const [result, total] = await this.userDriveRepository
     .createQueryBuilder('users_drive')
     .innerJoinAndSelect('users_drive.locations', 'location')
     .innerJoinAndSelect('users_drive.vehicles', 'vehicles')
-    .addSelect(`(POWER(location.latitude - ${originLat}, 2) + POWER(location.longitude - ${originLng}, 2))`, 'distance')
+    .addSelect(`
+      6371 * acos(
+        cos(radians(:originLat)) * cos(radians(location.latitude)) * 
+        cos(radians(location.longitude) - radians(:originLng)) + 
+        sin(radians(:originLat)) * sin(radians(location.latitude))
+      )
+    `, 'distance')
     .where('users_drive.isOnRoute = :isOnRoute', { isOnRoute: false })
-    .andWhere('location.latitude BETWEEN :minLat AND :maxLat', {
-      minLat: originLat - maxOffset,
-      maxLat: originLat + maxOffset,
-    })
-    .andWhere('location.longitude BETWEEN :minLng AND :maxLng', {
-      minLng: originLng - maxOffset,
-      maxLng: originLng + maxOffset,
+    .andWhere(`
+      6371 * acos(
+        cos(radians(:originLat)) * cos(radians(location.latitude)) * 
+        cos(radians(location.longitude) - radians(:originLng)) + 
+        sin(radians(:originLat)) * sin(radians(location.latitude))
+      ) <= :radiusInKm
+    `)
+    .setParameters({
+      originLat,
+      originLng,
+      radiusInKm,
     })
     .orderBy('distance', 'ASC')
     .skip(offset)
     .take(take)
     .getManyAndCount();
-  
-    return {
-      data: result,
-      total,
-      currentPage: page,
-      totalPages: Math.ceil(total / take),
-    };
-  }
-  
+
+  return {
+    data: result,
+    total,
+    currentPage: page,
+    totalPages: Math.ceil(total / take),
+  };
+}
   /****************************************GET CONTACT ID****************************************** */
   async getContactId(id: string): Promise<ResponseFreightDto> {
     try {
