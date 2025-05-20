@@ -294,6 +294,87 @@ export class FreightRequestService {
     }
   }
 
+   async rejectFreightRequest(freightRequestId: string) {
+    try {
+      const freightRequest = await this.freightRequestRepository.findOne({
+        where: { id: freightRequestId,  status: FreightRequestStatus.DRIVER_CONFIRMED_DELIVERY },
+        relations: ['freight', 'company'],
+      });
+  
+      if (!freightRequest) {
+        throw new HttpException(
+          'Freight request not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+  
+      const freightId = freightRequest.freightId;  
+      const userDriveId = freightRequest.userDriveId;
+  
+   
+       const activeRoute = await this.freightRoutesRepository.findOne({
+        where: { userDriveId, status: RouteStatus.IN_PROGRESS, freightId: freightRequest.freightId },
+      });
+
+      
+      if (activeRoute) {
+        activeRoute.status = RouteStatus.IN_PROGRESS;
+        await this.freightRoutesRepository.save(activeRoute);
+      }
+   
+  
+       
+      freightRequest.status = FreightRequestStatus.ACCEPTED;
+
+      await this.freightRequestRepository.save(freightRequest);
+      const notification = this.notificationRepository.create({
+        title: 'Não podemos confirma sua entrega',
+        message: `A Transportadora ${freightRequest?.company?.name} não confirmou a entrega ${freightRequest?.freight?.originCity} → ${freightRequest?.freight?.destinyCity}.`,
+        senderType: EntityType.COMPANY,
+        senderId: freightRequest.companyId,
+        recipientType: EntityType.USER, 
+        recipientId: freightRequest.userDriveId,
+        category: NotificationCategory.FREIGHT,
+        status: NotificationStatus.UNREAD,
+        payload: {
+          message: 'Transportadora informou que frete ainda não foi entregue caso precisa de ajuda entre em contato com nosso suporte. (34)99733-6677',
+        },
+        iconStyle: IconStyles.FREIGHT_ACCEPTED,
+        createdAt: new Date(),
+      });
+      
+      await this.notificationRepository.save(notification);
+
+      await this.sqsService.sendNotificationToDriver({
+        freightRequestId,
+        driverId: userDriveId,
+        freightId,
+        status:  FreightRequestStatus.NOT_CONFIRMED_DELIVERY,
+        expiresAt: new Date().toISOString(),
+      })
+  
+      return {
+        success: true,
+        accepted: true,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const statusCode = error.getStatus();
+        return {
+          code: statusCode,
+          error: response
+        };
+      }
+    
+      console.error('Erro no accept fretes:', error);
+      throw new HttpException(
+        error.message || 'Erro interno',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
 
   async acceptFreightRequestUserDrive(freightRequestId: string, status: FreightRequestStatus) {
     try {
