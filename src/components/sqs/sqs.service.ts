@@ -7,6 +7,8 @@ export class SQSService {
   private sqsClient: SQSClient;
   private readonly queueUrlFreightSharing =
     process.env.QUEUE_SHARING_NOTIFICATION_FREIGHT;
+  private readonly queueSharingFreightUsers =
+    process.env.QUEUE_SHARIGIN_FREIGHT_USERS;
 
   constructor(private configService: ConfigService) {
     this.sqsClient = new SQSClient({
@@ -40,16 +42,16 @@ export class SQSService {
 
   async notifyFreightSharing(
     freightId: string,
-    userIds: string[],
+    tokens: string[],
   ): Promise<void> {
     try {
       const payload = {
         freightId,
-        userIds,
+        tokens,
         timestamp: new Date().toISOString(),
       };
 
-      await this.sendMessage(this.queueUrlFreightSharing, payload);
+      await this.sendMessage(this.queueSharingFreightUsers, payload);
     } catch (error) {
       console.log(error);
       throw new HttpException(error, HttpStatus.BAD_REQUEST);

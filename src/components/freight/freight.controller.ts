@@ -18,6 +18,7 @@ import { ParamsFreight } from './interface/IFreight';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Freight } from '@entities/freight.entity';
+import { SharingFreightDto } from './dto/sharing.dto';
 
 @ApiTags('freight')
 @Controller('freight')
@@ -114,16 +115,13 @@ export class FreightController {
     return result;
   }
 
-    /********************************************************************************** */
+  /********************************************************************************** */
   @Get('/suggested-drivers')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary:
-      'Filtra os motorista por perto',
+    summary: 'Filtra os motorista por perto',
   })
-  async getSuggestedDrivers(
-    @Query() params: ParamsFreight,
-  ) {
+  async getSuggestedDrivers(@Query() params: ParamsFreight) {
     const result = await this.freightService.getSuggestedDrivers(params);
     return result;
   }
@@ -225,6 +223,19 @@ export class FreightController {
     return this.freightService.freightCountCompany(userId);
   }
 
+  /************************************* SHARING********************************************* */
 
-  
+  @UseGuards(JwtAuthGuard)
+  @Post('/sharing')
+  async sharingFreightUsers(
+    @Body() body: SharingFreightDto,
+    @GetUserId() userId: string,
+  ) {
+
+    console.log(body, 'Retorno')
+    return this.freightService.sharingFreightUsers(
+    body,
+      userId,
+    );
+  }
 }

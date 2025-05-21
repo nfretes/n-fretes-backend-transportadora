@@ -7,9 +7,12 @@ import { RecoveryCode } from '@entities/recovery-codes.entity';
 import { UsersDrive } from '@entities/users-drive.entity';
 import { WhatsappService } from 'src/external/services/WHATSCODE/whatsapp-code.service';
 import { HttpModule, HttpService } from '@nestjs/axios';
+import { SubscriptionCompany } from '@entities/subscription-company.entity';
+import { FeatureLog } from '@entities/feature-logs.entity';
+import { FeatureUsage } from '@entities/feature-usage.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Company, RecoveryCode, UsersDrive]),
+  imports: [TypeOrmModule.forFeature([Company, RecoveryCode, UsersDrive, SubscriptionCompany, FeatureLog, FeatureUsage]),
   HttpModule
 ],
   exports: [TypeOrmModule],

@@ -140,6 +140,8 @@ export class UsersContactCompanyService {
           { name: `%${params.name}%` },
         );
       }
+
+      
   
       const allResults = await queryBuilder.orderBy('users_drive.name', 'ASC').getMany();
       const total = allResults.length; 

@@ -12,6 +12,9 @@ import { PhoneJson } from './interfaces/IAuth';
 import { Company } from '@entities/company.entity';
 import { RecoveryCode } from '@entities/recovery-codes.entity';
 import { WhatsappService } from 'src/external/services/WHATSCODE/whatsapp-code.service';
+import { SubscriptionCompany } from '@entities/subscription-company.entity';
+import { FeatureUsage } from '@entities/feature-usage.entity';
+import { FeatureLog } from '@entities/feature-logs.entity';
 
 @Injectable()
 export class AuthService {
@@ -21,11 +24,14 @@ export class AuthService {
     @InjectRepository(RecoveryCode)
     private recoverCodeRepository: Repository<RecoveryCode>,
     private configService: ConfigService,
-     private whatsappService: WhatsappService,
-  ) {
-   
-  }
-
+    private whatsappService: WhatsappService,
+    @InjectRepository(SubscriptionCompany)
+    private subscriptionCompanyRepository: Repository<SubscriptionCompany>,
+    @InjectRepository(FeatureUsage)
+    private featureUsageRepository: Repository<FeatureUsage>,
+    @InjectRepository(FeatureLog)
+    private featureLogsRepository: Repository<FeatureLog>,
+  ) {}
 
   async generateJwt(payload: any) {
     const secret = this.configService.get<string>('JWT_SECRET');
@@ -130,7 +136,7 @@ export class AuthService {
     }
   }
 
-    private formatPhoneNumber(phoneNumber: string): string {
+  private formatPhoneNumber(phoneNumber: string): string {
     const cleaned = phoneNumber.replace(/\D/g, '');
     if (cleaned.startsWith('55')) {
       return cleaned;
@@ -204,9 +210,6 @@ export class AuthService {
       );
     }
   }
-
-  
-
 
   async validateRecoveryCode(recoveryDto: any): Promise<any> {
     try {
@@ -288,7 +291,7 @@ export class AuthService {
     }
   }
 
- async changePasswordByRecoveryCode(
+  async changePasswordByRecoveryCode(
     resetPasswordDto: any,
   ): Promise<{ message: string }> {
     const { phoneNumber, newPassword } = resetPasswordDto;
@@ -314,7 +317,6 @@ export class AuthService {
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
 
-      
       const decoded = jwt.verify(token, secret) as { sub: string };
 
       const user = await this.companyRepository.findOne({
@@ -336,7 +338,7 @@ export class AuthService {
           'state',
           'zipcode',
           'street',
-          'number'
+          'number',
         ],
         relations: [
           'freights',
@@ -344,7 +346,7 @@ export class AuthService {
           'subscription.plan',
           'contacts',
           'CompanyUsersContacts',
-          'creditCard'
+          'creditCard',
         ],
       });
 
@@ -357,4 +359,62 @@ export class AuthService {
       throw new HttpException(error, HttpStatus.UNAUTHORIZED);
     }
   }
+
+async getBeneficitsUser(userId: string) {
+  try {
+    const subscription = await this.subscriptionCompanyRepository.findOne({
+      where: { companyId: userId },
+      relations: ['plan', 'plan.featureLimits', 'plan.featureLimits.feature']
+    });
+
+    if (!subscription) {
+      return [
+        {
+          name: 'Sem assinatura ativa',
+          quantityUsed: 0,
+          limit: 0,
+          remaining: 0,
+          description: 'O usuário ainda não possui uma assinatura ativa',
+          isUnlimited: false
+        }
+      ];
+    }
+
+   
+    const featureUsageUser = await this.featureUsageRepository.find({
+      where: { subscriptionId: subscription.id },
+      relations: ['feature']
+    });
+
+
+    const benefits = subscription.plan.featureLimits.map(limit => {
+      const usage = featureUsageUser.find(u => u.featureId === limit.featureId) || {
+        quantityUsed: 0,
+        feature: limit.feature
+      };
+
+      return {
+        name: limit.feature.name,
+        quantityUsed: usage.quantityUsed,
+        limit: limit.monthlyLimit,
+        remaining: limit.monthlyLimit !== null 
+          ? Math.max(0, limit.monthlyLimit - usage.quantityUsed)
+          : null,
+        description: limit.feature.description,
+        isUnlimited: limit.monthlyLimit === null
+      };
+    });
+
+    return benefits;
+
+  } catch (error) {
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Erro ao buscar benefícios',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
 }

@@ -41,9 +41,7 @@ export class AuthController {
     status: 400,
     description: 'Erro ao registrar o usuário, como CPF já registrado',
   })
-  async register(
-    @Body() registerDto: any,
-  ): Promise<AuthResponseRegisterDto> {
+  async register(@Body() registerDto: any): Promise<AuthResponseRegisterDto> {
     return this.authService.register(registerDto);
   }
 
@@ -141,8 +139,6 @@ export class AuthController {
     return this.authService.changePassword(userId, changePasswordDto);
   }
 
-
-  
   /********************************************************************************** */
 
   @ApiOperation({
@@ -161,5 +157,10 @@ export class AuthController {
   @Post('password/reset-password')
   async resetPassword(@Body() resetPasswordDto: any) {
     return this.authService.changePasswordByRecoveryCode(resetPasswordDto);
+  }
+
+  @Get('beneficits')
+  async getBeneficitsUser(@GetUserId() userId: string) {
+    return this.authService.getBeneficitsUser(userId);
   }
 }

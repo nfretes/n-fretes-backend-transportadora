@@ -1,6 +1,6 @@
 import { Freight } from '@entities/freight.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateFreightDto, UpdateFreightDto } from './dto/freight.dto';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ResponseFreightDto } from './dto/response-freight.dto';
@@ -8,6 +8,11 @@ import { Company } from '@entities/company.entity';
 import { ParamsFreight } from './interface/IFreight';
 import { PaginationService } from '@components/pagination/pagination.service';
 import { UsersDrive } from '@entities/users-drive.entity';
+import { SubscriptionCompany } from '@entities/subscription-company.entity';
+import { FeatureUsage } from '@entities/feature-usage.entity';
+import { SQSService } from '@components/sqs/sqs.service';
+import { FeatureLog } from '@entities/feature-logs.entity';
+import { SharingFreightDto } from './dto/sharing.dto';
 
 export class FreightService {
   constructor(
@@ -17,7 +22,14 @@ export class FreightService {
     private companyRepository: Repository<Company>,
     @InjectRepository(UsersDrive)
     private userDriveRepository: Repository<UsersDrive>,
+    @InjectRepository(SubscriptionCompany)
+    private subscriptionCompanyRepository: Repository<SubscriptionCompany>,
+    @InjectRepository(FeatureUsage)
+    private featureUsageRepository: Repository<FeatureUsage>,
+    @InjectRepository(FeatureLog)
+    private featureLogsRepository: Repository<FeatureLog>,
     private readonly paginationService: PaginationService,
+    private readonly sqsService: SQSService,
   ) {}
 
   /****************************************CREATE FREIGHT****************************************** */
@@ -45,11 +57,11 @@ export class FreightService {
   async freightCountCompany(userId: string): Promise<any> {
     try {
       const totalCount = await this.freightRepository.count({
-        where: { companyId: userId, isActive: true, openSolicitations: true }
+        where: { companyId: userId, isActive: true, openSolicitations: true },
       });
-  
+
       return {
-        count: totalCount
+        count: totalCount,
       };
     } catch (error) {
       throw new HttpException(
@@ -83,58 +95,63 @@ export class FreightService {
     }
   }
 
-    /****************************************SUGEST DRIVE****************************************** */
-async getSuggestedDrivers(params: ParamsFreight) {
-  const { page = 1, take = 10, id } = params;
+  /****************************************SUGEST DRIVE****************************************** */
+  async getSuggestedDrivers(params: ParamsFreight) {
+    const { page = 1, take = 10, id } = params;
 
-  const freight = await this.freightRepository.findOne({ where: { id } });
+    const freight = await this.freightRepository.findOne({ where: { id } });
 
-  if (!freight) {
-    throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
-  }
+    if (!freight) {
+      throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+    }
 
-  const offset = (page - 1) * take;
+    const offset = (page - 1) * take;
 
-  const originLat = Number(freight.originLatitude);
-  const originLng = Number(freight.originLongitude);
-  const radiusInKm = 50;
+    const originLat = Number(freight.originLatitude);
+    const originLng = Number(freight.originLongitude);
+    const radiusInKm = 50;
 
-  const [result, total] = await this.userDriveRepository
-    .createQueryBuilder('users_drive')
-    .innerJoinAndSelect('users_drive.locations', 'location')
-    .innerJoinAndSelect('users_drive.vehicles', 'vehicles')
-    .addSelect(`
+    const [result, total] = await this.userDriveRepository
+      .createQueryBuilder('users_drive')
+      .innerJoinAndSelect('users_drive.locations', 'location')
+      .innerJoinAndSelect('users_drive.vehicles', 'vehicles')
+      .addSelect(
+        `
       6371 * acos(
         cos(radians(:originLat)) * cos(radians(location.latitude)) * 
         cos(radians(location.longitude) - radians(:originLng)) + 
         sin(radians(:originLat)) * sin(radians(location.latitude))
       )
-    `, 'distance')
-    .where('users_drive.isOnRoute = :isOnRoute', { isOnRoute: false })
-    .andWhere(`
+    `,
+        'distance',
+      )
+      .where('users_drive.isOnRoute = :isOnRoute', { isOnRoute: false })
+      .andWhere(
+        `
       6371 * acos(
         cos(radians(:originLat)) * cos(radians(location.latitude)) * 
         cos(radians(location.longitude) - radians(:originLng)) + 
         sin(radians(:originLat)) * sin(radians(location.latitude))
       ) <= :radiusInKm
-    `)
-    .setParameters({
-      originLat,
-      originLng,
-      radiusInKm,
-    })
-    .orderBy('distance', 'ASC')
-    .skip(offset)
-    .take(take)
-    .getManyAndCount();
+    `,
+      )
+      .setParameters({
+        originLat,
+        originLng,
+        radiusInKm,
+      })
+      .orderBy('distance', 'ASC')
+      .skip(offset)
+      .take(take)
+      .getManyAndCount();
 
-  return {
-    data: result,
-    total,
-    currentPage: page,
-    totalPages: Math.ceil(total / take),
-  };
-}
+    return {
+      data: result,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / take),
+    };
+  }
   /****************************************GET CONTACT ID****************************************** */
   async getContactId(id: string): Promise<ResponseFreightDto> {
     try {
@@ -176,8 +193,8 @@ async getSuggestedDrivers(params: ParamsFreight) {
 
       const maxFreights = hasActiveSubscription ? take : 3;
 
-      if(params.id) {
-        queryBuilder.andWhere('freight.id = :id', { id: params.id })
+      if (params.id) {
+        queryBuilder.andWhere('freight.id = :id', { id: params.id });
       }
 
       if (params.originCity) {
@@ -268,21 +285,28 @@ async getSuggestedDrivers(params: ParamsFreight) {
       queryBuilder
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
         .leftJoin(
-          'freight.freightRequest', 
-          'freightRequest', 
+          'freight.freightRequest',
+          'freightRequest',
           'freightRequest.status = :status',
-          { status: 'PENDING' }
-      )
+          { status: 'PENDING' },
+        )
         .addSelect(['freightRequest.id', 'freightRequest.status'])
         .leftJoin('freight.company', 'company')
-        .addSelect(['company.id', 'company.name', 'company.photoUrl', 'company.phoneNumber', 'company.createdAt', 'company.city'])
+        .addSelect([
+          'company.id',
+          'company.name',
+          'company.photoUrl',
+          'company.phoneNumber',
+          'company.createdAt',
+          'company.city',
+        ])
         .leftJoin('company.subscription', 'subscription-company')
         .addSelect('subscription-company.status')
         .addSelect(
           'CASE WHEN subscription-company.status = 1 THEN 0 ELSE 1 END',
           'status_priority',
         )
-        
+
         .addOrderBy('status_priority', 'ASC')
         .addOrderBy('freight.createdAt', 'DESC');
 
@@ -494,11 +518,11 @@ async getSuggestedDrivers(params: ParamsFreight) {
         .orderBy('freight.createdAt', 'DESC')
         .leftJoinAndSelect('freight.contactCompany', 'contactCompany')
         .leftJoin(
-          'freight.freightRequest', 
-          'freightRequest', 
+          'freight.freightRequest',
+          'freightRequest',
           'freightRequest.status = :status',
-          { status: 'PENDING' }
-      )
+          { status: 'PENDING' },
+        )
         .addSelect(['freightRequest.id', 'freightRequest.status'])
         .skip((page - 1) * take)
         .take(take)
@@ -605,8 +629,6 @@ async getSuggestedDrivers(params: ParamsFreight) {
         where: { companyId: userId, openSolicitations: true },
       });
 
-
-
       const regions = {
         origin: {
           norte: new Set<string>(),
@@ -699,5 +721,105 @@ async getSuggestedDrivers(params: ParamsFreight) {
     }
   }
 
-  /****************************************FREIGHT STATICS****************************************** */
+  /****************************************FREIGHT SHARING****************************************** */
+
+  async sharingFreightUsers(
+    body:SharingFreightDto,
+    userId: string,
+  ) {
+
+    const {usersIds, freightId} = body
+
+   
+    try {
+      const subscription = await this.subscriptionCompanyRepository.findOne({
+        where: { companyId: userId },
+      });
+
+
+
+      if (!subscription) {
+        throw new HttpException(
+          'Não encontramos uma assinatura ativa para esta empresa.',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const featureUsageUser = await this.featureUsageRepository.find({
+        where: { subscriptionId: subscription.id },
+        relations: ['feature'],
+      });
+
+      const pushNotification = featureUsageUser.find(
+        (usage) => usage.feature.name === 'push_notifications',
+      );
+
+      if (!pushNotification) {
+        throw new HttpException(
+          'O plano atual não inclui notificações push.',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const usersCount = usersIds.length;
+      if (usersCount > pushNotification.quantityUsed) {
+        throw new HttpException(
+          `Limite de notificações excedido. Disponível: ${pushNotification.quantityUsed - pushNotification.quantityUsed}, Necessário: ${usersCount}`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+
+      const users = await this.userDriveRepository.find({
+        where: { id: In(usersIds) },
+        select: ['pushToken'],
+      });
+
+
+      console.log(users)
+
+      const pushTokens = users
+        .map((user) => user.pushToken)
+        .filter((token) => token !== null && token !== undefined);
+
+
+
+      await this.sqsService.notifyFreightSharing(freightId, pushTokens);
+
+      pushNotification.quantityUsed -= usersCount;
+      await this.featureUsageRepository.save(pushNotification);
+
+      const featureLog = this.featureLogsRepository.create({
+        subscriptionId: subscription.id,
+        featureId: pushNotification.feature.id,
+        quantityChange: -usersCount,
+        metadata: {
+          freightId,
+          usersIds,
+          pushTokens,
+        },
+        relatedEntityId: freightId,
+        description: `Uso de ${usersCount} notificações push para o frete ${freightId}`,
+        performedById: userId,
+        performedByType: 'USER',
+      });
+
+      await this.featureLogsRepository.save(featureLog);
+
+      return {
+        success: true,
+        message: `Notificações enviadas para ${usersCount} usuários.`,
+        remaining: pushNotification.quantityUsed,
+      };
+    } catch (error) {
+      console.error('Erro ao compartilhar frete:', error);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Erro interno ao processar notificações.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
