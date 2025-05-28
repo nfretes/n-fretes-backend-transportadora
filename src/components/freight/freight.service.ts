@@ -866,7 +866,7 @@ export class FreightService {
       await queryRunner.manager.update(
         Freight,
         { id: freightId },
-        { isFeatured: true, expiresAt: now },
+        { isFeatured: true, expiresAt },
       );
 
       freteDestaque.quantityUsed -= 1;
