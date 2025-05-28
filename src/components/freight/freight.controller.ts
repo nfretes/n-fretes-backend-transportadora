@@ -18,7 +18,7 @@ import { ParamsFreight } from './interface/IFreight';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Freight } from '@entities/freight.entity';
-import { SharingFreightDto } from './dto/sharing.dto';
+import { FreightIsFeatured, SharingFreightDto } from './dto/sharing.dto';
 
 @ApiTags('freight')
 @Controller('freight')
@@ -234,6 +234,21 @@ export class FreightController {
 
     console.log(body, 'Retorno')
     return this.freightService.sharingFreightUsers(
+    body,
+      userId,
+    );
+  }
+
+
+
+    @UseGuards(JwtAuthGuard)
+  @Post('/sharing/isFeatured')
+  async freightIsFeatured(
+    @Body() body: FreightIsFeatured,
+    @GetUserId() userId: string,
+  ) {
+
+    return this.freightService.freightIsFeatured(
     body,
       userId,
     );

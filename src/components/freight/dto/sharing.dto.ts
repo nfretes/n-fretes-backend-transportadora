@@ -20,3 +20,13 @@ export class SharingFreightDto {
   @IsNotEmpty({ message: 'freightId não pode estar vazio' })
   freightId: string;
 }
+
+export class FreightIsFeatured {
+  @ApiProperty({
+    description: 'ID do frete a ser compartilhado',
+    example: 'freight123',
+  })
+  @IsString({ message: 'freightId deve ser uma string' })
+  @IsNotEmpty({ message: 'freightId não pode estar vazio' })
+  freightId: string;
+}

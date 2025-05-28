@@ -12,7 +12,7 @@ import { SubscriptionCompany } from '@entities/subscription-company.entity';
 import { FeatureUsage } from '@entities/feature-usage.entity';
 import { SQSService } from '@components/sqs/sqs.service';
 import { FeatureLog } from '@entities/feature-logs.entity';
-import { SharingFreightDto } from './dto/sharing.dto';
+import { FreightIsFeatured, SharingFreightDto } from './dto/sharing.dto';
 
 export class FreightService {
   constructor(
@@ -193,6 +193,9 @@ export class FreightService {
 
       const maxFreights = hasActiveSubscription ? take : 3;
 
+      const now = new Date();
+      now.setHours(now.getHours() - 3);
+
       if (params.id) {
         queryBuilder.andWhere('freight.id = :id', { id: params.id });
       }
@@ -306,7 +309,17 @@ export class FreightService {
           'CASE WHEN subscription-company.status = 1 THEN 0 ELSE 1 END',
           'status_priority',
         )
-
+        .addSelect(
+          `
+          CASE 
+            WHEN freight.isFeatured = true AND freight.expiresAt > :now THEN 0
+            ELSE 1
+          END
+        `,
+          'featured_priority',
+        )
+        .setParameter('now', now)
+        .addOrderBy('featured_priority', 'ASC')
         .addOrderBy('status_priority', 'ASC')
         .addOrderBy('freight.createdAt', 'DESC');
 
@@ -723,20 +736,13 @@ export class FreightService {
 
   /****************************************FREIGHT SHARING****************************************** */
 
-  async sharingFreightUsers(
-    body:SharingFreightDto,
-    userId: string,
-  ) {
+  async sharingFreightUsers(body: SharingFreightDto, userId: string) {
+    const { usersIds, freightId } = body;
 
-    const {usersIds, freightId} = body
-
-   
     try {
       const subscription = await this.subscriptionCompanyRepository.findOne({
         where: { companyId: userId },
       });
-
-
 
       if (!subscription) {
         throw new HttpException(
@@ -769,20 +775,16 @@ export class FreightService {
         );
       }
 
-
       const users = await this.userDriveRepository.find({
         where: { id: In(usersIds) },
         select: ['pushToken'],
       });
 
-
-      console.log(users)
+      console.log(users);
 
       const pushTokens = users
         .map((user) => user.pushToken)
         .filter((token) => token !== null && token !== undefined);
-
-
 
       await this.sqsService.notifyFreightSharing(freightId, pushTokens);
 
@@ -820,6 +822,86 @@ export class FreightService {
         'Erro interno ao processar notificações.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  async freightIsFeatured(body: FreightIsFeatured, userId: string) {
+    const { freightId } = body;
+
+    const queryRunner =
+      this.freightRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
+
+    try {
+      const subscription = await this.subscriptionCompanyRepository.findOne({
+        where: { companyId: userId },
+      });
+
+      if (!subscription) {
+        throw new HttpException(
+          'Não encontramos uma assinatura ativa para esta empresa.',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const featureUsageUser = await this.featureUsageRepository.find({
+        where: { subscriptionId: subscription.id },
+        relations: ['feature'],
+      });
+
+      const freteDestaque = featureUsageUser.find(
+        (usage) => usage.feature.name === 'fretes_destaque',
+      );
+
+      if (!freteDestaque || freteDestaque.quantityUsed < 1) {
+        throw new HttpException(
+          'O plano atual não inclui fretes em destaque ou não há saldo disponível.',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const now = new Date();
+      now.setHours(now.getHours() - 3);
+      await queryRunner.manager.update(
+        Freight,
+        { id: freightId },
+        { isFeatured: true, expiresAt: now },
+      );
+
+      freteDestaque.quantityUsed -= 1;
+      await queryRunner.manager.save(freteDestaque);
+
+      const featureLog = this.featureLogsRepository.create({
+        subscriptionId: subscription.id,
+        featureId: freteDestaque.feature.id,
+        quantityChange: -1,
+        metadata: { freightId },
+        relatedEntityId: freightId,
+        description: `Uso de 1 frete destaque para o frete ${freightId}`,
+        performedById: userId,
+        performedByType: 'USER',
+      });
+      await queryRunner.manager.save(featureLog);
+
+      await queryRunner.commitTransaction();
+
+      return {
+        success: true,
+        message: `Frete marcado como destaque com sucesso.`,
+        remaining: freteDestaque.quantityUsed,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('Erro ao destacar frete:', error);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Erro interno ao destacar frete.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
     }
   }
 }

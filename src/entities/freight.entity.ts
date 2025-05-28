@@ -173,4 +173,10 @@ export class Freight {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ default: false })
+  isFeatured: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date;
 }
