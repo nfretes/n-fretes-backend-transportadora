@@ -860,8 +860,9 @@ export class FreightService {
         );
       }
 
-      const now = new Date();
-      now.setHours(now.getHours() - 3);
+  const now = new Date();
+      now.setHours(now.getHours() - 3); 
+      const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       await queryRunner.manager.update(
         Freight,
         { id: freightId },
