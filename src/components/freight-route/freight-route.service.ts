@@ -184,5 +184,51 @@ export class FreightRouteService {
       throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+ async getAvalatiation(userId: string, params: ParamsFreightRoute = {}) {
+    try {
+      const take = params.take ?? 10;
+      const page = params.page ?? 1;
+
+      const queryBuilder = this.freightRoutesRepository
+        .createQueryBuilder('freight_routes')
+        .leftJoinAndSelect('freight_routes.freight', 'freight')
+        .leftJoinAndSelect('freight_routes.userDrive', 'userDrive')
+        .leftJoinAndSelect(
+          'freight_routes.reviewUserDrive',
+          'reviewUserDrive',
+          'reviewUserDrive.routeId = freight_routes.id',
+        )
+        .leftJoin('freight.freightRequest', 'freightRequest')
+        .leftJoin('freight.company', 'company')
+        .addSelect([
+          'company.id',
+          'company.name',
+          'company.photoUrl',
+          'company.phoneNumber',
+          'company.createdAt',
+          'company.city',
+          'freightRequest.status',
+          'freightRequest.id',
+        ])
+
+        .where('freight_routes.companyId = :companyId', {
+          companyId: userId,
+        })
+        .where('freight_routes.avalationUserDrive = :avalationUserDrive', {
+          avalationUserDrive: false,
+        });
+      const [result, total] = await queryBuilder
+        .skip((page - 1) * take)
+        .take(take)
+        .getManyAndCount();
+      const nextPageExists = total > page * take;
+
+      return { data: result, count: total, next: nextPageExists };
+    } catch (error) {
+      console.error('Erro no findAllRoutes:', error);
+      throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
   
 }

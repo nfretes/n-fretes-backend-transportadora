@@ -37,4 +37,10 @@ export class FreightRouteController {
   async getStatics(@Param('userId') userId: string) {
     return this.freightRouteService.getStaticsUserRoute(userId);
   }
+
+@Get('avaliations')
+  @UseGuards(JwtAuthGuard)
+  async getAvalatiation(@GetUserId() userId: string, @Query() params: ParamsFreightRoute) {
+    return this.freightRouteService.getAvalatiation(userId, params);
+  }
 }
