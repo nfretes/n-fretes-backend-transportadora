@@ -24,6 +24,7 @@ import { ChangePasswordDto, ResetPasswordDto } from './dto/Password.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Company } from '@entities/company.entity';
 import { GetUserId } from 'src/decorators/get-user-decorator';
+import { ContactCompanyRegisterDto, ContactCompanyLoginDto } from './dto/ContactCompanyAuth.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -162,5 +163,22 @@ export class AuthController {
   @Get('beneficits')
   async getBeneficitsUser(@GetUserId() userId: string) {
     return this.authService.getBeneficitsUser(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('contact-company/register')
+  @ApiOperation({ summary: 'Registrar um novo contato administrativo da empresa' })
+  @ApiResponse({ status: 201, description: 'Contato registrado com sucesso' })
+  @ApiResponse({ status: 400, description: 'Erro ao registrar o contato' })
+  async registerContactCompany(@Body() dto: ContactCompanyRegisterDto, @GetUserId() userId: string) {
+    return this.authService.registerContactCompany(dto, userId);
+  }
+
+  @Post('contact-company/login')
+  @ApiOperation({ summary: 'Login do contato administrativo da empresa' })
+  @ApiResponse({ status: 200, description: 'Login realizado com sucesso' })
+  @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
+  async loginContactCompany(@Body() dto: ContactCompanyLoginDto) {
+    return this.authService.loginContactCompany(dto);
   }
 }

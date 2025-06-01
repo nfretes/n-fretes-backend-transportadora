@@ -15,6 +15,11 @@ import { WhatsappService } from 'src/external/services/WHATSCODE/whatsapp-code.s
 import { SubscriptionCompany } from '@entities/subscription-company.entity';
 import { FeatureUsage } from '@entities/feature-usage.entity';
 import { FeatureLog } from '@entities/feature-logs.entity';
+import { ContactCompany } from '@entities/contact-company.entity';
+import {
+  ContactCompanyRegisterDto,
+  ContactCompanyLoginDto,
+} from './dto/ContactCompanyAuth.dto';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +36,8 @@ export class AuthService {
     private featureUsageRepository: Repository<FeatureUsage>,
     @InjectRepository(FeatureLog)
     private featureLogsRepository: Repository<FeatureLog>,
+    @InjectRepository(ContactCompany)
+    private contactCompanyRepository: Repository<ContactCompany>,
   ) {}
 
   async generateJwt(payload: any) {
@@ -71,7 +78,10 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto, ip: string): Promise<AuthResponseDto> {
+  async login(
+    loginDto: LoginDto,
+    ip: string,
+  ): Promise<AuthResponseDto & { company: boolean }> {
     const { cnpj, password } = loginDto;
     const user = await this.companyRepository.findOne({ where: { cnpj } });
 
@@ -96,7 +106,7 @@ export class AuthService {
     const payload = { username: user.cnpj, sub: user.id };
     const token = await this.generateJwt(payload);
 
-    return { access_token: token };
+    return { access_token: token, company: true };
   }
 
   async changePassword(
@@ -360,61 +370,165 @@ export class AuthService {
     }
   }
 
-async getBeneficitsUser(userId: string) {
-  try {
+  async getBeneficitsUser(userId: string) {
+    try {
+      const subscription = await this.subscriptionCompanyRepository.findOne({
+        where: { companyId: userId },
+        relations: ['plan', 'plan.featureLimits', 'plan.featureLimits.feature'],
+      });
+
+      if (!subscription) {
+        return [
+          {
+            name: 'Sem assinatura ativa',
+            quantityUsed: 0,
+            limit: 0,
+            remaining: 0,
+            description: 'O usuário ainda não possui uma assinatura ativa',
+            isUnlimited: false,
+          },
+        ];
+      }
+
+      const featureUsageUser = await this.featureUsageRepository.find({
+        where: { subscriptionId: subscription.id },
+        relations: ['feature'],
+      });
+
+      const benefits = subscription.plan.featureLimits.map((limit) => {
+        const usage = featureUsageUser.find(
+          (u) => u.featureId === limit.featureId,
+        ) || {
+          quantityUsed: 0,
+          feature: limit.feature,
+        };
+
+        return {
+          name: limit.feature.name,
+          quantityUsed: usage.quantityUsed,
+          limit: limit.monthlyLimit,
+          remaining:
+            limit.monthlyLimit !== null
+              ? Math.max(0, limit.monthlyLimit - usage.quantityUsed)
+              : null,
+          description: limit.feature.description,
+          isUnlimited: limit.monthlyLimit === null,
+        };
+      });
+
+      return benefits;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Erro ao buscar benefícios',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async registerContactCompany(
+    dto: ContactCompanyRegisterDto,
+    userId: string,
+  ): Promise<AuthResponseRegisterDto> {
+    const { email, cpf, password, ...rest } = dto;
+
     const subscription = await this.subscriptionCompanyRepository.findOne({
       where: { companyId: userId },
-      relations: ['plan', 'plan.featureLimits', 'plan.featureLimits.feature']
+      relations: ['plan', 'plan.featureLimits', 'plan.featureLimits.feature'],
     });
-
-    if (!subscription) {
-      return [
-        {
-          name: 'Sem assinatura ativa',
-          quantityUsed: 0,
-          limit: 0,
-          remaining: 0,
-          description: 'O usuário ainda não possui uma assinatura ativa',
-          isUnlimited: false
-        }
-      ];
+    if (!subscription || subscription.status !== 1) {
+      throw new HttpException(
+        'Empresa sem assinatura ativa',
+        HttpStatus.FORBIDDEN,
+      );
     }
 
-   
-    const featureUsageUser = await this.featureUsageRepository.find({
-      where: { subscriptionId: subscription.id },
-      relations: ['feature']
-    });
-
-
-    const benefits = subscription.plan.featureLimits.map(limit => {
-      const usage = featureUsageUser.find(u => u.featureId === limit.featureId) || {
-        quantityUsed: 0,
-        feature: limit.feature
-      };
-
-      return {
-        name: limit.feature.name,
-        quantityUsed: usage.quantityUsed,
-        limit: limit.monthlyLimit,
-        remaining: limit.monthlyLimit !== null 
-          ? Math.max(0, limit.monthlyLimit - usage.quantityUsed)
-          : null,
-        description: limit.feature.description,
-        isUnlimited: limit.monthlyLimit === null
-      };
-    });
-
-    return benefits;
-
-  } catch (error) {
-    if (error instanceof HttpException) {
-      throw error;
-    }
-    throw new HttpException(
-      'Erro ao buscar benefícios',
-      HttpStatus.INTERNAL_SERVER_ERROR,
+    const contactFeature = subscription.plan.featureLimits.find(
+      (f) => f.feature.name === 'contact_company',
     );
+    if (!contactFeature) {
+      throw new HttpException(
+        'Plano não permite cadastro de contatos administrativos',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const totalContacts = await this.contactCompanyRepository.count({
+      where: { companyId: userId, isActive: true },
+    });
+    if (
+      contactFeature.monthlyLimit !== null &&
+      totalContacts >= contactFeature.monthlyLimit
+    ) {
+      throw new HttpException(
+        'Limite de contatos administrativos atingido',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    const exists = await this.contactCompanyRepository.findOne({
+      where: [{ email }, { cpf }],
+    });
+    if (exists) {
+      throw new HttpException('Contato já cadastrado', HttpStatus.BAD_REQUEST);
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const contact = this.contactCompanyRepository.create({
+      ...rest,
+      email,
+      cpf,
+      password: hashedPassword,
+      companyId: userId,
+      isActive: true,
+    });
+    await this.contactCompanyRepository.save(contact);
+    if (contactFeature.monthlyLimit !== null) {
+      const usage = await this.featureUsageRepository.findOne({
+        where: {
+          subscriptionId: subscription.id,
+          featureId: contactFeature.feature.id,
+        },
+      });
+      if (usage) {
+        usage.quantityUsed -= 1;
+        await this.featureUsageRepository.save(usage);
+      }
+    }
+    await this.featureLogsRepository.save({
+      subscriptionId: subscription.id,
+      featureId: contactFeature.feature.id,
+      quantityChange: 1,
+      metadata: { contactId: contact.id },
+      relatedEntityId: contact.id,
+      description: `Cadastro de contato administrativo (${email})`,
+      performedById: userId,
+      performedByType: 'USER',
+    });
+    return { message: 'Contato cadastrado com sucesso' };
   }
-}
+
+  async loginContactCompany(
+    dto: ContactCompanyLoginDto,
+  ): Promise<AuthResponseDto & { company: boolean }> {
+    const { email, password } = dto;
+    const contact = await this.contactCompanyRepository.findOne({
+      where: { email },
+      relations: ['company'],
+    });
+    if (!contact) {
+      throw new HttpException('Contato não encontrado', HttpStatus.BAD_REQUEST);
+    }
+    if (!contact.isActive) {
+      throw new HttpException('Cadastro inativo', HttpStatus.BAD_REQUEST);
+    }
+    const isPasswordValid = await bcrypt.compare(password, contact.password);
+    if (!isPasswordValid) {
+      throw new HttpException('Dados inválidos', HttpStatus.BAD_REQUEST);
+    }
+
+    const payload = { username: contact.company.cnpj, sub: contact.companyId };
+    const token = await this.generateJwt(payload);
+    return { access_token: token, company: false };
+  }
 }
