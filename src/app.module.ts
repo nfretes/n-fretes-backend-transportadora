@@ -24,6 +24,7 @@ import { DashboardModule } from '@components/dashboard/dashboard.module';
 import { WebhookAsaasModule } from '@components/webhooks/assas/webhook.assas.module';
 import { PlansCompanyModule } from '@components/plans-company/plans.company.module';
 import { NotificationModule } from '@components/notifications/notifications.module';
+import { AnalysisModule } from '@components/analysis/analysis.module';
 
 @Module({
   imports: [
@@ -59,7 +60,8 @@ import { NotificationModule } from '@components/notifications/notifications.modu
     WebhookAsaasModule,
     PlansCompanyModule,
     TransactionsModule,
-    NotificationModule
+    NotificationModule,
+    AnalysisModule
   ],
   controllers: [AppController],
   providers: [AppService],
