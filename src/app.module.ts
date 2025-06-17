@@ -26,6 +26,7 @@ import { PlansCompanyModule } from '@components/plans-company/plans.company.modu
 import { NotificationModule } from '@components/notifications/notifications.module';
 import { AnalysisModule } from '@components/analysis/analysis.module';
 import { FeedbackModule } from '@components/feedback/feedback.module';
+import { FormsModule } from '@components/forms/forms.module';
 
 @Module({
   imports: [
@@ -63,7 +64,8 @@ import { FeedbackModule } from '@components/feedback/feedback.module';
     TransactionsModule,
     NotificationModule,
     AnalysisModule,
-    FeedbackModule
+    FeedbackModule,
+    FormsModule
   ],
   controllers: [AppController],
   providers: [AppService],
