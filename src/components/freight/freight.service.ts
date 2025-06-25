@@ -215,21 +215,39 @@ export class FreightService {
       }
 
       if (params.vehicleTypes) {
-        const vehicleTypesFormatted = `%${params.vehicleTypes}%`;
-
-        queryBuilder.andWhere(
-          `unaccent(LOWER(freight.vehicleTypes)) ILIKE unaccent(LOWER(:vehicleTypes))`,
-          { vehicleTypes: vehicleTypesFormatted },
-        );
+        const vehicleTypesArray = this.ensureArray(params.vehicleTypes);
+        if (vehicleTypesArray.length > 1) {
+          const vehicleConditions = vehicleTypesArray.map((_, index) =>
+            `unaccent(LOWER(freight.vehicleTypes)) ILIKE unaccent(LOWER(:vehicleType${index}))`
+          );
+          queryBuilder.andWhere(`(${vehicleConditions.join(' OR ')})`,
+            Object.fromEntries(vehicleTypesArray.map((v, i) => [`vehicleType${i}`, `%${v}%`]))
+          );
+        } else {
+          const vehicleTypesFormatted = `%${vehicleTypesArray[0]}%`;
+          queryBuilder.andWhere(
+            `unaccent(LOWER(freight.vehicleTypes)) ILIKE unaccent(LOWER(:vehicleTypes))`,
+            { vehicleTypes: vehicleTypesFormatted },
+          );
+        }
       }
 
       if (params.bodyTypes) {
-        const bodyTypesFormatted = `%${params.bodyTypes}%`;
-
-        queryBuilder.andWhere(
-          `unaccent(LOWER(freight.bodyTypes)) ILIKE unaccent(LOWER(:bodyTypes))`,
-          { bodyTypes: bodyTypesFormatted },
-        );
+        const bodyTypesArray = this.ensureArray(params.bodyTypes);
+        if (bodyTypesArray.length > 1) {
+          const bodyConditions = bodyTypesArray.map((_, index) =>
+            `unaccent(LOWER(freight.bodyTypes)) ILIKE unaccent(LOWER(:bodyType${index}))`
+          );
+          queryBuilder.andWhere(`(${bodyConditions.join(' OR ')})`,
+            Object.fromEntries(bodyTypesArray.map((v, i) => [`bodyType${i}`, `%${v}%`]))
+          );
+        } else {
+          const bodyTypesFormatted = `%${bodyTypesArray[0]}%`;
+          queryBuilder.andWhere(
+            `unaccent(LOWER(freight.bodyTypes)) ILIKE unaccent(LOWER(:bodyTypes))`,
+            { bodyTypes: bodyTypesFormatted },
+          );
+        }
       }
 
       const likeFilters = {
@@ -437,6 +455,11 @@ export class FreightService {
 
   private ensureArray(value: any): any[] {
     if (typeof value === 'string') {
+      // Decodifica caracteres URL e divide por vírgula se necessário
+      const decodedValue = decodeURIComponent(value);
+      if (decodedValue.includes(',')) {
+        return decodedValue.split(',').map(item => item.trim()).filter(item => item !== '');
+      }
       try {
         return JSON.parse(value);
       } catch (error) {
