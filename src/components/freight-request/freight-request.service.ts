@@ -132,24 +132,6 @@ export class FreightRequestService {
   
       const freightId = freightRequest.freightId;  
       const userDriveId = freightRequest.userDriveId;
-  
-   
-    
-      const activeRoute = await this.freightRoutesRepository.findOne({
-        where: { userDriveId, status: RouteStatus.IN_PROGRESS },
-      });
-  
-      if (activeRoute) {
-        freightRequest.status = FreightRequestStatus.REJECTED;
-        await this.freightRequestRepository.save(freightRequest);
-  
-        return {
-          success: false,
-          message: 'Motorista já está em rota ativa!',
-          accepted: false,
-        };
-      }
-  
      
       freightRequest.status = FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE;
 

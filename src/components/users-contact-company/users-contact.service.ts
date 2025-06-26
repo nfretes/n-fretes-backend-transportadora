@@ -23,22 +23,36 @@ export class UsersContactCompanyService {
     private readonly paginationService: PaginationService,
   ) {}
 
-  async createUsersContactCompany(
-    createContactCompany: CompanyUsersContactsDto,
-  ): Promise<CompanyUsersContactsDto> {
-    try {
-      const create =
-        this.usersContactCompanyRepository.create(createContactCompany);
-      const save = await this.usersContactCompanyRepository.save(create);
+async createUsersContactCompany(
+  createContactCompany: CompanyUsersContactsDto,
+): Promise<CompanyUsersContactsDto> {
+  try {
+    const existing = await this.usersContactCompanyRepository.findOne({
+      where: {
+        userId: createContactCompany.userId,
+        companyId: createContactCompany.companyId,
+      },
+    });
 
-      return save;
-    } catch (error) {
-      throw new HttpException(
-        error?.message || 'Erro ao criar contanto da empresa',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    if (existing) {
+      existing.isActive = true;
+      existing.updatedAt = new Date();
+      await this.usersContactCompanyRepository.save(existing);
+      return existing;
     }
+
+
+    const create = this.usersContactCompanyRepository.create(createContactCompany);
+    const save = await this.usersContactCompanyRepository.save(create);
+
+    return save;
+  } catch (error) {
+    throw new HttpException(
+      error?.message || 'Erro ao criar contato da empresa',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
+}
 
   async updateUsersContactCompany(
     id: string,
@@ -207,7 +221,7 @@ export class UsersContactCompanyService {
   }
 
   async searchUsersByCpf(cpf: string, userId: string) {
-    const companyId = userId;
+    console.log('Chamando essa função com CPF:', cpf, 'e userId:', userId);
     const findUser = await this.usersDriveRepository.findOne({
       where: { cpf },
       select: {
@@ -220,15 +234,6 @@ export class UsersContactCompanyService {
         phoneNumber: true,
       },
     });
-
-    const isAlreadyRegistered =
-      await this.usersContactCompanyRepository.findOne({
-        where: { userId: findUser.id, companyId },
-      });
-
-    if (isAlreadyRegistered) {
-      return {};
-    }
 
     return findUser;
   }

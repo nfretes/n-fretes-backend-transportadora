@@ -49,6 +49,8 @@ export class ReviewUserDriveService {
         rating,
         comment,
         tags,
+        routeId,
+        isCompanyReviewingUser: true
       });
 
       return this.reviewRepository.save(review);
@@ -152,6 +154,7 @@ export class ReviewUserDriveService {
               date: reviews[0].createdAt,
             }
           : null;
+
 
       return {
         totalReviews,
