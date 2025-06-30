@@ -16,7 +16,7 @@ import { FreightRequestModule } from './components/freight-request/freight-reque
 import { FreightRouteModule } from '@components/freight-route/freight-route.module';
 import { ReviewUserDriveModule } from '@components/review-users-drive/review-users-drive.module';
 import { AsaasModule } from '@components/asaas/assas.module';
-import {TransactionsModule} from '@components/transactions/transactions.module'
+import { TransactionsModule } from '@components/transactions/transactions.module';
 //Croon
 import { FreightRequestCronModule } from '@components/cron/freight-requests/freight-request-croon-module';
 import { SqsModule } from '@components/sqs/sqs.module';
@@ -27,6 +27,7 @@ import { NotificationModule } from '@components/notifications/notifications.modu
 import { AnalysisModule } from '@components/analysis/analysis.module';
 import { FeedbackModule } from '@components/feedback/feedback.module';
 import { FormsModule } from '@components/forms/forms.module';
+import { CompanySearchModule } from './components/company-search/company-search.module';
 
 @Module({
   imports: [
@@ -65,7 +66,8 @@ import { FormsModule } from '@components/forms/forms.module';
     NotificationModule,
     AnalysisModule,
     FeedbackModule,
-    FormsModule
+    FormsModule,
+    CompanySearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],
