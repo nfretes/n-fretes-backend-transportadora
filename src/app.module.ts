@@ -28,6 +28,8 @@ import { AnalysisModule } from '@components/analysis/analysis.module';
 import { FeedbackModule } from '@components/feedback/feedback.module';
 import { FormsModule } from '@components/forms/forms.module';
 import { CompanySearchModule } from './components/company-search/company-search.module';
+import { Exclude } from 'class-transformer';
+import { ExcludeModule } from '@components/exclude/exclude.module';
 
 @Module({
   imports: [
@@ -68,6 +70,7 @@ import { CompanySearchModule } from './components/company-search/company-search.
     FeedbackModule,
     FormsModule,
     CompanySearchModule,
+    ExcludeModule
   ],
   controllers: [AppController],
   providers: [AppService],

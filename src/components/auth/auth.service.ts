@@ -221,6 +221,43 @@ export class AuthService {
     }
   }
 
+  async sendCodeVerify(
+    phone: PhoneJson,
+  ): Promise<{ status: boolean; message: string }> {
+    try {
+      const { phoneNumber } = phone;
+      const formattedPhone = this.formatPhoneNumber(phoneNumber);
+
+  
+
+ 
+   
+
+      
+      const code = Math.floor(100000 + Math.random() * 900000);
+
+      const response = await this.whatsappService.whatsAppCode(
+        formattedPhone,
+        code,
+      );
+
+     
+
+      return {
+        status: true,
+        message: 'Código enviado com sucesso',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        'Não conseguimos enviar o código de verificação',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
   async validateRecoveryCode(recoveryDto: any): Promise<any> {
     try {
       const { phoneNumber, code } = recoveryDto;
@@ -301,6 +338,7 @@ export class AuthService {
     }
   }
 
+   
   async changePasswordByRecoveryCode(
     resetPasswordDto: any,
   ): Promise<{ message: string }> {

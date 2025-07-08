@@ -85,6 +85,11 @@ export class AuthController {
     return this.authService.generateRecoveryCodeAndSendNumber(phoneNumber);
   }
 
+    @Post('verify-phone')
+  async sendCodeVerify(@Body() phoneNumber: PhoneJson) {
+    return this.authService.sendCodeVerify(phoneNumber);
+  }
+
   /********************************************************************************** */
 
   /********************************************************************************** */
