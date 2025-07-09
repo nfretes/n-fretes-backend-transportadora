@@ -8,7 +8,7 @@ import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 export class CompanySearchController {
   constructor(private readonly service: CompanySearchService) {}
   
-  @UseGuards(JwtAuthGuard)
+ 
   @Get()
   @ApiOperation({ summary: 'Buscar transportadora por CNPJ' })
   @ApiResponse({ status: 200, description: 'Transportadora encontrada.' })
