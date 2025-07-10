@@ -279,7 +279,7 @@ export class FreightRequestService {
    async rejectFreightRequest(freightRequestId: string) {
     try {
       const freightRequest = await this.freightRequestRepository.findOne({
-        where: { id: freightRequestId,  status: FreightRequestStatus.DRIVER_CONFIRMED_DELIVERY },
+        where: { id: freightRequestId},
         relations: ['freight', 'company'],
       });
   
@@ -306,7 +306,7 @@ export class FreightRequestService {
    
   
        
-      freightRequest.status = FreightRequestStatus.ACCEPTED;
+      freightRequest.status = FreightRequestStatus.REJECTED;
 
       await this.freightRequestRepository.save(freightRequest);
       const notification = this.notificationRepository.create({
