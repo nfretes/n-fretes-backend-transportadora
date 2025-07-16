@@ -100,9 +100,12 @@ export class UsersDrive {
   @Column({ type: 'boolean', default: false })
   isOnRoute: boolean;
 
-  @OneToMany(() => Vehicle, (vehicle) => vehicle.user)
+   @OneToMany(() => Vehicle, (vehicle) => vehicle.user, {
+    cascade: true,
+    eager: true
+  })
   vehicles: Vehicle[];
-
+  
   @OneToMany(() => CompanyUsersContacts, (company) => company.users)
   CompanyUsersContacts: CompanyUsersContacts[];
 
