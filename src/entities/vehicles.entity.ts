@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn, UpdateDateColumn, CreateDateColumn } from 'typeorm';
 import { UsersDrive } from './users-drive.entity';
 import { VehicleType, BodyType } from 'src/enum/vehicle';
 
@@ -43,10 +43,20 @@ export class Vehicle {
   @Column({ default: false })
   locator: boolean;
 
+  
   @ManyToOne(() => UsersDrive, (user) => user.vehicles, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: UsersDrive;
 
   @Column()
   userId: string;
+
+   @Column({ default: false })
+  isMainVehicle: boolean;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }
