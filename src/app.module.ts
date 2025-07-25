@@ -30,6 +30,7 @@ import { FormsModule } from '@components/forms/forms.module';
 import { CompanySearchModule } from './components/company-search/company-search.module';
 import { Exclude } from 'class-transformer';
 import { ExcludeModule } from '@components/exclude/exclude.module';
+import { FreightRouteLocationsModule } from './components/freight-route-locations/freight-route-locations.module';
 
 @Module({
   imports: [
@@ -70,7 +71,8 @@ import { ExcludeModule } from '@components/exclude/exclude.module';
     FeedbackModule,
     FormsModule,
     CompanySearchModule,
-    ExcludeModule
+    ExcludeModule,
+    FreightRouteLocationsModule
   ],
   controllers: [AppController],
   providers: [AppService],

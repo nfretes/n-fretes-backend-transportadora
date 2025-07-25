@@ -13,6 +13,7 @@ import { Freight } from './freight.entity';
 import { UsersDrive } from './users-drive.entity';
 import { Company } from './company.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
+import { FreightRouteLocations } from './freight-route-locations.entity';
 
 export enum RouteStatus {
   IN_PROGRESS = 'PROGUESS',
@@ -76,4 +77,7 @@ export class FreightRoutes {
 
   @UpdateDateColumn()
   completedAt: Date;
+
+  @OneToMany(() => FreightRouteLocations, location => location.route)
+  locations: FreightRouteLocations[];
 }

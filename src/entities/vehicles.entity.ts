@@ -59,4 +59,10 @@ export class Vehicle {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @Column({ type: 'float', default: 0.0 })
+  capacity: number;
+
+  @Column({ nullable: true })
+  antt: string;
 }

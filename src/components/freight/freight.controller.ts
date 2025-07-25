@@ -231,26 +231,15 @@ export class FreightController {
     @Body() body: SharingFreightDto,
     @GetUserId() userId: string,
   ) {
-
-    console.log(body, 'Retorno')
-    return this.freightService.sharingFreightUsers(
-    body,
-      userId,
-    );
+    return this.freightService.sharingFreightUsers(body, userId);
   }
 
-
-
-    @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('/sharing/isFeatured')
   async freightIsFeatured(
     @Body() body: FreightIsFeatured,
     @GetUserId() userId: string,
   ) {
-
-    return this.freightService.freightIsFeatured(
-    body,
-      userId,
-    );
+    return this.freightService.freightIsFeatured(body, userId);
   }
 }
