@@ -13,6 +13,7 @@ import { FeatureUsage } from '@entities/feature-usage.entity';
 import { SQSService } from '@components/sqs/sqs.service';
 import { FeatureLog } from '@entities/feature-logs.entity';
 import { FreightIsFeatured, SharingFreightDto } from './dto/sharing.dto';
+import { DistanceService } from '@components/distance/distance.service';
 
 export class FreightService {
   constructor(
@@ -30,6 +31,7 @@ export class FreightService {
     private featureLogsRepository: Repository<FeatureLog>,
     private readonly paginationService: PaginationService,
     private readonly sqsService: SQSService,
+    private readonly distanceService: DistanceService,
   ) {}
 
   /****************************************CREATE FREIGHT****************************************** */
@@ -42,6 +44,28 @@ export class FreightService {
         ...createFreightDto,
         companyId: userId,
       };
+
+      
+      if (data.originLatitude && data.originLongitude && 
+          data.destinyLatitude && data.destinyLongitude) {
+        try {
+          const distanceData = await this.distanceService.calculateRoadDistance(
+            Number(data.originLatitude),
+            Number(data.originLongitude),
+            Number(data.destinyLatitude),
+            Number(data.destinyLongitude),
+          );
+          
+       
+          data.distance = distanceData.distance.toString();
+          
+         
+        } catch (error) {
+          console.error('Erro ao calcular distância rodoviária na criação:', error);
+          
+        }
+      }
+
       const create = this.freightRepository.create(data);
       const save = await this.freightRepository.save(create);
 
@@ -106,47 +130,59 @@ export class FreightService {
     }
 
     const offset = (page - 1) * take;
-
     const originLat = Number(freight.originLatitude);
     const originLng = Number(freight.originLongitude);
     const radiusInKm = 50;
 
-    const [result, total] = await this.userDriveRepository
+    
+   
+    const driversQuery = await this.userDriveRepository
       .createQueryBuilder('users_drive')
       .innerJoinAndSelect('users_drive.locations', 'location')
       .innerJoinAndSelect('users_drive.vehicles', 'vehicles')
       .addSelect(
         `
-      6371 * acos(
-        cos(radians(:originLat)) * cos(radians(location.latitude)) * 
-        cos(radians(location.longitude) - radians(:originLng)) + 
-        sin(radians(:originLat)) * sin(radians(location.latitude))
-      )
-    `,
-        'distance',
+        6371 * acos(
+          cos(radians(:originLat)) * cos(radians(location.latitude)) * 
+          cos(radians(location.longitude) - radians(:originLng)) + 
+          sin(radians(:originLat)) * sin(radians(location.latitude))
+        )
+      `,
+        'haversine_distance',
       )
       .where('users_drive.isOnRoute = :isOnRoute', { isOnRoute: false })
       .andWhere(
         `
-      6371 * acos(
-        cos(radians(:originLat)) * cos(radians(location.latitude)) * 
-        cos(radians(location.longitude) - radians(:originLng)) + 
-        sin(radians(:originLat)) * sin(radians(location.latitude))
-      ) <= :radiusInKm
-    `,
+        6371 * acos(
+          cos(radians(:originLat)) * cos(radians(location.latitude)) * 
+          cos(radians(location.longitude) - radians(:originLng)) + 
+          sin(radians(:originLat)) * sin(radians(location.latitude))
+        ) <= :radiusInKm
+      `,
       )
       .setParameters({
         originLat,
         originLng,
-        radiusInKm,
+        radiusInKm: radiusInKm * 1.5,
       })
-      .orderBy('distance', 'ASC')
-      .skip(offset)
-      .take(take)
-      .getManyAndCount();
+      .orderBy('haversine_distance', 'ASC')
+      .limit(take * 3) 
+      .getMany();
+
+    
+    const driversWithRoadDistance = await this.distanceService.findNearbyDriversWithRoadDistance(
+      originLat,
+      originLng,
+      driversQuery,
+      radiusInKm,
+    );
+
+
+    const total = driversWithRoadDistance.length;
+    const paginatedDrivers = driversWithRoadDistance.slice(offset, offset + take);
 
     return {
-      data: result,
+      data: paginatedDrivers,
       total,
       currentPage: page,
       totalPages: Math.ceil(total / take),
@@ -164,6 +200,29 @@ export class FreightService {
           'Não foi localizado esse frete',
           HttpStatus.BAD_REQUEST,
         );
+      }
+
+      
+      if (freight.originLatitude && freight.originLongitude && 
+          freight.destinyLatitude && freight.destinyLongitude) {
+        try {
+          const distanceData = await this.distanceService.calculateRoadDistance(
+            Number(freight.originLatitude),
+            Number(freight.originLongitude),
+            Number(freight.destinyLatitude),
+            Number(freight.destinyLongitude),
+          );
+          
+          return {
+            ...freight,
+            roadDistance: distanceData.distance,
+            estimatedDuration: distanceData.duration,
+            distanceStatus: distanceData.status,
+          } as any;
+        } catch (error) {
+          console.error('Erro ao calcular distância do frete:', error);
+          return freight;
+        }
       }
 
       return freight;

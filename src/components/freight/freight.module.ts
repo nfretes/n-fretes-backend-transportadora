@@ -11,9 +11,13 @@ import { SubscriptionCompany } from '@entities/subscription-company.entity';
 import { FeatureUsage } from '@entities/feature-usage.entity';
 import { SQSService } from '@components/sqs/sqs.service';
 import { FeatureLog } from '@entities/feature-logs.entity';
+import { DistanceModule } from '@components/distance/distance.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Freight, Company, UsersDrive, SubscriptionCompany, FeatureUsage,FeatureLog])],
+  imports: [
+    TypeOrmModule.forFeature([Freight, Company, UsersDrive, SubscriptionCompany, FeatureUsage, FeatureLog]),
+    DistanceModule
+  ],
   exports: [TypeOrmModule],
   controllers: [FreightController],
   providers: [FreightService, PaginationService, SQSService],
