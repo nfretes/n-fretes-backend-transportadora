@@ -48,7 +48,7 @@ export class AuthService {
 
   async register(registerDto: any): Promise<AuthResponseRegisterDto> {
     try {
-      const { cnpj, password, name, ...userData } = registerDto;
+      const { cnpj, password, name, nameFantasy, ...userData } = registerDto;
 
       const existingUser = await this.companyRepository.findOne({
         where: { cnpj },
@@ -60,9 +60,11 @@ export class AuthService {
       const hashedPassword = await bcrypt.hash(password, 10);
       const newUser = this.companyRepository.create({
         ...userData,
-
+        isActive: true,
+        isCompleted: true,
         cnpj,
-
+        name,
+        nameFantasy,
         password: hashedPassword,
       });
 
@@ -387,6 +389,8 @@ export class AuthService {
           'zipcode',
           'street',
           'number',
+          "isOn",
+
         ],
         relations: [
           'freights',

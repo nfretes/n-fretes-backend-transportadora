@@ -31,6 +31,7 @@ import { CompanySearchModule } from './components/company-search/company-search.
 import { Exclude } from 'class-transformer';
 import { ExcludeModule } from '@components/exclude/exclude.module';
 import { FreightRouteLocationsModule } from './components/freight-route-locations/freight-route-locations.module';
+import { DistanceModule } from '@components/distance/distance.module';
 
 @Module({
   imports: [
@@ -72,7 +73,8 @@ import { FreightRouteLocationsModule } from './components/freight-route-location
     FormsModule,
     CompanySearchModule,
     ExcludeModule,
-    FreightRouteLocationsModule
+    FreightRouteLocationsModule,
+    DistanceModule
   ],
   controllers: [AppController],
   providers: [AppService],
