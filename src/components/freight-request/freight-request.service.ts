@@ -90,6 +90,8 @@ export class FreightRequestService {
           'users_drive.antt',
           'users_drive.pushToken',
           'users_drive.city',
+          'users_drive.cpf',
+          'users_drive.zipcode',
           'users_drive.photoFaceURL',
           'users_drive.phoneNumber',
           'users_drive.id',
