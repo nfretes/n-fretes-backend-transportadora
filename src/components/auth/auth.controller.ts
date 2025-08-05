@@ -21,15 +21,22 @@ import {
   ResponseAuthMeTokenInvalid,
 } from 'src/common/auth-swagger/auth-swagger';
 import { ChangePasswordDto, ResetPasswordDto } from './dto/Password.dto';
+import { Param } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Company } from '@entities/company.entity';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { ContactCompanyRegisterDto, ContactCompanyLoginDto } from './dto/ContactCompanyAuth.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
+  ) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Registrar um novo usuário' })
@@ -47,6 +54,32 @@ export class AuthController {
   }
 
   /********************************************************************************** */
+
+
+
+  @Get('check-cnpj/:cnpj')
+async checkCnpj(@Param('cnpj') cnpj: string) {
+  const exists = !!(await this.companyRepository.findOne({ where: { cnpj } }));
+  return { exists };
+}
+
+@Get('check-cpf/:cpf')
+async checkCpf(@Param('cpf') cpf: string) {
+  const exists = !!(await this.companyRepository.findOne({ where: { cpf } }));
+  return { exists };
+}
+
+
+
+
+
+
+   /********************************************************************************** */
+
+
+
+
+
 
   @Post('login')
   @ApiOperation({ summary: 'Realizar login do usuário' })
