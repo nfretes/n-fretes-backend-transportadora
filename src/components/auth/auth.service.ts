@@ -56,6 +56,12 @@ export class AuthService {
       if (existingUser) {
         throw new HttpException('CNPJ já cadastrado', HttpStatus.BAD_REQUEST);
       }
+      const existingCpf = await this.companyRepository.findOne({
+        where: { cpf: registerDto.cpf },
+      });
+      if (existingCpf) {
+        throw new HttpException('CPF já cadastrado', HttpStatus.BAD_REQUEST);
+      }
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const newUser = this.companyRepository.create({
@@ -230,20 +236,12 @@ export class AuthService {
       const { phoneNumber } = phone;
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
 
-  
-
- 
-   
-
-      
       const code = Math.floor(100000 + Math.random() * 900000);
 
       const response = await this.whatsappService.whatsAppCode(
         formattedPhone,
         code,
       );
-
-     
 
       return {
         status: true,
@@ -340,7 +338,6 @@ export class AuthService {
     }
   }
 
-   
   async changePasswordByRecoveryCode(
     resetPasswordDto: any,
   ): Promise<{ message: string }> {
@@ -389,8 +386,7 @@ export class AuthService {
           'zipcode',
           'street',
           'number',
-          "isOn",
-
+          'isOn',
         ],
         relations: [
           'freights',
