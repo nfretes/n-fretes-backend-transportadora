@@ -20,6 +20,7 @@ import {
   ContactCompanyRegisterDto,
   ContactCompanyLoginDto,
 } from './dto/ContactCompanyAuth.dto';
+import { CompanySearchService } from '@components/company-search/company-search.service';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +39,8 @@ export class AuthService {
     private featureLogsRepository: Repository<FeatureLog>,
     @InjectRepository(ContactCompany)
     private contactCompanyRepository: Repository<ContactCompany>,
+    private companySearchService: CompanySearchService
+
   ) {}
 
   async generateJwt(payload: any) {
@@ -47,6 +50,12 @@ export class AuthService {
   }
 
   async register(registerDto: any): Promise<AuthResponseRegisterDto> {
+   
+    const queryRunner = this.companyRepository.manager.connection.createQueryRunner();
+  
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    
     try {
       const { cnpj, password, name, nameFantasy, ...userData } = registerDto;
 
@@ -62,27 +71,91 @@ export class AuthService {
       if (existingCpf) {
         throw new HttpException('CPF já cadastrado', HttpStatus.BAD_REQUEST);
       }
+      
+
+      const existingEmail = await this.companyRepository.findOne({
+        where: { email: registerDto.email },
+      });
+      if (existingEmail) {
+        throw new HttpException('E-mail já cadastrado', HttpStatus.BAD_REQUEST);
+      }
+
+      const findByCnpj = await this.companySearchService.getCnpjData(cnpj);
+
+      if(!findByCnpj) {
+        throw new HttpException('CNPJ inválido ou não encontrado', HttpStatus.BAD_REQUEST);
+      }
+
+      if(findByCnpj.dataAbertura) {
+        const dataAbertura = new Date(findByCnpj.dataAbertura);
+        const hoje = new Date();
+        const diferencaEmMeses = (hoje.getFullYear() - dataAbertura.getFullYear()) * 12 + 
+                                  (hoje.getMonth() - dataAbertura.getMonth());
+        
+        if(diferencaEmMeses < 6) {
+          throw new HttpException('Não é possível registrar empresas com menos de 6 meses de existência. Por favor, tente novamente quando sua empresa atingir este requisito.', HttpStatus.BAD_REQUEST);
+        }
+      }
+      
+
+      if (findByCnpj.situacao !== 'ATIVA') {
+        throw new HttpException(
+          'CNPJ não está ativo na Receita Federal',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const newUser = this.companyRepository.create({
         ...userData,
         isActive: true,
         isCompleted: true,
+        isOn: true,
         cnpj,
-        name,
-        nameFantasy,
+        name: this.formatName(name),
+        nameFantasy: this.formatName(nameFantasy),
+        zipcode: findByCnpj.endereco.cep,
+        state: findByCnpj.endereco.uf,
+        city: findByCnpj.endereco.municipio,
+        street: findByCnpj.endereco.logradouro,
+        district: findByCnpj.endereco.bairro,
         password: hashedPassword,
       });
 
-      await this.companyRepository.save(newUser);
+      const savedUser = await queryRunner.manager.save(newUser);
 
+ 
+      const subscriptionCompany = this.subscriptionCompanyRepository.create({
+        //@ts-ignore
+        companyId: savedUser.id, 
+        status: 1, 
+        planId: '4', 
+        interval: 1,
+        amount: 249.0,
+        nextRecurrency: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), 
+        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+
+
+      await queryRunner.manager.save(subscriptionCompany);
+    
+      await queryRunner.commitTransaction();
+      
       return { message: 'Cadastro enviado para análise' };
     } catch (error) {
+
+      await queryRunner.rollbackTransaction();
+      
       console.log(error, 'Resposta');
       throw new HttpException(
         error?.message || 'Erro interno no servidor',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    } finally {
+     
+      await queryRunner.release();
     }
   }
 
@@ -160,6 +233,18 @@ export class AuthService {
       return cleaned;
     }
     return `55${cleaned}`;
+  }
+
+  private formatName(name: string): string {
+    if (!name) return '';
+  
+    return name.trim().toLowerCase().split(' ').map(word => {
+      const minusculas = ['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'as', 'os'];
+      if (minusculas.includes(word.toLowerCase())) {
+        return word.toLowerCase();
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }).join(' ');
   }
 
   async generateRecoveryCodeAndSendNumber(
