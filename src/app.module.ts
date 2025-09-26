@@ -32,6 +32,7 @@ import { Exclude } from 'class-transformer';
 import { ExcludeModule } from '@components/exclude/exclude.module';
 import { FreightRouteLocationsModule } from './components/freight-route-locations/freight-route-locations.module';
 import { DistanceModule } from '@components/distance/distance.module';
+import { SapiensModule } from '@components/sapiens/sapiens.module';
 
 @Module({
   imports: [
@@ -74,7 +75,8 @@ import { DistanceModule } from '@components/distance/distance.module';
     CompanySearchModule,
     ExcludeModule,
     FreightRouteLocationsModule,
-    DistanceModule
+    DistanceModule,
+    SapiensModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -242,6 +242,7 @@ export class ReviewUserDriveService {
           'freight.originCity',
           'freight.destinyCity',
         ])
+        .orderBy('reviews_user_drive.createdAt', 'DESC')
         .skip((page - 1) * take)
         .take(take);
 
