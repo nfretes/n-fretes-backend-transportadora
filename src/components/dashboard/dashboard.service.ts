@@ -22,17 +22,18 @@ export class DashboardService {
 
   async getCompanyDashboard(userId: string) {
     try {
-   
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
-      
- 
+
       const firstDayOfMonth = new Date(currentYear, currentDate.getMonth(), 1);
-      const lastDayOfMonth = new Date(currentYear, currentDate.getMonth() + 1, 0);
+      const lastDayOfMonth = new Date(
+        currentYear,
+        currentDate.getMonth() + 1,
+        0,
+      );
       const yearStart = new Date(`${currentYear}-01-01`);
       const yearEnd = new Date(`${currentYear}-12-31`);
-
 
       const [
         activeFreights,
@@ -40,12 +41,8 @@ export class DashboardService {
         reviews,
         driversCount,
         freightRoutes,
-        allFreights 
+        allFreights,
       ] = await Promise.all([
-
-
-   
-    
         this.freightRepository.find({
           where: {
             companyId: userId,
@@ -53,7 +50,6 @@ export class DashboardService {
             isActive: true,
           },
         }),
-        
 
         this.freightRepository.find({
           where: {
@@ -61,23 +57,21 @@ export class DashboardService {
             createdAt: Between(yearStart, yearEnd),
           },
         }),
-        
-    
+
         this.reviewRepository.find({
           where: { companyId: userId, isUserReviewingCompany: true },
           relations: ['userDrive'],
           order: { createdAt: 'DESC' },
         }),
-        
-   
+
         this.usersContactCompanyRepository.count({
-          where: { 
-            companyId: userId, 
+          where: {
+            companyId: userId,
             isActive: true,
-            createdAt: Between(firstDayOfMonth, lastDayOfMonth)
+            createdAt: Between(firstDayOfMonth, lastDayOfMonth),
           },
         }),
-        
+
         // Fretes em andamento
         this.freightRoutesRepository.find({
           where: { companyId: userId, status: RouteStatus.IN_PROGRESS },
@@ -85,31 +79,33 @@ export class DashboardService {
           select: {
             id: true,
             userDrive: { name: true },
-            freight: { originCity: true, destinyCity: true }
-          }
+            freight: { originCity: true, destinyCity: true },
+          },
         }),
-        
+
         // Todos os fretes para análise de destinos
         this.freightRepository.find({
           where: { companyId: userId },
-          select: ['destinyCity']
-        })
+          select: ['destinyCity'],
+        }),
       ]);
-
-   
 
       // Processamento dos fretes
       const freightCount = activeFreights.length;
-      const averageFreightValue = freightCount > 0
-        ? activeFreights.reduce((sum, freight) => sum + freight.Valuefreight, 0) / freightCount
-        : 0;
+      const averageFreightValue =
+        freightCount > 0
+          ? activeFreights.reduce(
+              (sum, freight) => sum + freight.Valuefreight,
+              0,
+            ) / freightCount
+          : 0;
 
       const yearlyTotal = allYearFreights.length;
       const monthlyAverage = yearlyTotal / currentMonth;
 
       // Processamento mensal
       const freightsByMonth = Array(currentMonth).fill(0);
-      allYearFreights.forEach(freight => {
+      allYearFreights.forEach((freight) => {
         const month = new Date(freight.createdAt).getMonth();
         if (month < currentMonth) {
           freightsByMonth[month]++;
@@ -118,43 +114,52 @@ export class DashboardService {
 
       const monthlyFreightsData = freightsByMonth.map((count, index) => ({
         month: index + 1,
-        monthName: new Date(2000, index, 1).toLocaleString('pt-BR', { month: 'long' }),
+        monthName: new Date(2000, index, 1).toLocaleString('pt-BR', {
+          month: 'long',
+        }),
         count,
       }));
 
       // Processamento das avaliações
-      const latestReviews = reviews.slice(0, 2).map(review => ({
+      const latestReviews = reviews.slice(0, 2).map((review) => ({
         rating: review.rating,
         comment: review.comment || 'Sem comentário',
         userName: review.userDrive?.name || 'Anônimo',
         date: review.createdAt.toISOString().split('T')[0],
-        photoUrl: review.userDrive?.photoFaceURL
+        photoUrl: review.userDrive?.photoFaceURL,
       }));
 
       const uniqueReviews = reviews.reduce((acc, review) => {
-        if (review.userDriveId && !acc.some(r => r.userDriveId === review.userDriveId)) {
+        if (
+          review.userDriveId &&
+          !acc.some((r) => r.userDriveId === review.userDriveId)
+        ) {
           acc.push(review);
         }
         return acc;
       }, []);
 
-      const averageRating = uniqueReviews.length > 0
-        ? uniqueReviews.reduce((sum, review) => sum + review.rating, 0) / uniqueReviews.length
-        : 0;
+      const averageRating =
+        uniqueReviews.length > 0
+          ? uniqueReviews.reduce((sum, review) => sum + review.rating, 0) /
+            uniqueReviews.length
+          : 0;
 
-   
-      const destinationCounts = allFreights.reduce((acc, freight) => {
-        if (freight.destinyCity) {
-          acc[freight.destinyCity] = (acc[freight.destinyCity] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>);
+      const destinationCounts = allFreights.reduce(
+        (acc, freight) => {
+          if (freight.destinyCity) {
+            acc[freight.destinyCity] = (acc[freight.destinyCity] || 0) + 1;
+          }
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       const topDestinations = Object.entries(destinationCounts)
-        .filter(([_, count]) => count >= 3) 
-        .sort((a, b) => b[1] - a[1]) 
-        .slice(0, 5) 
-        .map(([city, count]) => ({  city,  count }));
+        .filter(([_, count]) => count >= 3)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([city, count]) => ({ city, count }));
 
       return {
         freightStatistics: {
@@ -163,12 +168,12 @@ export class DashboardService {
           monthlyAverage,
           yearlyTotal,
           monthlyFreights: monthlyFreightsData,
-          topDestinations, 
+          topDestinations,
         },
         ratingStatistics: {
           averageRating,
           totalRatings: uniqueReviews.length,
-          latestReviews
+          latestReviews,
         },
         freightProguess: freightRoutes,
         driversCount,

@@ -48,9 +48,8 @@ export class FreightRequestController {
     return this.freightRequestService.confirmedFreightRequest(id);
   }
 
-   @Patch(':id/reject')
+  @Patch(':id/reject')
   async rejectFreightRequest(@Param('id') id: string) {
     return this.freightRequestService.rejectFreightRequest(id);
   }
-
 }

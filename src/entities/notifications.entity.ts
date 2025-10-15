@@ -34,7 +34,7 @@ export enum IconStyles {
   FREIGHT_ACCEPTED = 'freightAccepted',
   WELCOME = 'welcome',
   UPGRADE = 'upgrade',
-  FREIGHT_RECUSED = 'freightRecused'
+  FREIGHT_RECUSED = 'freightRecused',
 }
 
 @Entity('notifications')

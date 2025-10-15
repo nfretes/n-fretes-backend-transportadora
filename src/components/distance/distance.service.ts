@@ -2,8 +2,8 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import axios from 'axios';
 
 interface DistanceResult {
-  distance: number; 
-  duration: number; 
+  distance: number;
+  duration: number;
   status: string;
 }
 
@@ -20,8 +20,11 @@ interface GoogleDistanceMatrixResponse {
 
 @Injectable()
 export class DistanceService {
-  private readonly googleApiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  private readonly baseUrl = 'https://maps.googleapis.com/maps/api/distancematrix/json';
+  private readonly googleApiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  private readonly baseUrl =
+    'https://maps.googleapis.com/maps/api/distancematrix/json';
 
   async calculateRoadDistance(
     originLat: number,
@@ -40,18 +43,21 @@ export class DistanceService {
       const origins = `${originLat},${originLng}`;
       const destinations = `${destinyLat},${destinyLng}`;
 
-      const response = await axios.get<GoogleDistanceMatrixResponse>(this.baseUrl, {
-        params: {
-          origins,
-          destinations,
-          key: this.googleApiKey,
-          units: 'metric',
-          mode: 'driving',
-          language: 'pt-BR',
-          region: 'BR',
+      const response = await axios.get<GoogleDistanceMatrixResponse>(
+        this.baseUrl,
+        {
+          params: {
+            origins,
+            destinations,
+            key: this.googleApiKey,
+            units: 'metric',
+            mode: 'driving',
+            language: 'pt-BR',
+            region: 'BR',
+          },
+          timeout: 10000,
         },
-        timeout: 10000,
-      });
+      );
 
       if (response.data.status !== 'OK') {
         throw new HttpException(
@@ -63,14 +69,13 @@ export class DistanceService {
       const element = response.data.rows[0]?.elements[0];
 
       if (!element || element.status !== 'OK') {
-       
         const distance = this.calculateHaversineDistance(
           originLat,
           originLng,
           destinyLat,
           destinyLng,
         );
-        
+
         return {
           distance,
           duration: Math.round(distance / 60), // Estimativa: 60 km/h médio
@@ -160,14 +165,19 @@ export class DistanceService {
             distanceStatus: distanceData.status,
           };
         } catch (error) {
-          console.error(`Erro ao calcular distância para driver ${driver.id}:`, error);
+          console.error(
+            `Erro ao calcular distância para driver ${driver.id}:`,
+            error,
+          );
           return null;
         }
       }),
     );
 
     return driversWithDistance
-      .filter((driver) => driver !== null && driver.roadDistance <= maxDistanceKm)
+      .filter(
+        (driver) => driver !== null && driver.roadDistance <= maxDistanceKm,
+      )
       .sort((a, b) => a.roadDistance - b.roadDistance);
   }
 }

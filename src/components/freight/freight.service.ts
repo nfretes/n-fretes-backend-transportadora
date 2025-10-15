@@ -45,9 +45,12 @@ export class FreightService {
         companyId: userId,
       };
 
-      
-      if (data.originLatitude && data.originLongitude && 
-          data.destinyLatitude && data.destinyLongitude) {
+      if (
+        data.originLatitude &&
+        data.originLongitude &&
+        data.destinyLatitude &&
+        data.destinyLongitude
+      ) {
         try {
           const distanceData = await this.distanceService.calculateRoadDistance(
             Number(data.originLatitude),
@@ -55,14 +58,13 @@ export class FreightService {
             Number(data.destinyLatitude),
             Number(data.destinyLongitude),
           );
-          
-       
+
           data.distance = distanceData.distance.toString();
-          
-         
         } catch (error) {
-          console.error('Erro ao calcular distância rodoviária na criação:', error);
-          
+          console.error(
+            'Erro ao calcular distância rodoviária na criação:',
+            error,
+          );
         }
       }
 
@@ -134,8 +136,6 @@ export class FreightService {
     const originLng = Number(freight.originLongitude);
     const radiusInKm = 50;
 
-    
-   
     const driversQuery = await this.userDriveRepository
       .createQueryBuilder('users_drive')
       .innerJoinAndSelect('users_drive.locations', 'location')
@@ -166,20 +166,22 @@ export class FreightService {
         radiusInKm: radiusInKm * 1.5,
       })
       .orderBy('haversine_distance', 'ASC')
-      .limit(take * 3) 
+      .limit(take * 3)
       .getMany();
 
-    
-    const driversWithRoadDistance = await this.distanceService.findNearbyDriversWithRoadDistance(
-      originLat,
-      originLng,
-      driversQuery,
-      radiusInKm,
-    );
-
+    const driversWithRoadDistance =
+      await this.distanceService.findNearbyDriversWithRoadDistance(
+        originLat,
+        originLng,
+        driversQuery,
+        radiusInKm,
+      );
 
     const total = driversWithRoadDistance.length;
-    const paginatedDrivers = driversWithRoadDistance.slice(offset, offset + take);
+    const paginatedDrivers = driversWithRoadDistance.slice(
+      offset,
+      offset + take,
+    );
 
     return {
       data: paginatedDrivers,
@@ -202,9 +204,12 @@ export class FreightService {
         );
       }
 
-      
-      if (freight.originLatitude && freight.originLongitude && 
-          freight.destinyLatitude && freight.destinyLongitude) {
+      if (
+        freight.originLatitude &&
+        freight.originLongitude &&
+        freight.destinyLatitude &&
+        freight.destinyLongitude
+      ) {
         try {
           const distanceData = await this.distanceService.calculateRoadDistance(
             Number(freight.originLatitude),
@@ -212,7 +217,7 @@ export class FreightService {
             Number(freight.destinyLatitude),
             Number(freight.destinyLongitude),
           );
-          
+
           return {
             ...freight,
             roadDistance: distanceData.distance,
@@ -276,11 +281,15 @@ export class FreightService {
       if (params.vehicleTypes) {
         const vehicleTypesArray = this.ensureArray(params.vehicleTypes);
         if (vehicleTypesArray.length > 1) {
-          const vehicleConditions = vehicleTypesArray.map((_, index) =>
-            `unaccent(LOWER(freight.vehicleTypes)) ILIKE unaccent(LOWER(:vehicleType${index}))`
+          const vehicleConditions = vehicleTypesArray.map(
+            (_, index) =>
+              `unaccent(LOWER(freight.vehicleTypes)) ILIKE unaccent(LOWER(:vehicleType${index}))`,
           );
-          queryBuilder.andWhere(`(${vehicleConditions.join(' OR ')})`,
-            Object.fromEntries(vehicleTypesArray.map((v, i) => [`vehicleType${i}`, `%${v}%`]))
+          queryBuilder.andWhere(
+            `(${vehicleConditions.join(' OR ')})`,
+            Object.fromEntries(
+              vehicleTypesArray.map((v, i) => [`vehicleType${i}`, `%${v}%`]),
+            ),
           );
         } else {
           const vehicleTypesFormatted = `%${vehicleTypesArray[0]}%`;
@@ -294,11 +303,15 @@ export class FreightService {
       if (params.bodyTypes) {
         const bodyTypesArray = this.ensureArray(params.bodyTypes);
         if (bodyTypesArray.length > 1) {
-          const bodyConditions = bodyTypesArray.map((_, index) =>
-            `unaccent(LOWER(freight.bodyTypes)) ILIKE unaccent(LOWER(:bodyType${index}))`
+          const bodyConditions = bodyTypesArray.map(
+            (_, index) =>
+              `unaccent(LOWER(freight.bodyTypes)) ILIKE unaccent(LOWER(:bodyType${index}))`,
           );
-          queryBuilder.andWhere(`(${bodyConditions.join(' OR ')})`,
-            Object.fromEntries(bodyTypesArray.map((v, i) => [`bodyType${i}`, `%${v}%`]))
+          queryBuilder.andWhere(
+            `(${bodyConditions.join(' OR ')})`,
+            Object.fromEntries(
+              bodyTypesArray.map((v, i) => [`bodyType${i}`, `%${v}%`]),
+            ),
           );
         } else {
           const bodyTypesFormatted = `%${bodyTypesArray[0]}%`;
@@ -517,7 +530,10 @@ export class FreightService {
       // Decodifica caracteres URL e divide por vírgula se necessário
       const decodedValue = decodeURIComponent(value);
       if (decodedValue.includes(',')) {
-        return decodedValue.split(',').map(item => item.trim()).filter(item => item !== '');
+        return decodedValue
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
       }
       try {
         return JSON.parse(value);
@@ -942,7 +958,7 @@ export class FreightService {
         );
       }
 
-  const now = new Date();
+      const now = new Date();
       const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       await queryRunner.manager.update(
         Freight,

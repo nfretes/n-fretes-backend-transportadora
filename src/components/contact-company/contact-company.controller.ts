@@ -124,18 +124,19 @@ export class ContactCompanyController {
     return this.contactCompanyService.softDeleteUsersContactCompany(id);
   }
 
-
-    /********************************************************************************** */
-    @ApiOperation({
-      summary: 'Traz o contato espéfico por ID do contato da empresa',
-    })
-    @ApiParam({
-      name: 'id',
-      description: 'ID do contato da empresa',
-      type: String,
-    })
-    @Get(':id')
-    async getContactCompanyById(@Param('id') id: string): Promise<ContactCompany> {
-      return this.contactCompanyService.getContactCompanyById(id);
-    }
+  /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Traz o contato espéfico por ID do contato da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do contato da empresa',
+    type: String,
+  })
+  @Get(':id')
+  async getContactCompanyById(
+    @Param('id') id: string,
+  ): Promise<ContactCompany> {
+    return this.contactCompanyService.getContactCompanyById(id);
+  }
 }

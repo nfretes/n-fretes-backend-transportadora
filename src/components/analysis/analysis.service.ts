@@ -64,7 +64,7 @@ export class AnalysisService {
     }
     const avgTimeToAccept = countAccepted
       ? totalTimeToAccept / countAccepted / 1000 / 60
-      : 0; 
+      : 0;
     const avgTimeToAcceptStr = this.formatMinutesToHourMinute(avgTimeToAccept);
 
     const freightsWithoutAccept = freights.filter(
@@ -76,7 +76,7 @@ export class AnalysisService {
     }
     const avgIdleTime = freightsWithoutAccept.length
       ? totalIdleTime / freightsWithoutAccept.length / 1000 / 60
-      : 0; 
+      : 0;
     const avgIdleTimeStr = this.formatMinutesToHourMinute(avgIdleTime);
 
     const numWithoutAccept = freightsWithoutAccept.length;

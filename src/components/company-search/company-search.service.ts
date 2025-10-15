@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from 'src/entities/company.entity';
@@ -13,7 +18,7 @@ export class CompanySearchService {
   async findByCnpj(cnpjInput: string): Promise<Omit<Company, 'password'>> {
     const norm = cnpjInput.replace(/\D/g, '');
     const companies = await this.companyRepository.find();
-    const company = companies.find(c => c.cnpj?.replace(/\D/g, '') === norm);
+    const company = companies.find((c) => c.cnpj?.replace(/\D/g, '') === norm);
     if (!company) {
       throw new NotFoundException('Transportadora não encontrada');
     }
@@ -24,9 +29,12 @@ export class CompanySearchService {
   async getCnpjData(cnpjInput: string) {
     try {
       const cnpj = cnpjInput.replace(/\D/g, '');
-      
+
       if (cnpj.length !== 14) {
-        throw new HttpException('CNPJ deve ter 14 dígitos', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'CNPJ deve ter 14 dígitos',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       // Usando ReceitaWS - API gratuita de consulta CNPJ
@@ -58,10 +66,11 @@ export class CompanySearchService {
         telefone: data.telefone,
         email: data.email,
         capitalSocial: data.capital_social,
-        socios: data.qsa?.map(socio => ({
-          nome: socio.nome,
-          qualificacao: socio.qual,
-        })) || [],
+        socios:
+          data.qsa?.map((socio) => ({
+            nome: socio.nome,
+            qualificacao: socio.qual,
+          })) || [],
       };
     } catch (error) {
       if (error instanceof HttpException) {

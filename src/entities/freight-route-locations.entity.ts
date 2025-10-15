@@ -34,7 +34,9 @@ export class FreightRouteLocations {
   @Column()
   routeId: string;
 
-  @ManyToOne(() => FreightRoutes, route => route.locations, { onDelete: 'CASCADE' })
+  @ManyToOne(() => FreightRoutes, (route) => route.locations, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'routeId' })
   route: FreightRoutes;
 }

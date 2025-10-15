@@ -42,7 +42,7 @@ export class Transactions {
 
   @Column({ type: 'enum', enum: TransactionType, nullable: true })
   transactionType: TransactionType | null;
-  
+
   @CreateDateColumn()
   createdAt: Date;
 

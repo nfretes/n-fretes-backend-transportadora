@@ -1,4 +1,4 @@
-import { RouteStatus } from "@entities/freight-routes.entity";
+import { RouteStatus } from '@entities/freight-routes.entity';
 
 export interface ParamsFreightRoute {
   id?: string;
@@ -9,7 +9,6 @@ export interface ParamsFreightRoute {
   status?: RouteStatus;
   companyId?: string;
   name?: string;
-  isActive?: boolean
-  avalationUserDrive?: boolean
+  isActive?: boolean;
+  avalationUserDrive?: boolean;
 }
-

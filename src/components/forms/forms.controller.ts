@@ -9,7 +9,10 @@ export class FormsController {
   constructor(private readonly formsService: FormsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Criar formulário', description: 'Cria um novo registro de formulário.' })
+  @ApiOperation({
+    summary: 'Criar formulário',
+    description: 'Cria um novo registro de formulário.',
+  })
   @ApiBody({ type: CreateFormDto })
   @ApiResponse({ status: 201, description: 'Formulário criado com sucesso.' })
   @ApiResponse({ status: 400, description: 'Parâmetro obrigatório faltando.' })

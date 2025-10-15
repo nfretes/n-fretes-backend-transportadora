@@ -18,24 +18,26 @@ export class NotificationService {
   ) {
     const { category, status, page = 1, take = 10 } = params || {};
     const skip = (page - 1) * take;
-  
+
     const queryBuilder = this.notificationRepository
       .createQueryBuilder('notifications')
       .where('notifications.recipientId = :recipientId', { recipientId })
-      .andWhere('notifications.status != :deletedStatus', { deletedStatus: 'deleted' }) 
+      .andWhere('notifications.status != :deletedStatus', {
+        deletedStatus: 'deleted',
+      })
       .orderBy('notifications.created_at', 'DESC')
       .skip(skip)
       .take(take);
-  
+
     if (category) {
       queryBuilder.andWhere('notifications.category = :category', { category });
     }
     if (status) {
       queryBuilder.andWhere('notifications.status = :status', { status });
     }
-  
+
     const [data, total] = await queryBuilder.getManyAndCount();
-  
+
     return {
       data,
       total,
@@ -46,7 +48,7 @@ export class NotificationService {
 
   async markAsRead(id: string, recipientId: string) {
     const notification = await this.notificationRepository.findOne({
-      where: {id, recipientId, status: NotificationStatus.UNREAD },
+      where: { id, recipientId, status: NotificationStatus.UNREAD },
     });
 
     if (notification) {
@@ -57,7 +59,7 @@ export class NotificationService {
     return null;
   }
 
-  async deleteNotification(id: string,recipientId: string) {
+  async deleteNotification(id: string, recipientId: string) {
     const notification = await this.notificationRepository.findOne({
       where: { id, recipientId, status: NotificationStatus.READ },
     });

@@ -5,7 +5,6 @@ import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { AnalysisService } from './analysis.service';
 
-
 @Controller('analysis')
 export class AnalysisController {
   constructor(private readonly analysisService: AnalysisService) {}

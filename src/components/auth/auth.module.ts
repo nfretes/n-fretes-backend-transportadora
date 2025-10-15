@@ -16,17 +16,18 @@ import { CompanySearchModule } from '@components/company-search/company-search.m
 import { CompanySearchService } from '@components/company-search/company-search.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([
-    Company,
-    RecoveryCode,
-    UsersDrive,
-    SubscriptionCompany,
-    FeatureLog,
-    FeatureUsage,
-    ContactCompany
-  ]),
-  HttpModule
-],
+  imports: [
+    TypeOrmModule.forFeature([
+      Company,
+      RecoveryCode,
+      UsersDrive,
+      SubscriptionCompany,
+      FeatureLog,
+      FeatureUsage,
+      ContactCompany,
+    ]),
+    HttpModule,
+  ],
   exports: [TypeOrmModule],
   controllers: [AuthController],
   providers: [AuthService, WhatsappService, CompanySearchService],

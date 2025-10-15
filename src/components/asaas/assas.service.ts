@@ -39,14 +39,14 @@ export class AsaasService {
     private readonly connection: Connection,
   ) {}
 
-   /***********************************ASSAS CONFIG************************************************ */
+  /***********************************ASSAS CONFIG************************************************ */
   private getAsaasConfig() {
     return {
       baseUrl: this.configService.get<string>('ASAAS_BASE_URL'),
       apiToken: this.configService.get<string>('ASAAS_API_KEY'),
     };
   }
- /***********************************AUTH HEADERS************************************************ */
+  /***********************************AUTH HEADERS************************************************ */
   private getAuthHeaders() {
     const { apiToken } = this.getAsaasConfig();
     return {
@@ -323,10 +323,7 @@ export class AsaasService {
       const { planId } = createSubscriptionDto;
       const plan = await this.plansRepository.findOne({
         where: { id: planId },
-   relations: [
-        'featureLimits',         
-        'featureLimits.feature'   
-      ]
+        relations: ['featureLimits', 'featureLimits.feature'],
       });
 
       if (!plan) {
@@ -357,7 +354,7 @@ export class AsaasService {
           headers: this.getAuthHeaders(),
         }),
       );
-     let newSubscription;
+      let newSubscription;
       const now = new Date();
       const nextRecurrency = new Date(now);
       nextRecurrency.setMonth(nextRecurrency.getMonth() + 1);
@@ -388,7 +385,7 @@ export class AsaasService {
 
         await queryRunner.manager.save(existingSubscription);
       } else {
-         newSubscription = this.subscriptionRepository.create({
+        newSubscription = this.subscriptionRepository.create({
           status: 1,
           merchantOrderId: subscriptionResponse.data.id,
           companyId: userId,
@@ -400,39 +397,34 @@ export class AsaasService {
         });
 
         await queryRunner.manager.save(newSubscription);
-         
-
-       
-
-      } 
+      }
 
       if (plan.featureLimits && plan.featureLimits.length > 0) {
-      const subscriptionEntity = existingSubscription || newSubscription;
-      
-      const featureUsages = plan.featureLimits.map(limit => {
-        return this.featureUsageRepository.create({
-          subscriptionId: subscriptionEntity.id,
-          featureId: limit.featureId,
-          quantityUsed: limit.monthlyLimit || 0, 
-          metadata: {
-            planId: plan.id,
-            planName: plan.name,
-            featureName: limit.feature.name,
-            action: 'INITIAL_ALLOCATION'
-          }
+        const subscriptionEntity = existingSubscription || newSubscription;
+
+        const featureUsages = plan.featureLimits.map((limit) => {
+          return this.featureUsageRepository.create({
+            subscriptionId: subscriptionEntity.id,
+            featureId: limit.featureId,
+            quantityUsed: limit.monthlyLimit || 0,
+            metadata: {
+              planId: plan.id,
+              planName: plan.name,
+              featureName: limit.feature.name,
+              action: 'INITIAL_ALLOCATION',
+            },
+          });
         });
-      });
 
-      await queryRunner.manager.save(featureUsages);
-    }
+        await queryRunner.manager.save(featureUsages);
+      }
 
-      await queryRunner.commitTransaction(); 
+      await queryRunner.commitTransaction();
 
       return {
         subscriptionId: subscriptionResponse.data.id,
         status: subscriptionResponse.data.status,
         invoiceUrl: subscriptionResponse.data.invoiceUrl,
-        
       };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -813,14 +805,14 @@ export class AsaasService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
-     const user = await queryRunner.manager.findOne(Company, {
+      const user = await queryRunner.manager.findOne(Company, {
         where: { id: userId },
         relations: [
-          'subscription', 
+          'subscription',
           'subscription.plan',
           'subscription.featureUsages',
           'subscription.featureUsages.feature',
-          'creditCard'
+          'creditCard',
         ],
       });
 
@@ -843,7 +835,7 @@ export class AsaasService {
 
       const newPlan = await queryRunner.manager.findOne(PlansCompany, {
         where: { id: newPlanId },
-             relations: ['featureLimits', 'featureLimits.feature']
+        relations: ['featureLimits', 'featureLimits.feature'],
       });
 
       if (!newPlan) {
@@ -915,40 +907,36 @@ export class AsaasService {
           });
           await queryRunner.manager.save(transaction);
 
+          if (newPlan.featureLimits && newPlan.featureLimits.length > 0) {
+            for (const newLimit of newPlan.featureLimits) {
+              const currentUsage = user.subscription.featureUsages?.find(
+                (usage) => usage.featureId === newLimit.featureId,
+              );
 
-                if (newPlan.featureLimits && newPlan.featureLimits.length > 0) {
-        for (const newLimit of newPlan.featureLimits) {
-          const currentUsage = user.subscription.featureUsages?.find(
-            usage => usage.featureId === newLimit.featureId
-          );
+              if (currentUsage) {
+                currentUsage.quantityUsed = Math.min(
+                  currentUsage.quantityUsed,
+                  newLimit.monthlyLimit,
+                );
 
-          if (currentUsage) {
-          
-            currentUsage.quantityUsed = Math.min(
-              currentUsage.quantityUsed, 
-              newLimit.monthlyLimit      
-            );
+                currentUsage.quantityUsed = newLimit.monthlyLimit;
 
-            
-              currentUsage.quantityUsed  = newLimit.monthlyLimit;
-  
-            await queryRunner.manager.save(currentUsage);
-          } else {
-       
-            const newUsage = this.featureUsageRepository.create({
-              subscriptionId: user.subscription.id,
-              featureId: newLimit.featureId,
-              quantityUsed: newLimit.monthlyLimit,
-              metadata: {
-                action: 'UPGRADE',
-                oldPlanId: currentPlan.id,
-                newPlanId: newPlan.id
+                await queryRunner.manager.save(currentUsage);
+              } else {
+                const newUsage = this.featureUsageRepository.create({
+                  subscriptionId: user.subscription.id,
+                  featureId: newLimit.featureId,
+                  quantityUsed: newLimit.monthlyLimit,
+                  metadata: {
+                    action: 'UPGRADE',
+                    oldPlanId: currentPlan.id,
+                    newPlanId: newPlan.id,
+                  },
+                });
+                await queryRunner.manager.save(newUsage);
               }
-            });
-            await queryRunner.manager.save(newUsage);
+            }
           }
-        }
-      }
 
           await queryRunner.commitTransaction();
         } catch (error) {
@@ -1056,7 +1044,5 @@ export class AsaasService {
         `(${daysRemaining} dias não utilizados). O desconto aplicado foi de R$ ${discount.toFixed(2)}.`,
     };
   }
-/**************************************************************************************************** */
+  /**************************************************************************************************** */
 }
-
-

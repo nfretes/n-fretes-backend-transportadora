@@ -3,19 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FreightQuote } from '@entities/freight-quote.entity';
 import { CreateQuoteDto } from './dto/create-quote.dto';
-import { 
-  SapiensAuthResponse, 
-  SapiensQuoteRequest, 
-  SapiensQuoteResponse 
+import {
+  SapiensAuthResponse,
+  SapiensQuoteRequest,
+  SapiensQuoteResponse,
 } from './interfaces/sapiens.interface';
 import axios from 'axios';
 
 @Injectable()
 export class SapiensService {
-  private readonly SAPIENS_BASE_URL = 'https://integration-9a3k2z.fretes.sapiensagro.com';
+  private readonly SAPIENS_BASE_URL =
+    'https://integration-9a3k2z.fretes.sapiensagro.com';
   private readonly USERNAME = 'carlos@ezsoft.com.br';
   private readonly PASSWORD = 'TwrDagetn';
-  
+
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
 
@@ -41,7 +42,7 @@ export class SapiensService {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
-        }
+        },
       );
 
       this.accessToken = response.data.access_token;
@@ -51,12 +52,14 @@ export class SapiensService {
     } catch (error) {
       throw new HttpException(
         'Erro ao autenticar com Sapiens API',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  private async fetchFromSapiens(request: SapiensQuoteRequest): Promise<SapiensQuoteResponse> {
+  private async fetchFromSapiens(
+    request: SapiensQuoteRequest,
+  ): Promise<SapiensQuoteResponse> {
     const token = await this.getAccessToken();
 
     try {
@@ -66,21 +69,24 @@ export class SapiensService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       return response.data;
     } catch (error) {
       throw new HttpException(
         'Erro ao buscar cotação da Sapiens API',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  async getQuote(userId: string, createQuoteDto: CreateQuoteDto): Promise<FreightQuote> {
+  async getQuote(
+    userId: string,
+    createQuoteDto: CreateQuoteDto,
+  ): Promise<FreightQuote> {
     const { date, cmdy, origin, destination, type_flag } = createQuoteDto;
 
     const existingQuote = await this.freightQuoteRepository.findOne({
@@ -94,7 +100,7 @@ export class SapiensService {
     if (existingQuote) {
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      
+
       if (existingQuote.createdAt > threeMonthsAgo) {
         return existingQuote;
       }
@@ -109,14 +115,15 @@ export class SapiensService {
 
     const sapiensResponse = await this.fetchFromSapiens(sapiensRequest);
     let predictedFreight: number;
-    let horizonPredictions: Array<{date: string; predicted_freight: number}>;
+    let horizonPredictions: Array<{ date: string; predicted_freight: number }>;
     let distance: number;
     let duration: number;
     let monthlyTotal: number;
     let anttData: any;
 
     if (sapiensResponse.predictions) {
-      predictedFreight = sapiensResponse.predictions.specific_date_prediction.predicted_freight;
+      predictedFreight =
+        sapiensResponse.predictions.specific_date_prediction.predicted_freight;
       horizonPredictions = sapiensResponse.predictions.horizon_predictions;
       distance = sapiensResponse.predictions.additional_info.distance;
       duration = sapiensResponse.predictions.additional_info.duration;
@@ -149,7 +156,11 @@ export class SapiensService {
     return await this.freightQuoteRepository.save(newQuote);
   }
 
-  async getUserQuotes(userId: string, page: number = 1, limit: number = 10): Promise<{
+  async getUserQuotes(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
     data: FreightQuote[];
     total: number;
     page: number;

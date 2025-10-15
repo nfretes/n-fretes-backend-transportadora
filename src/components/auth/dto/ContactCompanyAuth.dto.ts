@@ -7,7 +7,10 @@ export class ContactCompanyRegisterDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Email do contato', example: 'contato@email.com' })
+  @ApiProperty({
+    description: 'Email do contato',
+    example: 'contato@email.com',
+  })
   @IsString()
   @IsNotEmpty()
   email: string;
@@ -22,13 +25,20 @@ export class ContactCompanyRegisterDto {
   @IsNotEmpty()
   password: string;
 
-  @ApiProperty({ description: 'Telefone', example: '(11) 99999-9999', required: false })
+  @ApiProperty({
+    description: 'Telefone',
+    example: '(11) 99999-9999',
+    required: false,
+  })
   @IsString()
   phoneNumber?: string;
 }
 
 export class ContactCompanyLoginDto {
-  @ApiProperty({ description: 'Email do contato', example: 'contato@email.com' })
+  @ApiProperty({
+    description: 'Email do contato',
+    example: 'contato@email.com',
+  })
   @IsString()
   @IsNotEmpty()
   email: string;

@@ -33,6 +33,7 @@ import { ExcludeModule } from '@components/exclude/exclude.module';
 import { FreightRouteLocationsModule } from './components/freight-route-locations/freight-route-locations.module';
 import { DistanceModule } from '@components/distance/distance.module';
 import { SapiensModule } from '@components/sapiens/sapiens.module';
+import { SiimpWebhookModule } from '@components/webhooks/siimp/siimp-webhook.module';
 
 @Module({
   imports: [
@@ -76,7 +77,8 @@ import { SapiensModule } from '@components/sapiens/sapiens.module';
     ExcludeModule,
     FreightRouteLocationsModule,
     DistanceModule,
-    SapiensModule
+    SapiensModule,
+    SiimpWebhookModule,
   ],
   controllers: [AppController],
   providers: [AppService],

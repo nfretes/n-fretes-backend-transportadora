@@ -7,8 +7,7 @@ import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 @Controller('company-search')
 export class CompanySearchController {
   constructor(private readonly service: CompanySearchService) {}
-  
- 
+
   @Get()
   @ApiOperation({ summary: 'Buscar transportadora por CNPJ' })
   @ApiResponse({ status: 200, description: 'Transportadora encontrada.' })
@@ -17,7 +16,6 @@ export class CompanySearchController {
     return this.service.findByCnpj(cnpj);
   }
 
- 
   @Get('receita')
   @ApiOperation({ summary: 'Consultar CNPJ na Receita Federal' })
   @ApiResponse({ status: 200, description: 'Dados do CNPJ encontrados.' })

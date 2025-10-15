@@ -31,8 +31,7 @@ export class Company {
   @Column({ nullable: true })
   nameFantasy: string;
 
-  @Column({ nullable: true })
-  @Column({ unique: true })
+  @Column({ nullable: true, unique: true })
   email: string;
 
   @Column({ nullable: true })
@@ -111,9 +110,17 @@ export class Company {
   @Column({ nullable: true })
   photoUrl: string;
 
-  
   @Column({ nullable: true })
   assas_id: string;
+
+  @Column({ nullable: true })
+  siimpUsername: string;
+
+  @Column({ nullable: true })
+  siimpPassword: string;
+
+  @Column({ default: false })
+  siimpIntegrationActive: boolean;
 
   @OneToMany(() => ContactCompany, (contact) => contact.company)
   contacts: ContactCompany[];
@@ -144,7 +151,6 @@ export class Company {
     (reviewUserDrive) => reviewUserDrive.company,
   )
   reviewUserDrive: ReviewUserDrive[];
-
 
   @OneToMany(() => Transactions, (transaction) => transaction.company)
   transactions: Transactions[];

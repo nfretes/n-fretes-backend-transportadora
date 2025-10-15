@@ -1,4 +1,12 @@
-import { IsInt, IsOptional, IsString, IsUUID, Min, Max, IsArray } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  Max,
+  IsArray,
+} from 'class-validator';
 
 import { ReviewTags } from '@entities/review-users-drive.entity';
 

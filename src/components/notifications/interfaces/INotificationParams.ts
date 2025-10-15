@@ -8,5 +8,5 @@ export interface ParamsNotificationsRequest {
   page?: number;
   category?: NotificationCategory;
   status?: NotificationStatus;
-  recipientId: string
+  recipientId: string;
 }

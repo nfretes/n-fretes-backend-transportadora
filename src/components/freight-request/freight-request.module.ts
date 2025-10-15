@@ -11,7 +11,15 @@ import { SQSService } from '@components/sqs/sqs.service';
 import { Notification } from '@entities/notifications.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FreightRequest, FreightRoutes, Freight, UsersDrive, Notification])],
+  imports: [
+    TypeOrmModule.forFeature([
+      FreightRequest,
+      FreightRoutes,
+      Freight,
+      UsersDrive,
+      Notification,
+    ]),
+  ],
   controllers: [FreightRequestController],
   providers: [FreightRequestService, PaginationService, SQSService],
 })

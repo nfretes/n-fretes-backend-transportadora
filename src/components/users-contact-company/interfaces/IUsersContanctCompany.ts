@@ -5,6 +5,6 @@ export interface ParamsUsersContactCompany {
   page?: number;
   isActive?: boolean;
   companyId?: string;
-  excludeNotified?: boolean
-  freightId?: string
+  excludeNotified?: boolean;
+  freightId?: string;
 }

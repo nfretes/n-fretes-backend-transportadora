@@ -103,31 +103,38 @@ export class AsaasController {
   /********************** DELETAR  OS CARTÕES DA EMPRESA ************************* */
 
   @Delete(':cardId/delete')
-  async deleteCreditCard(
-    @Param('cardId') cardId: string
-  ) {
+  async deleteCreditCard(@Param('cardId') cardId: string) {
     const result = await this.asaasService.deleteCreditCard(cardId);
 
     return result;
   }
 
-
   /**********************ATUALIZAR O PLANO DA RECORRENCIA********** */
 
   @UseGuards(JwtAuthGuard)
   @Put('subscriptions/upgrade/:planId')
-  async upgradePlan(@GetUserId() userId: string,@Param('planId') planId: string,   @ClientIp() clientIp: string) {
-    const result = await this.asaasService.upgradePlan(userId, planId,clientIp);
+  async upgradePlan(
+    @GetUserId() userId: string,
+    @Param('planId') planId: string,
+    @ClientIp() clientIp: string,
+  ) {
+    const result = await this.asaasService.upgradePlan(
+      userId,
+      planId,
+      clientIp,
+    );
     return result;
   }
 
-    /**********************TRAZ O VALOR DA PRORATA********** */
+  /**********************TRAZ O VALOR DA PRORATA********** */
 
-    @UseGuards(JwtAuthGuard)
-    @Get('prorata/:planId')
-    async getProrataValue(@GetUserId() userId: string,@Param('planId') planId: string) {
-      const result = await this.asaasService.getProrataValue(userId, planId);
-      return result;
-    }
-
+  @UseGuards(JwtAuthGuard)
+  @Get('prorata/:planId')
+  async getProrataValue(
+    @GetUserId() userId: string,
+    @Param('planId') planId: string,
+  ) {
+    const result = await this.asaasService.getProrataValue(userId, planId);
+    return result;
+  }
 }

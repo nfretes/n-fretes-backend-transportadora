@@ -40,7 +40,6 @@ export class FreightQuote {
     predicted_freight: number;
   }>;
 
-
   @Column('bigint')
   distance: number;
 

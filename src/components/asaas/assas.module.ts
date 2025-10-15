@@ -15,7 +15,14 @@ import { FeatureUsage } from '@entities/feature-usage.entity';
   imports: [
     HttpModule,
     ConfigModule,
-    TypeOrmModule.forFeature([Company, PlansCompany, SubscriptionCompany, Transactions, CreditCard, FeatureUsage]),
+    TypeOrmModule.forFeature([
+      Company,
+      PlansCompany,
+      SubscriptionCompany,
+      Transactions,
+      CreditCard,
+      FeatureUsage,
+    ]),
   ],
   controllers: [AsaasController],
   providers: [AsaasService],

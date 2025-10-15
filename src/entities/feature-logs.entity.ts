@@ -1,4 +1,3 @@
-
 import {
   Column,
   CreateDateColumn,
@@ -6,7 +5,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
 } from 'typeorm';
 import { SubscriptionCompany } from './subscription-company.entity';
 import { PlanFeature } from './plan-features.entity';
@@ -30,24 +29,23 @@ export class FeatureLog {
   @Column()
   featureId: string;
 
-
   @Column({ type: 'int' })
-  quantityChange: number; 
+  quantityChange: number;
 
   @Column({ type: 'jsonb', nullable: true })
-  metadata: any; 
+  metadata: any;
 
   @Column({ nullable: true })
-  relatedEntityId: string; 
+  relatedEntityId: string;
 
   @Column({ nullable: true })
-  description: string; 
+  description: string;
 
   @CreateDateColumn()
   loggedAt: Date;
 
   @Column({ nullable: true })
-  performedById: string; 
+  performedById: string;
 
   @Column({ nullable: true })
   performedByType: 'USER' | 'SYSTEM' | 'ADMIN';

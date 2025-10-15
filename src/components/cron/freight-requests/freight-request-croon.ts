@@ -42,7 +42,7 @@ export class FreightRequestCronService {
     for (const request of expiredRequests) {
       request.status = FreightRequestStatus.PENDING;
       request.expiresAt = null;
-      request.solicitationsOrder = 1
+      request.solicitationsOrder = 1;
       await this.freightRequestRepository.save(request);
 
       this.logger.log(`Solicitação ${request.id} foi revertida para PENDING.`);

@@ -9,16 +9,20 @@ export class TransactionsService {
     private transactionsRepository: Repository<Transactions>,
   ) {}
 
-  async getAllTransactions(userId: string, pagination: ParamsTransactionsRequest) {
+  async getAllTransactions(
+    userId: string,
+    pagination: ParamsTransactionsRequest,
+  ) {
     const { page = 1, take = 10 } = pagination;
     const skip = (page - 1) * take;
-    
-    const [transactions, total] = await this.transactionsRepository.findAndCount({
-      where: { companyId: userId }, 
-      skip,
-      take: take,
-      order: { createdAt: 'DESC' } 
-    });
+
+    const [transactions, total] =
+      await this.transactionsRepository.findAndCount({
+        where: { companyId: userId },
+        skip,
+        take: take,
+        order: { createdAt: 'DESC' },
+      });
 
     return {
       data: transactions,
@@ -27,7 +31,7 @@ export class TransactionsService {
         page,
         take,
         totalPages: Math.ceil(total / take),
-      }
+      },
     };
   }
 }

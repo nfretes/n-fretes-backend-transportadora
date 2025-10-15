@@ -1,10 +1,10 @@
-import { 
-  Controller, 
-  Post, 
-  Get, 
-  Body, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -23,8 +23,8 @@ export class SapiensController {
 
   @Post('quote')
   @ApiOperation({ summary: 'Buscar cotação de frete' })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'Cotação criada/encontrada com sucesso.',
     type: FreightQuote,
   })
@@ -39,8 +39,8 @@ export class SapiensController {
   @ApiOperation({ summary: 'Listar cotações do usuário' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Lista de cotações do usuário.',
   })
   async getUserQuotes(
@@ -53,8 +53,8 @@ export class SapiensController {
 
   @Get('quote/:id')
   @ApiOperation({ summary: 'Buscar cotação por ID' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Cotação encontrada.',
     type: FreightQuote,
   })

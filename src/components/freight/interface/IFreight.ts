@@ -18,5 +18,5 @@ export interface ParamsFreight {
   openSolicitations?: boolean;
   createdAt?: Date;
   companyId?: string;
-  id?: string
+  id?: string;
 }

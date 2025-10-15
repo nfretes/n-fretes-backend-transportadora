@@ -121,28 +121,38 @@ export class CreateFreightDto {
   @IsOptional()
   volume?: string;
 
-
-  @ApiProperty({ description: 'Longitude e Latitude da origem', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude da origem',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   originLongitude?: string;
 
-  @ApiProperty({ description: 'Longitude e Latitude da origem', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude da origem',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   originLatitude?: string;
 
-  @ApiProperty({ description: 'Longitude e Latitude do destino', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude do destino',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   destinyLongitude?: string;
 
-  @ApiProperty({ description: 'Longitude e Latitude do destino', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude do destino',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   destinyLatitude?: string;
 
-  
   @ApiProperty({ description: 'Distancia total do percurso', required: false })
   @IsString()
   @IsOptional()

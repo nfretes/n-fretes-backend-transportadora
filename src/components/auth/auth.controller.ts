@@ -25,7 +25,10 @@ import { Param } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Company } from '@entities/company.entity';
 import { GetUserId } from 'src/decorators/get-user-decorator';
-import { ContactCompanyRegisterDto, ContactCompanyLoginDto } from './dto/ContactCompanyAuth.dto';
+import {
+  ContactCompanyRegisterDto,
+  ContactCompanyLoginDto,
+} from './dto/ContactCompanyAuth.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -55,31 +58,21 @@ export class AuthController {
 
   /********************************************************************************** */
 
-
-
   @Get('check-cnpj/:cnpj')
-async checkCnpj(@Param('cnpj') cnpj: string) {
-  const exists = !!(await this.companyRepository.findOne({ where: { cnpj } }));
-  return { exists };
-}
+  async checkCnpj(@Param('cnpj') cnpj: string) {
+    const exists = !!(await this.companyRepository.findOne({
+      where: { cnpj },
+    }));
+    return { exists };
+  }
 
-@Get('check-cpf/:cpf')
-async checkCpf(@Param('cpf') cpf: string) {
-  const exists = !!(await this.companyRepository.findOne({ where: { cpf } }));
-  return { exists };
-}
+  @Get('check-cpf/:cpf')
+  async checkCpf(@Param('cpf') cpf: string) {
+    const exists = !!(await this.companyRepository.findOne({ where: { cpf } }));
+    return { exists };
+  }
 
-
-
-
-
-
-   /********************************************************************************** */
-
-
-
-
-
+  /********************************************************************************** */
 
   @Post('login')
   @ApiOperation({ summary: 'Realizar login do usuário' })
@@ -118,7 +111,7 @@ async checkCpf(@Param('cpf') cpf: string) {
     return this.authService.generateRecoveryCodeAndSendNumber(phoneNumber);
   }
 
-    @Post('verify-phone')
+  @Post('verify-phone')
   async sendCodeVerify(@Body() phoneNumber: PhoneJson) {
     return this.authService.sendCodeVerify(phoneNumber);
   }
@@ -205,10 +198,15 @@ async checkCpf(@Param('cpf') cpf: string) {
 
   @UseGuards(JwtAuthGuard)
   @Post('contact-company/register')
-  @ApiOperation({ summary: 'Registrar um novo contato administrativo da empresa' })
+  @ApiOperation({
+    summary: 'Registrar um novo contato administrativo da empresa',
+  })
   @ApiResponse({ status: 201, description: 'Contato registrado com sucesso' })
   @ApiResponse({ status: 400, description: 'Erro ao registrar o contato' })
-  async registerContactCompany(@Body() dto: ContactCompanyRegisterDto, @GetUserId() userId: string) {
+  async registerContactCompany(
+    @Body() dto: ContactCompanyRegisterDto,
+    @GetUserId() userId: string,
+  ) {
     return this.authService.registerContactCompany(dto, userId);
   }
 

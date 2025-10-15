@@ -13,7 +13,12 @@ import { FeatureUsage } from '@entities/feature-usage.entity';
   imports: [
     HttpModule,
     ConfigModule,
-    TypeOrmModule.forFeature([SubscriptionCompany, Transactions, PlansCompany, FeatureUsage]),
+    TypeOrmModule.forFeature([
+      SubscriptionCompany,
+      Transactions,
+      PlansCompany,
+      FeatureUsage,
+    ]),
   ],
   controllers: [WebhookAssasController],
   providers: [AsaasService],

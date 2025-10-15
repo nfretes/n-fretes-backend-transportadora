@@ -24,12 +24,9 @@ export class FeedbackService {
     let imageUrl: string | undefined = undefined;
     if (imageBase64) {
       const key = `feedbacks/${userId}_${Date.now()}.jpg`;
-      const bucket = this.awsService['configService'].get<string>('AWS_S3_BUCKET_NAME');
-      imageUrl = await this.awsService.uploadAvatar(
-        bucket,
-        key,
-        imageBase64,
-      );
+      const bucket =
+        this.awsService['configService'].get<string>('AWS_S3_BUCKET_NAME');
+      imageUrl = await this.awsService.uploadAvatar(bucket, key, imageBase64);
     }
     const feedback = this.feedbackRepository.create({
       userId,

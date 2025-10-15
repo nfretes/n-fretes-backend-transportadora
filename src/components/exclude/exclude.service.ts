@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Exclude } from 'src/entities/exclude.entity';
@@ -17,7 +21,9 @@ export class ExcludeService {
     private readonly usersDriveRepository: Repository<UsersDrive>,
   ) {}
 
-  async createExcludeRequest(dto: CreateExcludeDto): Promise<{ success: boolean; message: string }> {
+  async createExcludeRequest(
+    dto: CreateExcludeDto,
+  ): Promise<{ success: boolean; message: string }> {
     if (!dto.cpf && !dto.cnpj) {
       throw new BadRequestException('CPF ou CNPJ deve ser informado');
     }
@@ -26,24 +32,29 @@ export class ExcludeService {
       throw new BadRequestException('Motivo é obrigatório');
     }
 
-
     let userExists = false;
 
     if (dto.cpf) {
-
-      const userByCpf = await this.usersDriveRepository.findOne({ where: { cpf: dto.cpf } });
-      const companyByCpf = await this.companyRepository.findOne({ where: { cpf: dto.cpf } });
+      const userByCpf = await this.usersDriveRepository.findOne({
+        where: { cpf: dto.cpf },
+      });
+      const companyByCpf = await this.companyRepository.findOne({
+        where: { cpf: dto.cpf },
+      });
       userExists = !!(userByCpf || companyByCpf);
     }
 
     if (dto.cnpj && !userExists) {
-     
-      const companyByCnpj = await this.companyRepository.findOne({ where: { cnpj: dto.cnpj } });
+      const companyByCnpj = await this.companyRepository.findOne({
+        where: { cnpj: dto.cnpj },
+      });
       userExists = !!companyByCnpj;
     }
 
     if (!userExists) {
-      throw new NotFoundException('Não localizamos seu cadastro em nossas bases');
+      throw new NotFoundException(
+        'Não localizamos seu cadastro em nossas bases',
+      );
     }
 
     const excludeRequest = this.excludeRepository.create({
@@ -59,9 +70,13 @@ export class ExcludeService {
     };
   }
 
-  async markAsDeleted(id: string): Promise<{ success: boolean; message: string }> {
-    const excludeRequest = await this.excludeRepository.findOne({ where: { id } });
-    
+  async markAsDeleted(
+    id: string,
+  ): Promise<{ success: boolean; message: string }> {
+    const excludeRequest = await this.excludeRepository.findOne({
+      where: { id },
+    });
+
     if (!excludeRequest) {
       throw new BadRequestException('Solicitação não encontrada');
     }

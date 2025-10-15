@@ -78,6 +78,6 @@ export class FreightRoutes {
   @UpdateDateColumn()
   completedAt: Date;
 
-  @OneToMany(() => FreightRouteLocations, location => location.route)
+  @OneToMany(() => FreightRouteLocations, (location) => location.route)
   locations: FreightRouteLocations[];
 }

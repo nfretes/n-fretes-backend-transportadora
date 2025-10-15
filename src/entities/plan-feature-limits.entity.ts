@@ -1,6 +1,6 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
-import { PlansCompany } from "./plans-company.entity";
-import { PlanFeature } from "./plan-features.entity";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { PlansCompany } from './plans-company.entity';
+import { PlanFeature } from './plan-features.entity';
 
 @Entity({ schema: 'public', name: 'plan-feature-limits' })
 export class PlanFeatureLimit {
@@ -22,7 +22,7 @@ export class PlanFeatureLimit {
   featureId: string;
 
   @Column({ type: 'int', nullable: true })
-  monthlyLimit: number; 
+  monthlyLimit: number;
 
   @Column({ type: 'boolean', default: false })
   included: boolean;

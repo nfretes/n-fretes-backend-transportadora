@@ -61,7 +61,7 @@ export class FreightRouteService {
           'location.city',
           'location.latitude',
           'location.longitude',
-          'CompanyUsersContacts.isActive'
+          'CompanyUsersContacts.isActive',
         ])
         .where('freight_routes.companyId = :companyId', { companyId: userId });
 
@@ -142,42 +142,43 @@ export class FreightRouteService {
         where: { userDriveId: userId },
         relations: ['freight', 'freight.company'],
       });
-  
+
       const values = freightRoutes
         .map((route) => Number(route.freight?.Valuefreight) || 0)
         .filter((value) => value > 0);
-  
+
       const distinctCompanies = new Set(
-        freightRoutes.map((route) => route.freight?.company?.id).filter(Boolean),
+        freightRoutes
+          .map((route) => route.freight?.company?.id)
+          .filter(Boolean),
       ).size;
-  
+
       const count = values.length;
       const mediaFreights = count
         ? (values.reduce((sum, v) => sum + v, 0) / count).toFixed(2)
         : '0.00';
       const maiorFreight = count ? Math.max(...values).toFixed(2) : '0.00';
-  
-    
+
       const destinationCount: Record<string, number> = {};
       freightRoutes.forEach((route) => {
         const destination = route.freight?.destinyCity;
         if (destination) {
-          destinationCount[destination] = (destinationCount[destination] || 0) + 1;
+          destinationCount[destination] =
+            (destinationCount[destination] || 0) + 1;
         }
       });
-  
-   
+
       const principalRoute = Object.entries(destinationCount).reduce(
         (max, entry) => (entry[1] > max[1] ? entry : max),
         ['', 0],
       )[0];
-  
+
       return {
         count,
         distinctCompanies,
         mediaFreights,
         maiorFreight,
-        principalRoute, 
+        principalRoute,
       };
     } catch (error) {
       console.error('Erro no getStaticsUserRoute:', error);
@@ -185,7 +186,7 @@ export class FreightRouteService {
     }
   }
 
- async getAvalatiation(userId: string, params: ParamsFreightRoute = {}) {
+  async getAvalatiation(userId: string, params: ParamsFreightRoute = {}) {
     try {
       const take = params.take ?? 10;
       const page = params.page ?? 1;
@@ -230,5 +231,4 @@ export class FreightRouteService {
       throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-  
 }

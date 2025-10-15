@@ -15,8 +15,15 @@ import { DistanceModule } from '@components/distance/distance.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Freight, Company, UsersDrive, SubscriptionCompany, FeatureUsage, FeatureLog]),
-    DistanceModule
+    TypeOrmModule.forFeature([
+      Freight,
+      Company,
+      UsersDrive,
+      SubscriptionCompany,
+      FeatureUsage,
+      FeatureLog,
+    ]),
+    DistanceModule,
   ],
   exports: [TypeOrmModule],
   controllers: [FreightController],

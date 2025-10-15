@@ -5,7 +5,6 @@ import { FreightRouteService } from './freight-route.service';
 import { FreightRouteController } from './freight-route.controller';
 import { UsersDrive } from '@entities/users-drive.entity';
 
-
 @Module({
   imports: [TypeOrmModule.forFeature([FreightRoutes, UsersDrive])],
   controllers: [FreightRouteController],

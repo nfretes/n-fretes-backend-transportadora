@@ -50,7 +50,7 @@ export class ReviewUserDriveService {
         comment,
         tags,
         routeId,
-        isCompanyReviewingUser: true
+        isCompanyReviewingUser: true,
       });
 
       return this.reviewRepository.save(review);
@@ -155,7 +155,6 @@ export class ReviewUserDriveService {
             }
           : null;
 
-
       return {
         totalReviews,
         averageRating: parseFloat(averageRating.toFixed(2)),
@@ -171,18 +170,14 @@ export class ReviewUserDriveService {
   }
 
   async getAvaliationReceivers(params: ParamsReviewUsersDrives) {
-    const { page = 1, take = 10} = params;
+    const { page = 1, take = 10 } = params;
     try {
       const queryBuilder =
         this.reviewRepository.createQueryBuilder('reviews_user_drive');
 
       queryBuilder
         .leftJoin('reviews_user_drive.userDrive', 'userDrive')
-        .addSelect([
-          'userDrive.name',
-          'userDrive.photoFaceURL',
-          'userDrive.id',
-        ])
+        .addSelect(['userDrive.name', 'userDrive.photoFaceURL', 'userDrive.id'])
         .skip((page - 1) * take)
         .take(take);
 
@@ -203,7 +198,8 @@ export class ReviewUserDriveService {
   async getAvaliationSent(params: ParamsReviewUsersDrives) {
     const { page = 1, take = 10 } = params;
     try {
-      const queryBuilder = this.reviewRepository.createQueryBuilder('reviews_user_drive');
+      const queryBuilder =
+        this.reviewRepository.createQueryBuilder('reviews_user_drive');
 
       queryBuilder
         .leftJoin('reviews_user_drive.userDrive', 'userDrive')
@@ -211,7 +207,10 @@ export class ReviewUserDriveService {
         .leftJoin('userDrive.locations', 'location')
         .leftJoin('userDrive.freightRequest', 'freightRequest')
         .leftJoin('freightRequest.freight', 'freight')
-        .where('reviews_user_drive.isCompanyReviewingUser = :isCompanyReviewingUser', { isCompanyReviewingUser: true }) 
+        .where(
+          'reviews_user_drive.isCompanyReviewingUser = :isCompanyReviewingUser',
+          { isCompanyReviewingUser: true },
+        )
         .addSelect([
           'userDrive.name',
           'userDrive.cnh',
@@ -258,5 +257,5 @@ export class ReviewUserDriveService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-}
+  }
 }

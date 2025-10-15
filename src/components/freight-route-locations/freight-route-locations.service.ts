@@ -11,7 +11,9 @@ export class FreightRouteLocationsService {
     private readonly routeLocationsRepository: Repository<FreightRouteLocations>,
   ) {}
 
-  async create(createLocationDto: CreateRouteLocationDto): Promise<FreightRouteLocations> {
+  async create(
+    createLocationDto: CreateRouteLocationDto,
+  ): Promise<FreightRouteLocations> {
     const location = this.routeLocationsRepository.create(createLocationDto);
     return await this.routeLocationsRepository.save(location);
   }

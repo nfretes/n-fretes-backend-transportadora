@@ -23,36 +23,36 @@ export class UsersContactCompanyService {
     private readonly paginationService: PaginationService,
   ) {}
 
-async createUsersContactCompany(
-  createContactCompany: CompanyUsersContactsDto,
-): Promise<CompanyUsersContactsDto> {
-  try {
-    const existing = await this.usersContactCompanyRepository.findOne({
-      where: {
-        userId: createContactCompany.userId,
-        companyId: createContactCompany.companyId,
-      },
-    });
+  async createUsersContactCompany(
+    createContactCompany: CompanyUsersContactsDto,
+  ): Promise<CompanyUsersContactsDto> {
+    try {
+      const existing = await this.usersContactCompanyRepository.findOne({
+        where: {
+          userId: createContactCompany.userId,
+          companyId: createContactCompany.companyId,
+        },
+      });
 
-    if (existing) {
-      existing.isActive = true;
-      existing.updatedAt = new Date();
-      await this.usersContactCompanyRepository.save(existing);
-      return existing;
+      if (existing) {
+        existing.isActive = true;
+        existing.updatedAt = new Date();
+        await this.usersContactCompanyRepository.save(existing);
+        return existing;
+      }
+
+      const create =
+        this.usersContactCompanyRepository.create(createContactCompany);
+      const save = await this.usersContactCompanyRepository.save(create);
+
+      return save;
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao criar contato da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-
-
-    const create = this.usersContactCompanyRepository.create(createContactCompany);
-    const save = await this.usersContactCompanyRepository.save(create);
-
-    return save;
-  } catch (error) {
-    throw new HttpException(
-      error?.message || 'Erro ao criar contato da empresa',
-      HttpStatus.INTERNAL_SERVER_ERROR,
-    );
   }
-}
 
   async updateUsersContactCompany(
     id: string,
@@ -130,24 +130,25 @@ async createUsersContactCompany(
           'location.latitude',
           'CompanyUsersContacts.isActive',
         ]);
-  
 
       if (params.id) {
-        queryBuilder.andWhere('companyUsersContacts.id = :id', { id: params.id });
+        queryBuilder.andWhere('companyUsersContacts.id = :id', {
+          id: params.id,
+        });
       }
-  
+
       if (params.companyId) {
         queryBuilder.andWhere('companyUsersContacts.companyId = :companyId', {
           companyId: params.companyId,
         });
       }
-  
+
       if (params.isActive !== undefined) {
         queryBuilder.andWhere('companyUsersContacts.isActive = :isActive', {
           isActive: params.isActive,
         });
       }
-  
+
       if (params.name) {
         queryBuilder.andWhere(
           '(unaccent(LOWER(users_drive.name)) ILIKE unaccent(LOWER(:name)))',
@@ -155,16 +156,16 @@ async createUsersContactCompany(
         );
       }
 
-      
-  
-      const allResults = await queryBuilder.orderBy('users_drive.name', 'ASC').getMany();
-      const total = allResults.length; 
-     const page = params.page || 1;
+      const allResults = await queryBuilder
+        .orderBy('users_drive.name', 'ASC')
+        .getMany();
+      const total = allResults.length;
+      const page = params.page || 1;
       const limit = params.limit || 10;
       const skip = (page - 1) * limit;
-  
+
       const paginatedResults = allResults.slice(skip, skip + limit);
-  
+
       return {
         //@ts-ignore
         data: paginatedResults,
@@ -180,7 +181,6 @@ async createUsersContactCompany(
       );
     }
   }
-  
 
   async softDeleteUsersContactCompany(id: string): Promise<string> {
     const queryRunner =

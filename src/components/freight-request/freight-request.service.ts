@@ -12,7 +12,13 @@ import { FreightRoutes, RouteStatus } from '@entities/freight-routes.entity';
 import { UsersDrive } from '@entities/users-drive.entity';
 import { addHoursToSaoPauloTime } from '@components/utils/formatTime-SP';
 import { SQSService } from '@components/sqs/sqs.service';
-import { EntityType, IconStyles, Notification, NotificationCategory, NotificationStatus } from '@entities/notifications.entity';
+import {
+  EntityType,
+  IconStyles,
+  Notification,
+  NotificationCategory,
+  NotificationStatus,
+} from '@entities/notifications.entity';
 @Injectable()
 export class FreightRequestService {
   constructor(
@@ -47,24 +53,23 @@ export class FreightRequestService {
     try {
       const take = params.take ?? 10;
       const page = params.page ?? 1;
-  
+
       const queryBuilder = this.freightRequestRepository
         .createQueryBuilder('freight_requests')
         .where('freight_requests.companyId = :companyId', {
           companyId: userId,
         });
-  
+
       const filters: Record<string, any> = {
         'freight_requests.id': params.id,
         'freight_requests.userDriveId': params.userDriveId,
         'freight_requests.freightId': params.freightId,
         'freight_requests.status': params.status,
       };
-  
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value) queryBuilder.andWhere(`${key} = :${key}`, { [key]: value });
       });
-  
 
       const [result, total] = await queryBuilder
         .select([
@@ -74,7 +79,7 @@ export class FreightRequestService {
           'freight_requests.companyId',
           'freight_requests.status',
           'freight_requests.solicitationsOrder',
-          'freight_requests.expiresAt'
+          'freight_requests.expiresAt',
         ])
         .leftJoinAndSelect('freight_requests.freight', 'freight')
         .leftJoin('freight.contactCompany', 'contact_company')
@@ -101,12 +106,12 @@ export class FreightRequestService {
           'location.latitude',
           'location.longitude',
         ])
-    
+
         .orderBy('freight_requests.solicitationsOrder', 'ASC')
         .skip((page - 1) * take)
         .take(take)
         .getManyAndCount();
-  
+
       return { data: result, count: total };
     } catch (error) {
       console.error('Erro no findAll:', error);
@@ -116,7 +121,6 @@ export class FreightRequestService {
       );
     }
   }
-  
 
   async acceptFreightRequest(freightRequestId: string) {
     try {
@@ -124,50 +128,51 @@ export class FreightRequestService {
         where: { id: freightRequestId },
         relations: ['freight', 'company'],
       });
-  
+
       if (!freightRequest) {
         throw new HttpException(
           'Freight request not found',
           HttpStatus.NOT_FOUND,
         );
       }
-  
-      const freightId = freightRequest.freightId;  
+
+      const freightId = freightRequest.freightId;
       const userDriveId = freightRequest.userDriveId;
-     
+
       freightRequest.status = FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE;
 
       const currentDate = new Date();
-      const time = addHoursToSaoPauloTime(currentDate, 1)
-      freightRequest.expiresAt = time
-  
+      const time = addHoursToSaoPauloTime(currentDate, 1);
+      freightRequest.expiresAt = time;
+
       await this.freightRequestRepository.save(freightRequest);
       const notification = this.notificationRepository.create({
         title: 'Frete aceito',
         message: `A Transportadora ${freightRequest?.company?.name} aceitou seu frete ${freightRequest?.freight?.originCity} → ${freightRequest?.freight?.destinyCity}.`,
         senderType: EntityType.COMPANY,
         senderId: freightRequest.companyId,
-        recipientType: EntityType.USER, 
+        recipientType: EntityType.USER,
         recipientId: freightRequest.userDriveId,
         category: NotificationCategory.FREIGHT,
         status: NotificationStatus.UNREAD,
         payload: {
-          message: 'Parabéns! Seu frete foi aceito. Confirme a solicitação para dar início a essa rota.',
+          message:
+            'Parabéns! Seu frete foi aceito. Confirme a solicitação para dar início a essa rota.',
         },
         iconStyle: IconStyles.FREIGHT_ACCEPTED,
         createdAt: new Date(),
       });
-      
+
       await this.notificationRepository.save(notification);
 
       await this.sqsService.sendNotificationToDriver({
         freightRequestId,
         driverId: userDriveId,
         freightId,
-        status:  FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE,
+        status: FreightRequestStatus.AWAITING_USER_DRIVE_RESPONSE,
         expiresAt: time.toISOString(),
-      })
-  
+      });
+
       return {
         success: true,
         message: 'Aguardando resposta do motorista.',
@@ -179,10 +184,10 @@ export class FreightRequestService {
         const statusCode = error.getStatus();
         return {
           code: statusCode,
-          error: response
+          error: response,
         };
       }
-    
+
       console.error('Erro no accept fretes:', error);
       throw new HttpException(
         error.message || 'Erro interno',
@@ -191,70 +196,73 @@ export class FreightRequestService {
     }
   }
 
-   async confirmedFreightRequest(freightRequestId: string) {
+  async confirmedFreightRequest(freightRequestId: string) {
     try {
       const freightRequest = await this.freightRequestRepository.findOne({
-        where: { id: freightRequestId,  status: FreightRequestStatus.DRIVER_CONFIRMED_DELIVERY },
+        where: {
+          id: freightRequestId,
+          status: FreightRequestStatus.DRIVER_CONFIRMED_DELIVERY,
+        },
         relations: ['freight', 'company'],
       });
-  
+
       if (!freightRequest) {
         throw new HttpException(
           'Freight request not found',
           HttpStatus.NOT_FOUND,
         );
       }
-  
-      const freightId = freightRequest.freightId;  
+
+      const freightId = freightRequest.freightId;
       const userDriveId = freightRequest.userDriveId;
-  
-   
-       const activeRoute = await this.freightRoutesRepository.findOne({
-        where: { userDriveId, status: RouteStatus.IN_PROGRESS, freightId: freightRequest.freightId },
+
+      const activeRoute = await this.freightRoutesRepository.findOne({
+        where: {
+          userDriveId,
+          status: RouteStatus.IN_PROGRESS,
+          freightId: freightRequest.freightId,
+        },
       });
 
-      
       if (activeRoute) {
         activeRoute.status = RouteStatus.COMPLETED;
         await this.freightRoutesRepository.save(activeRoute);
       }
-   
-  
-       
+
       freightRequest.status = FreightRequestStatus.DELIVERY_COMPLETED;
 
       const currentDate = new Date();
-      freightRequest.expiresAt = currentDate
-      freightRequest.updatedAt = currentDate
-      
-  
+      freightRequest.expiresAt = currentDate;
+      freightRequest.updatedAt = currentDate;
+
       await this.freightRequestRepository.save(freightRequest);
       const notification = this.notificationRepository.create({
         title: 'Frete confirmado',
         message: `A Transportadora ${freightRequest?.company?.name} confirmou a entrega ${freightRequest?.freight?.originCity} → ${freightRequest?.freight?.destinyCity}.`,
         senderType: EntityType.COMPANY,
         senderId: freightRequest.companyId,
-        recipientType: EntityType.USER, 
+        recipientType: EntityType.USER,
         recipientId: freightRequest.userDriveId,
         category: NotificationCategory.FREIGHT,
         status: NotificationStatus.UNREAD,
         payload: {
-          message: 'Frete confirmado entregue não esqueça de avaliar esse frete.',
+          message:
+            'Frete confirmado entregue não esqueça de avaliar esse frete.',
         },
         iconStyle: IconStyles.FREIGHT_ACCEPTED,
         createdAt: new Date(),
       });
-      
+
       await this.notificationRepository.save(notification);
 
       await this.sqsService.sendNotificationToDriver({
         freightRequestId,
         driverId: userDriveId,
         freightId,
-        status:  FreightRequestStatus.DELIVERY_COMPLETED,
+        status: FreightRequestStatus.DELIVERY_COMPLETED,
         expiresAt: currentDate.toISOString(),
-      })
-  
+      });
+
       return {
         success: true,
         message: 'Frete confirmado.',
@@ -266,10 +274,10 @@ export class FreightRequestService {
         const statusCode = error.getStatus();
         return {
           code: statusCode,
-          error: response
+          error: response,
         };
       }
-    
+
       console.error('Erro no accept fretes:', error);
       throw new HttpException(
         error.message || 'Erro interno',
@@ -278,36 +286,36 @@ export class FreightRequestService {
     }
   }
 
-   async rejectFreightRequest(freightRequestId: string) {
+  async rejectFreightRequest(freightRequestId: string) {
     try {
       const freightRequest = await this.freightRequestRepository.findOne({
-        where: { id: freightRequestId},
+        where: { id: freightRequestId },
         relations: ['freight', 'company'],
       });
-  
+
       if (!freightRequest) {
         throw new HttpException(
           'Freight request not found',
           HttpStatus.NOT_FOUND,
         );
       }
-  
-      const freightId = freightRequest.freightId;  
+
+      const freightId = freightRequest.freightId;
       const userDriveId = freightRequest.userDriveId;
-  
-   
-       const activeRoute = await this.freightRoutesRepository.findOne({
-        where: { userDriveId, status: RouteStatus.IN_PROGRESS, freightId: freightRequest.freightId },
+
+      const activeRoute = await this.freightRoutesRepository.findOne({
+        where: {
+          userDriveId,
+          status: RouteStatus.IN_PROGRESS,
+          freightId: freightRequest.freightId,
+        },
       });
 
-      
       if (activeRoute) {
         activeRoute.status = RouteStatus.IN_PROGRESS;
         await this.freightRoutesRepository.save(activeRoute);
       }
-   
-  
-       
+
       freightRequest.status = FreightRequestStatus.REJECTED;
 
       await this.freightRequestRepository.save(freightRequest);
@@ -316,27 +324,28 @@ export class FreightRequestService {
         message: `A Transportadora ${freightRequest?.company?.name} não confirmou a entrega ${freightRequest?.freight?.originCity} → ${freightRequest?.freight?.destinyCity}.`,
         senderType: EntityType.COMPANY,
         senderId: freightRequest.companyId,
-        recipientType: EntityType.USER, 
+        recipientType: EntityType.USER,
         recipientId: freightRequest.userDriveId,
         category: NotificationCategory.FREIGHT,
         status: NotificationStatus.UNREAD,
         payload: {
-          message: 'Transportadora informou que frete ainda não foi entregue caso precisa de ajuda entre em contato com nosso suporte. (34)99733-6677',
+          message:
+            'Transportadora informou que frete ainda não foi entregue caso precisa de ajuda entre em contato com nosso suporte. (34)99733-6677',
         },
         iconStyle: IconStyles.FREIGHT_ACCEPTED,
         createdAt: new Date(),
       });
-      
+
       await this.notificationRepository.save(notification);
 
       await this.sqsService.sendNotificationToDriver({
         freightRequestId,
         driverId: userDriveId,
         freightId,
-        status:  FreightRequestStatus.NOT_CONFIRMED_DELIVERY,
+        status: FreightRequestStatus.NOT_CONFIRMED_DELIVERY,
         expiresAt: new Date().toISOString(),
-      })
-  
+      });
+
       return {
         success: true,
         accepted: true,
@@ -347,10 +356,10 @@ export class FreightRequestService {
         const statusCode = error.getStatus();
         return {
           code: statusCode,
-          error: response
+          error: response,
         };
       }
-    
+
       console.error('Erro no accept fretes:', error);
       throw new HttpException(
         error.message || 'Erro interno',
@@ -359,11 +368,17 @@ export class FreightRequestService {
     }
   }
 
-
-  async acceptFreightRequestUserDrive(freightRequestId: string, status: FreightRequestStatus) {
+  async acceptFreightRequestUserDrive(
+    freightRequestId: string,
+    status: FreightRequestStatus,
+  ) {
     try {
-   
-      if (![FreightRequestStatus.ACCEPTED, FreightRequestStatus.REJECTED].includes(status)) {
+      if (
+        ![
+          FreightRequestStatus.ACCEPTED,
+          FreightRequestStatus.REJECTED,
+        ].includes(status)
+      ) {
         throw new HttpException('Status inválido.', HttpStatus.BAD_REQUEST);
       }
 
@@ -371,64 +386,58 @@ export class FreightRequestService {
         where: { id: freightRequestId },
         relations: ['freight', 'freightRoutes'],
       });
-  
+
       const userDriveId = freightRequest.userDriveId;
-  
-    
+
       const activeRoute = await this.freightRoutesRepository.findOne({
         where: { userDriveId, status: RouteStatus.IN_PROGRESS },
       });
-  
+
       if (activeRoute) {
         freightRequest.status = FreightRequestStatus.REJECTED;
         await this.freightRequestRepository.save(freightRequest);
-  
+
         return {
           success: false,
           message: 'Rota ativa, solicitação rejeitada.',
           accepted: false,
         };
       }
-  
-     
+
       if (status === FreightRequestStatus.ACCEPTED) {
-  
         const userDrive = await this.userDriveRepository.findOneOrFail({
           where: { id: userDriveId },
         });
-  
+
         userDrive.isOnRoute = true;
         await this.userDriveRepository.save(userDrive);
-  
-   
+
         const newFreightRoute = this.freightRoutesRepository.create({
           freightId: freightRequest.freightId,
           userDriveId: freightRequest.userDriveId,
           companyId: freightRequest.companyId,
           status: RouteStatus.IN_PROGRESS,
         });
-  
+
         await this.freightRoutesRepository.save(newFreightRoute);
-  
-      
+
         if (freightRequest.freight) {
           freightRequest.freight.isActive = false;
           freightRequest.freight.openSolicitations = false;
           await this.freightRepository.save(freightRequest.freight);
         }
-  
+
         freightRequest.status = FreightRequestStatus.ACCEPTED;
         await this.freightRequestRepository.save(freightRequest);
-  
+
         return {
           success: true,
           message: 'Solicitação de frete aceita com sucesso.',
         };
       } else {
-      
         freightRequest.status = FreightRequestStatus.REJECTED;
         await this.freightRequestRepository.save(freightRequest);
-  
+
         return {
           success: false,
           message: 'Solicitação de frete rejeitada.',
@@ -436,14 +445,13 @@ export class FreightRequestService {
       }
     } catch (error) {
       if (error instanceof HttpException) {
-      
         return {
           success: false,
           error: error.getResponse(),
           code: error.getStatus(),
         };
       }
-  
+
       console.error('Erro ao aceitar solicitação de frete:', error);
       throw new HttpException(
         error.message || 'Erro interno ao processar solicitação de frete.',
@@ -451,6 +459,4 @@ export class FreightRequestService {
       );
     }
   }
-  
-  
 }

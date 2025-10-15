@@ -35,6 +35,6 @@ export class PlansCompany {
   @UpdateDateColumn()
   updatedAt: Date;
 
-    @OneToMany(() => PlanFeatureLimit, (limit) => limit.plan)
+  @OneToMany(() => PlanFeatureLimit, (limit) => limit.plan)
   featureLimits: PlanFeatureLimit[];
 }
