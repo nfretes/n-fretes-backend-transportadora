@@ -83,7 +83,12 @@ export class FreightService {
   async freightCountCompany(userId: string): Promise<any> {
     try {
       const totalCount = await this.freightRepository.count({
-        where: { companyId: userId, isActive: true, openSolicitations: true },
+        where: {
+          companyId: userId,
+          isActive: true,
+          openSolicitations: true,
+          isExclude: false,
+        },
       });
 
       return {
@@ -260,6 +265,9 @@ export class FreightService {
       const now = new Date();
       now.setHours(now.getHours() - 3);
 
+      // Excluir fretes marcados como excluídos por padrão
+      queryBuilder.where('freight.isExclude = false');
+
       if (params.id) {
         queryBuilder.andWhere('freight.id = :id', { id: params.id });
       }
@@ -332,6 +340,7 @@ export class FreightService {
       const exactFilters = {
         isActive: `freight.isActive = :isActive`,
         openSolicitations: `freight.openSolicitations = :openSolicitations`,
+        isExclude: `freight.isExclude = :isExclude`,
       };
 
       const dateFilters = {
@@ -475,6 +484,9 @@ export class FreightService {
     try {
       const queryBuilder = this.freightRepository.createQueryBuilder('freight');
 
+      // Excluir fretes marcados como excluídos
+      queryBuilder.where('freight.isExclude = false');
+
       const { take, page } =
         this.paginationService.getDefaultPaginationParams(params);
 
@@ -566,6 +578,7 @@ export class FreightService {
       const exactFilters = {
         isActive: `freight.isActive = :isActive`,
         openSolicitations: `freight.openSolicitations = :openSolicitations`,
+        isExclude: `freight.isExclude = :isExclude`,
       };
 
       const dateFilters = {
@@ -575,6 +588,9 @@ export class FreightService {
       };
 
       queryBuilder.where('freight.companyId = :companyId', { companyId });
+
+      // Excluir fretes marcados como excluídos
+      queryBuilder.andWhere('freight.isExclude = false');
 
       if (params.originCity) {
         const originCities = this.ensureArray(params.originCity);
@@ -647,6 +663,7 @@ export class FreightService {
         .andWhere('freight.openSolicitations = :openSolicitations', {
           openSolicitations: false,
         })
+        .andWhere('freight.isExclude = false')
         .getCount();
 
       return {
@@ -698,6 +715,56 @@ export class FreightService {
     }
   }
 
+  /****************************************EXCLUDE FREIGHT****************************************** */
+  async excludeFreight(id: string, userId: string): Promise<string> {
+    const queryRunner =
+      this.freightRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
+
+    try {
+      const freight = await queryRunner.manager.findOne(Freight, {
+        where: { id },
+      });
+
+      if (!freight) {
+        throw new HttpException(
+          'Não foi localizado um frete para exclusão',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (freight.isExclude) {
+        throw new HttpException(
+          'Este frete já foi excluído',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      await queryRunner.manager.update(
+        Freight,
+        { id },
+        {
+          isExclude: true,
+          isExcludeUserId: userId,
+          isActive: false,
+          openSolicitations: false,
+        },
+      );
+
+      await queryRunner.commitTransaction();
+
+      return 'Frete excluído com sucesso';
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new HttpException(
+        error?.message || 'Erro ao excluir frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async activateFreight(id: string): Promise<string> {
     const queryRunner =
       this.freightRepository.manager.connection.createQueryRunner();
@@ -737,7 +804,7 @@ export class FreightService {
   async classifyRegionByState(userId: string): Promise<any> {
     try {
       const freights = await this.freightRepository.find({
-        where: { companyId: userId, openSolicitations: true },
+        where: { companyId: userId, openSolicitations: true, isExclude: false },
       });
 
       const regions = {
@@ -877,8 +944,6 @@ export class FreightService {
         where: { id: In(usersIds) },
         select: ['pushToken'],
       });
-
-      console.log(users);
 
       const pushTokens = users
         .map((user) => user.pushToken)

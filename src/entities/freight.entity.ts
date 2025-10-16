@@ -177,6 +177,12 @@ export class Freight {
   @Column({ default: false })
   isFeatured: boolean;
 
+  @Column({ default: false })
+  isExclude: boolean;
+
+  @Column({ nullable: true })
+  isExcludeUserId: string;
+
   @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date;
 }

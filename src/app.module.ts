@@ -34,6 +34,7 @@ import { FreightRouteLocationsModule } from './components/freight-route-location
 import { DistanceModule } from '@components/distance/distance.module';
 import { SapiensModule } from '@components/sapiens/sapiens.module';
 import { SiimpWebhookModule } from '@components/webhooks/siimp/siimp-webhook.module';
+import { ExternalApiModule } from '@components/external-api/external-api.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { SiimpWebhookModule } from '@components/webhooks/siimp/siimp-webhook.mod
     DistanceModule,
     SapiensModule,
     SiimpWebhookModule,
+    ExternalApiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -157,6 +157,36 @@ export class FreightController {
   }
 
   /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Exclusão do frete (soft delete)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete a ser excluído',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Frete excluído com sucesso',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Frete não encontrado',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Frete já foi excluído',
+  })
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/exclude')
+  async excludeFreight(
+    @Param('id') id: string,
+    @GetUserId() userId: string,
+  ): Promise<string> {
+    return this.freightService.excludeFreight(id, userId);
+  }
+
+  /********************************************************************************** */
 
   @ApiOperation({
     summary:
