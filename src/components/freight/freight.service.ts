@@ -45,6 +45,8 @@ export class FreightService {
         companyId: userId,
       };
 
+
+
       if (
         data.originLatitude &&
         data.originLongitude &&

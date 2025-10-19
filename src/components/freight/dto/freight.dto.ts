@@ -9,6 +9,7 @@ import {
   IsDateString,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   FreightLocal,
   PaymentMethod,
@@ -45,6 +46,13 @@ export class CreateFreightDto {
     format: 'date-time',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value || value === '' || value === null || value === undefined) {
+      return null;
+    }
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  })
   dateOrigin?: Date;
 
   @ApiProperty({ description: 'Cidade de destino', required: false })
@@ -63,6 +71,13 @@ export class CreateFreightDto {
     format: 'date-time',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value || value === '' || value === null || value === undefined) {
+      return null;
+    }
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  })
   dateReceiver?: Date;
 
   @ApiProperty({
