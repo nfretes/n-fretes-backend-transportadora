@@ -39,13 +39,17 @@ export class FreightService {
     createFreightDto: CreateFreightDto,
     userId: string,
   ): Promise<CreateFreightDto> {
+    console.log(
+      createFreightDto,
+      'Retorno do que esta vindo nos parametros de crição',
+    );
     try {
       const data = {
         ...createFreightDto,
         companyId: userId,
       };
 
-
+      console.log(data, 'Retorno do data');
 
       if (
         data.originLatitude &&

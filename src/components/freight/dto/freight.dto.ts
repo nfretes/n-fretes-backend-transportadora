@@ -131,6 +131,13 @@ export class CreateFreightDto {
   @IsOptional()
   unityMetric?: UnityMetric;
 
+  @ApiProperty({
+    description: 'Unidade de medida',
+    required: true,
+  })
+  @IsOptional()
+  valueCall?: string;
+
   @ApiProperty({ description: 'Volume da carga', required: false })
   @IsString()
   @IsOptional()
