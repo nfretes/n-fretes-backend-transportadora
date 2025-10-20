@@ -58,6 +58,7 @@ export class FreightService {
         data.destinyLongitude
       ) {
         try {
+          
           const distanceData = await this.distanceService.calculateRoadDistance(
             Number(data.originLatitude),
             Number(data.originLongitude),
