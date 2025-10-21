@@ -8,6 +8,9 @@ import {
   HttpException,
   HttpStatus,
   ParseIntPipe,
+  Put,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,9 +18,11 @@ import {
   ApiResponse,
   ApiHeader,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { SiimpWebhookService } from './services/siimp-webhook.service';
 import { CreateFreightWebhookDto } from './dto/create-freight-webhook.dto';
+import { UpdateFreightWebhookDto } from './dto/update-freight-webhook.dto';
 import { Freight } from '@entities/freight.entity';
 
 @ApiTags('siimp-webhook')
@@ -191,6 +196,120 @@ export class SiimpWebhookController {
       password,
       page,
       limit,
+    );
+  }
+
+  @Put('freight/:id')
+  @ApiOperation({
+    summary: 'Editar frete via webhook SIIMP',
+    description: 'Edita um frete existente da empresa autenticada',
+  })
+  @ApiHeader({
+    name: 'username',
+    description: 'Nome de usuário da integração SIIMP',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'password',
+    description: 'Senha da integração SIIMP',
+    required: true,
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete a ser editado',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Frete editado com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Frete atualizado com sucesso via webhook SIIMP',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Frete não encontrado',
+  })
+  async updateFreight(
+    @Headers('username') username: string,
+    @Headers('password') password: string,
+    @Param('id') freightId: string,
+    @Body() updateFreightDto: UpdateFreightWebhookDto,
+  ) {
+    if (!username || !password) {
+      throw new HttpException(
+        'Headers username e password são obrigatórios',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return await this.siimpWebhookService.updateFreight(
+      username,
+      password,
+      freightId,
+      updateFreightDto,
+    );
+  }
+
+  @Delete('freight/:id')
+  @ApiOperation({
+    summary: 'Excluir frete via webhook SIIMP',
+    description: 'Exclui um frete da empresa autenticada (soft delete)',
+  })
+  @ApiHeader({
+    name: 'username',
+    description: 'Nome de usuário da integração SIIMP',
+    required: true,
+  })
+  @ApiHeader({
+    name: 'password',
+    description: 'Senha da integração SIIMP',
+    required: true,
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete a ser excluído',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Frete excluído com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Frete excluído com sucesso via webhook SIIMP',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Frete não encontrado',
+  })
+  async deleteFreight(
+    @Headers('username') username: string,
+    @Headers('password') password: string,
+    @Param('id') freightId: string,
+  ) {
+    if (!username || !password) {
+      throw new HttpException(
+        'Headers username e password são obrigatórios',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return await this.siimpWebhookService.deleteFreight(
+      username,
+      password,
+      freightId,
     );
   }
 }

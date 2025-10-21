@@ -10,6 +10,7 @@ import { Company } from '@entities/company.entity';
 import { Freight } from '@entities/freight.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
 import { CreateFreightWebhookDto } from '../dto/create-freight-webhook.dto';
+import { UpdateFreightWebhookDto } from '../dto/update-freight-webhook.dto';
 import { CityDistanceService } from './city-distance.service';
 import {
   FreightLocal,
@@ -181,12 +182,11 @@ export class SiimpWebhookService {
     page: number;
     limit: number;
   }> {
-    // Autenticar empresa
     const company = await this.authenticateCompany(username, password);
 
-    // Buscar fretes da empresa
     const [freights, total] = await this.freightRepository.findAndCount({
-      where: { companyId: company.id },
+      where: { companyId: company.id, isExclude: false },
+      relations: ['contactCompany'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -198,5 +198,133 @@ export class SiimpWebhookService {
       page,
       limit,
     };
+  }
+
+  async updateFreight(
+    username: string,
+    password: string,
+    freightId: string,
+    updateFreightDto: UpdateFreightWebhookDto,
+  ): Promise<any> {
+    try {
+      const company = await this.authenticateCompany(username, password);
+
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId: company.id, isExclude: false },
+      });
+
+      if (!freight) {
+        throw new HttpException(
+          'Frete não encontrado ou não pertence à empresa',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const updateData: any = { ...updateFreightDto };
+
+      if (updateFreightDto.dateOrigin) {
+        updateData.dateOrigin = new Date(updateFreightDto.dateOrigin);
+      }
+
+      if (updateFreightDto.dateReceiver) {
+        updateData.dateReceiver = new Date(updateFreightDto.dateReceiver);
+      }
+
+      if (updateFreightDto.vehicleTypes) {
+        updateData.vehicleTypes = [updateFreightDto.vehicleTypes];
+      }
+
+      if (updateFreightDto.bodyTypes) {
+        updateData.bodyTypes = [updateFreightDto.bodyTypes];
+      }
+
+      if (
+        (updateFreightDto.originCity && updateFreightDto.originState) ||
+        (updateFreightDto.destinyCity && updateFreightDto.destinyState)
+      ) {
+        const originCity = updateFreightDto.originCity || freight.originCity;
+        const originState = updateFreightDto.originState || freight.originState;
+        const destinyCity = updateFreightDto.destinyCity || freight.destinyCity;
+        const destinyState =
+          updateFreightDto.destinyState || freight.destinyState;
+
+        const distanceData =
+          await this.cityDistanceService.calculateDistanceBetweenCities(
+            originCity,
+            originState,
+            destinyCity,
+            destinyState,
+          );
+
+        updateData.distance = distanceData.distance.toString();
+        updateData.originLatitude = distanceData.originLatitude;
+        updateData.originLongitude = distanceData.originLongitude;
+        updateData.destinyLatitude = distanceData.destinyLatitude;
+        updateData.destinyLongitude = distanceData.destinyLongitude;
+      }
+
+      await this.freightRepository.update(freightId, updateData);
+
+      return {
+        message: 'Frete atualizado com sucesso via webhook SIIMP',
+      };
+    } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof HttpException
+      ) {
+        throw error;
+      }
+
+      console.error('Erro ao atualizar frete via SIIMP webhook:', error);
+      throw new HttpException(
+        'Erro interno ao atualizar frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async deleteFreight(
+    username: string,
+    password: string,
+    freightId: string,
+  ): Promise<any> {
+    try {
+      const company = await this.authenticateCompany(username, password);
+
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId: company.id, isExclude: false },
+      });
+
+      if (!freight) {
+        throw new HttpException(
+          'Frete não encontrado ou não pertence à empresa',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      await this.freightRepository.update(freightId, {
+        isExclude: true,
+        isActive: false,
+        openSolicitations: false,
+      });
+
+      return {
+        message: 'Frete excluído com sucesso via webhook SIIMP',
+      };
+    } catch (error) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof HttpException
+      ) {
+        throw error;
+      }
+
+      console.error('Erro ao excluir frete via SIIMP webhook:', error);
+      throw new HttpException(
+        'Erro interno ao excluir frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
