@@ -39,10 +39,8 @@ export class FreightService {
     createFreightDto: CreateFreightDto,
     userId: string,
   ): Promise<CreateFreightDto> {
-    console.log(
-      createFreightDto,
-      'Retorno do que esta vindo nos parametros de crição',
-    );
+    
+  
     try {
       const data = {
         ...createFreightDto,
@@ -280,16 +278,44 @@ export class FreightService {
 
       if (params.originCity) {
         const originCities = this.ensureArray(params.originCity);
-        queryBuilder.andWhere('freight.originCity IN (:...originCity)', {
-          originCity: originCities,
-        });
+        if (originCities.length > 1) {
+          const originConditions = originCities.map(
+            (_, index) =>
+              `unaccent(LOWER(freight.originCity)) ILIKE unaccent(LOWER(:originCity${index}))`,
+          );
+          queryBuilder.andWhere(
+            `(${originConditions.join(' OR ')})`,
+            Object.fromEntries(
+              originCities.map((city, i) => [`originCity${i}`, `%${city}%`]),
+            ),
+          );
+        } else {
+          queryBuilder.andWhere(
+            `unaccent(LOWER(freight.originCity)) ILIKE unaccent(LOWER(:originCity))`,
+            { originCity: `%${originCities[0]}%` },
+          );
+        }
       }
 
       if (params.destinyCity) {
         const destinyCities = this.ensureArray(params.destinyCity);
-        queryBuilder.andWhere('freight.destinyCity IN (:...destinyCity)', {
-          destinyCity: destinyCities,
-        });
+        if (destinyCities.length > 1) {
+          const destinyConditions = destinyCities.map(
+            (_, index) =>
+              `unaccent(LOWER(freight.destinyCity)) ILIKE unaccent(LOWER(:destinyCity${index}))`,
+          );
+          queryBuilder.andWhere(
+            `(${destinyConditions.join(' OR ')})`,
+            Object.fromEntries(
+              destinyCities.map((city, i) => [`destinyCity${i}`, `%${city}%`]),
+            ),
+          );
+        } else {
+          queryBuilder.andWhere(
+            `unaccent(LOWER(freight.destinyCity)) ILIKE unaccent(LOWER(:destinyCity))`,
+            { destinyCity: `%${destinyCities[0]}%` },
+          );
+        }
       }
 
       if (params.vehicleTypes) {
@@ -600,16 +626,44 @@ export class FreightService {
 
       if (params.originCity) {
         const originCities = this.ensureArray(params.originCity);
-        queryBuilder.andWhere('freight.originCity IN (:...originCity)', {
-          originCity: originCities,
-        });
+        if (originCities.length > 1) {
+          const originConditions = originCities.map(
+            (_, index) =>
+              `unaccent(LOWER(freight.originCity)) ILIKE unaccent(LOWER(:originCity${index}))`,
+          );
+          queryBuilder.andWhere(
+            `(${originConditions.join(' OR ')})`,
+            Object.fromEntries(
+              originCities.map((city, i) => [`originCity${i}`, `%${city}%`]),
+            ),
+          );
+        } else {
+          queryBuilder.andWhere(
+            `unaccent(LOWER(freight.originCity)) ILIKE unaccent(LOWER(:originCity))`,
+            { originCity: `%${originCities[0]}%` },
+          );
+        }
       }
 
       if (params.destinyCity) {
         const destinyCities = this.ensureArray(params.destinyCity);
-        queryBuilder.andWhere('freight.destinyCity IN (:...destinyCity)', {
-          destinyCity: destinyCities,
-        });
+        if (destinyCities.length > 1) {
+          const destinyConditions = destinyCities.map(
+            (_, index) =>
+              `unaccent(LOWER(freight.destinyCity)) ILIKE unaccent(LOWER(:destinyCity${index}))`,
+          );
+          queryBuilder.andWhere(
+            `(${destinyConditions.join(' OR ')})`,
+            Object.fromEntries(
+              destinyCities.map((city, i) => [`destinyCity${i}`, `%${city}%`]),
+            ),
+          );
+        } else {
+          queryBuilder.andWhere(
+            `unaccent(LOWER(freight.destinyCity)) ILIKE unaccent(LOWER(:destinyCity))`,
+            { destinyCity: `%${destinyCities[0]}%` },
+          );
+        }
       }
 
       Object.entries(likeFilters).forEach(([key, condition]) => {

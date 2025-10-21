@@ -215,7 +215,7 @@ export class CreateFreightDto {
   })
   @IsNumber()
   @IsOptional()
-  valueFreight?: number;
+  Valuefreight?: number;
 
   @ApiProperty({
     description: 'Método de cálculo do valor',
