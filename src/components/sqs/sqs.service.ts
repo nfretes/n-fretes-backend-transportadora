@@ -9,6 +9,8 @@ export class SQSService {
     process.env.QUEUE_SHARING_NOTIFICATION_FREIGHT;
   private readonly queueSharingFreightUsers =
     process.env.QUEUE_SHARIGIN_FREIGHT_USERS;
+  private readonly freightScraperQueue =
+    process.env.FREIGHT_SCRAPER_QUEUE;
 
   constructor(private configService: ConfigService) {
     this.sqsClient = new SQSClient({
@@ -89,6 +91,23 @@ export class SQSService {
     } catch (error) {
       console.error('Erro ao enviar mensagem para SQS:', error);
       throw new Error('Falha ao enviar notificação para o motorista');
+    }
+  }
+
+  async sendToFreightScraperQueue(payload: any): Promise<void> {
+    try {
+      const message = {
+        ...payload,
+        timestamp: new Date().toISOString(),
+      };
+
+      await this.sendMessage(this.freightScraperQueue, message);
+    } catch (error) {
+      console.error('Error sending to freight scraper queue:', error);
+      throw new HttpException(
+        'Failed to send message to freight scraper queue',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 }

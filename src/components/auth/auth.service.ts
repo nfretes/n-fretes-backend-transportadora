@@ -490,12 +490,8 @@ export class AuthService {
           'isOn',
         ],
         relations: [
-          'freights',
-          'subscription',
-          'subscription.plan',
           'contacts',
           'CompanyUsersContacts',
-          'creditCard',
         ],
       });
 

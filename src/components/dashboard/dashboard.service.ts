@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { FreightRoutes, RouteStatus } from '@entities/freight-routes.entity';
@@ -6,6 +6,9 @@ import { UsersDrive } from '@entities/users-drive.entity';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
 import { ReviewUserDrive } from '@entities/review-users-drive.entity';
 import { Freight } from '@entities/freight.entity';
+import { FreightRequest, FreightRequestStatus } from '@entities/freight-requests.entity';
+import { Vehicle } from '@entities/vehicles.entity';
+
 
 @Injectable()
 export class DashboardService {
@@ -18,6 +21,10 @@ export class DashboardService {
     private reviewRepository: Repository<ReviewUserDrive>,
     @InjectRepository(Freight)
     private freightRepository: Repository<Freight>,
+    @InjectRepository(FreightRequest)
+    private freightRequestRepository: Repository<FreightRequest>,
+    @InjectRepository(Vehicle)
+    private vehicleRepository: Repository<Vehicle>,
   ) {}
 
   async getCompanyDashboard(userId: string) {
@@ -49,6 +56,7 @@ export class DashboardService {
             openSolicitations: true,
             isActive: true,
           },
+          select: ['id', 'Valuefreight'] // só buscar campos necessários
         }),
 
         this.freightRepository.find({
@@ -56,6 +64,7 @@ export class DashboardService {
             companyId: userId,
             createdAt: Between(yearStart, yearEnd),
           },
+          select: ['id', 'createdAt'] // só buscar campos necessários
         }),
 
         this.reviewRepository.find({
@@ -145,6 +154,22 @@ export class DashboardService {
             uniqueReviews.length
           : 0;
 
+      // Nova funcionalidade: Distribuição de ratings
+      const ratingDistribution = {
+        5: 0,
+        4: 0,
+        3: 0,
+        2: 0,
+        1: 0,
+      };
+
+      uniqueReviews.forEach((review) => {
+        const rating = Math.floor(review.rating); // Garante que seja um número inteiro
+        if (rating >= 1 && rating <= 5) {
+          ratingDistribution[rating]++;
+        }
+      });
+
       const destinationCounts = allFreights.reduce(
         (acc, freight) => {
           if (freight.destinyCity) {
@@ -174,6 +199,7 @@ export class DashboardService {
           averageRating,
           totalRatings: uniqueReviews.length,
           latestReviews,
+          ratingDistribution,
         },
         freightProguess: freightRoutes,
         driversCount,
@@ -182,6 +208,209 @@ export class DashboardService {
       console.error('Dashboard Error:', error);
       throw new HttpException(
         'Failed to fetch dashboard data',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getQuickStats(userId: string) {
+    try {
+      const [
+        activeFreightsCount,
+        totalFreightsCount,
+        openSolicitations,
+        pendingReviews,
+        driversInProgress,
+      ] = await Promise.all([
+        this.freightRepository.count({
+          where: {
+            companyId: userId,
+            openSolicitations: true,
+            isActive: true,
+          },
+        }),
+
+        this.freightRepository.count({
+          where: {
+            companyId: userId,
+          },
+        }),
+
+        this.freightRequestRepository
+          .createQueryBuilder('freightRequest')
+          .leftJoin('freightRequest.freight', 'freight')
+          .where('freightRequest.companyId = :userId', { userId })
+          .andWhere('freightRequest.status = :status', { status: FreightRequestStatus.PENDING })
+          .andWhere('freight.isActive = :isActive', { isActive: true })
+          .andWhere('freight.openSolicitations = :openSolicitations', { openSolicitations: true })
+          .getCount(),
+
+        this.freightRoutesRepository
+          .createQueryBuilder('route')
+          .leftJoin('route.reviewUserDrive', 'review')
+          .where('route.companyId = :userId', { userId })
+          .andWhere('route.status = :status', { status: 'COMPLETED' })
+          .andWhere('review.id IS NULL OR review.isCompanyReviewingUser = false')
+          .getCount(),
+
+        this.freightRoutesRepository.count({
+          where: {
+            companyId: userId,
+            status: RouteStatus.IN_PROGRESS,
+          },
+        }),
+      ]);
+
+      return {
+        activeFreights: activeFreightsCount,
+        totalFreights: totalFreightsCount,
+        openSolicitations: openSolicitations,
+        pendingReviews: pendingReviews,
+        driversInProgress: driversInProgress,
+      };
+    } catch (error) {
+      console.error('Quick Stats Error:', error);
+      throw new HttpException(
+        'Failed to fetch quick stats',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getFreightsByMonth(userId: string) {
+    try {
+      const currentYear = new Date().getFullYear();
+      
+     
+      const freights = await this.freightRepository
+        .createQueryBuilder('freight')
+        .select('EXTRACT(MONTH FROM freight.createdAt)', 'month')
+        .addSelect('COUNT(*)', 'count')
+        .where('freight.companyId = :userId', { userId })
+        .andWhere('EXTRACT(YEAR FROM freight.createdAt) = :year', { year: currentYear })
+        .groupBy('EXTRACT(MONTH FROM freight.createdAt)')
+        .orderBy('EXTRACT(MONTH FROM freight.createdAt)', 'ASC')
+        .getRawMany();
+
+      const monthlyData = freights.map((item) => {
+        const monthNumber = parseInt(item.month);
+        const monthName = new Date(currentYear, monthNumber - 1, 1).toLocaleString('pt-BR', {
+          month: 'long',
+        });
+        
+        return {
+          monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+          count: parseInt(item.count),
+        };
+      });
+
+      return monthlyData;
+    } catch (error) {
+      console.error('Freights by Month Error:', error);
+      throw new HttpException(
+        'Failed to fetch freights by month',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getFreightsByRegion(userId: string) {
+    try {
+      const stateToRegion = {
+        'AC': 'Norte', 'AP': 'Norte', 'AM': 'Norte', 'PA': 'Norte', 'RO': 'Norte', 'RR': 'Norte', 'TO': 'Norte',
+        'AL': 'Nordeste', 'BA': 'Nordeste', 'CE': 'Nordeste', 'MA': 'Nordeste', 'PB': 'Nordeste', 
+        'PE': 'Nordeste', 'PI': 'Nordeste', 'RN': 'Nordeste', 'SE': 'Nordeste',
+        'GO': 'Centro-Oeste', 'MT': 'Centro-Oeste', 'MS': 'Centro-Oeste', 'DF': 'Centro-Oeste',
+        'ES': 'Sudeste', 'MG': 'Sudeste', 'RJ': 'Sudeste', 'SP': 'Sudeste',
+        'PR': 'Sul', 'RS': 'Sul', 'SC': 'Sul'
+      };
+
+      const freights = await this.freightRepository.find({
+        where: { companyId: userId },
+        select: ['originState'],
+      });
+
+      const regionCounts = {};
+      let totalFreights = 0;
+
+      freights.forEach((freight) => {
+        if (freight.originState) {
+          const uf = freight.originState.trim().toUpperCase();
+          const region = stateToRegion[uf] || 'Outros';
+          regionCounts[region] = (regionCounts[region] || 0) + 1;
+          totalFreights++;
+        }
+      });
+
+      const regionData = Object.entries(regionCounts)
+        .map(([region, count]) => ({
+          region,
+          count: count as number,
+          percentage: Math.round(((count as number) / totalFreights) * 100)
+        }))
+        .sort((a, b) => b.percentage - a.percentage); 
+
+      return regionData;
+    } catch (error) {
+      console.error('Freights by Region Error:', error);
+      throw new HttpException(
+        'Failed to fetch freights by region',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getTopDrivers(userId: string) {
+    try {
+
+      const topDrivers = await this.freightRoutesRepository
+        .createQueryBuilder('route')
+        .leftJoin('route.userDrive', 'userDrive')
+        .select('userDrive.id', 'userId')
+        .addSelect('userDrive.name', 'name')
+        .addSelect('userDrive.photoFaceURL', 'photo')
+        .addSelect('COUNT(route.id)', 'totalTrips')
+        .where('route.companyId = :userId', { userId })
+        .andWhere('route.status = :status', { status: RouteStatus.COMPLETED })
+        .andWhere('userDrive.id IS NOT NULL')
+        .groupBy('userDrive.id')
+        .addGroupBy('userDrive.name')
+        .addGroupBy('userDrive.photoFaceURL')
+        .orderBy('"totalTrips"', 'DESC')
+        .limit(3)
+        .getRawMany();
+
+      if (topDrivers.length === 0) {
+        return [];
+      }
+
+      const driverIds = topDrivers.map(driver => driver.userId);
+      const allVehicles = await this.vehicleRepository
+        .createQueryBuilder('vehicle')
+        .select(['vehicle.id', 'vehicle.vehicleType', 'vehicle.bodyType', 'vehicle.plateNumber', 'vehicle.userId', 'vehicle.isMainVehicle'])
+        .where('vehicle.userId IN (:...driverIds)', { driverIds })
+        .getMany();
+
+      const vehiclesByDriver = allVehicles.reduce((acc, vehicle) => {
+        if (!acc[vehicle.userId]) {
+          acc[vehicle.userId] = [];
+        }
+        acc[vehicle.userId].push(vehicle);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      return topDrivers.map(driver => ({
+        userId: driver.userId,
+        name: driver.name,
+        photo: driver.photo,
+        totalTrips: parseInt(driver.totalTrips),
+        vehicles: vehiclesByDriver[driver.userId] || []
+      }));
+
+    } catch (error) {
+      console.error('Top Drivers Error:', error);
+      throw new HttpException(
+        'Failed to fetch top drivers',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

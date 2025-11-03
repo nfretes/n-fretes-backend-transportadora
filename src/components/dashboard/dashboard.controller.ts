@@ -14,4 +14,28 @@ export class DashboardController {
   async getDashboard(@GetUserId() userId: string) {
     return this.dashboardService.getCompanyDashboard(userId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('quick-stats')
+  async getQuickStats(@GetUserId() userId: string) {
+    return this.dashboardService.getQuickStats(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('freights-by-month')
+  async getFreightsByMonth(@GetUserId() userId: string) {
+    return this.dashboardService.getFreightsByMonth(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('freights-by-region')
+  async getFreightsByRegion(@GetUserId() userId: string) {
+    return this.dashboardService.getFreightsByRegion(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('top-drivers')
+  async getTopDrivers(@GetUserId() userId: string) {
+    return this.dashboardService.getTopDrivers(userId);
+  }
 }

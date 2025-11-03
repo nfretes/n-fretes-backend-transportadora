@@ -18,4 +18,18 @@ export class SqsController {
       message: 'Frete compartilhado com sucesso',
     };
   }
+
+  @Post('freight-scraper')
+  async sendToFreightScraper(@Body() body: any) {
+    await this.sqsService.sendToFreightScraperQueue(body);
+
+    return {
+      status: 'success',
+      message: 'Mensagem enviada para fila de scraping',
+      data: {
+        timestamp: new Date().toISOString(),
+        queue: 'FREIGHT_SCRAPER_QUEUE',
+      },
+    };
+  }
 }
