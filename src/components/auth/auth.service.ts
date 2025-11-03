@@ -489,10 +489,7 @@ export class AuthService {
           'number',
           'isOn',
         ],
-        relations: [
-          'contacts',
-          'CompanyUsersContacts',
-        ],
+        relations: ['contacts', 'CompanyUsersContacts'],
       });
 
       if (!user) {

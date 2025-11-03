@@ -17,7 +17,7 @@ import { Vehicle } from '@entities/vehicles.entity';
       ReviewUserDrive,
       Freight,
       FreightRequest,
-      Vehicle
+      Vehicle,
     ]),
   ],
   controllers: [DashboardController],

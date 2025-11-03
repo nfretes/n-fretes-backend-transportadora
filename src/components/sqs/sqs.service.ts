@@ -9,8 +9,7 @@ export class SQSService {
     process.env.QUEUE_SHARING_NOTIFICATION_FREIGHT;
   private readonly queueSharingFreightUsers =
     process.env.QUEUE_SHARIGIN_FREIGHT_USERS;
-  private readonly freightScraperQueue =
-    process.env.FREIGHT_SCRAPER_QUEUE;
+  private readonly freightScraperQueue = process.env.FREIGHT_SCRAPER_QUEUE;
 
   constructor(private configService: ConfigService) {
     this.sqsClient = new SQSClient({

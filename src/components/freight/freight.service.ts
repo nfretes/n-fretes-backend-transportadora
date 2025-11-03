@@ -39,8 +39,6 @@ export class FreightService {
     createFreightDto: CreateFreightDto,
     userId: string,
   ): Promise<CreateFreightDto> {
-    
-  
     try {
       const data = {
         ...createFreightDto,

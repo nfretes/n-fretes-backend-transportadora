@@ -6,9 +6,11 @@ import { UsersDrive } from '@entities/users-drive.entity';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
 import { ReviewUserDrive } from '@entities/review-users-drive.entity';
 import { Freight } from '@entities/freight.entity';
-import { FreightRequest, FreightRequestStatus } from '@entities/freight-requests.entity';
+import {
+  FreightRequest,
+  FreightRequestStatus,
+} from '@entities/freight-requests.entity';
 import { Vehicle } from '@entities/vehicles.entity';
-
 
 @Injectable()
 export class DashboardService {
@@ -56,7 +58,7 @@ export class DashboardService {
             openSolicitations: true,
             isActive: true,
           },
-          select: ['id', 'Valuefreight'] // só buscar campos necessários
+          select: ['id', 'Valuefreight'], // só buscar campos necessários
         }),
 
         this.freightRepository.find({
@@ -64,7 +66,7 @@ export class DashboardService {
             companyId: userId,
             createdAt: Between(yearStart, yearEnd),
           },
-          select: ['id', 'createdAt'] // só buscar campos necessários
+          select: ['id', 'createdAt'], // só buscar campos necessários
         }),
 
         this.reviewRepository.find({
@@ -240,9 +242,13 @@ export class DashboardService {
           .createQueryBuilder('freightRequest')
           .leftJoin('freightRequest.freight', 'freight')
           .where('freightRequest.companyId = :userId', { userId })
-          .andWhere('freightRequest.status = :status', { status: FreightRequestStatus.PENDING })
+          .andWhere('freightRequest.status = :status', {
+            status: FreightRequestStatus.PENDING,
+          })
           .andWhere('freight.isActive = :isActive', { isActive: true })
-          .andWhere('freight.openSolicitations = :openSolicitations', { openSolicitations: true })
+          .andWhere('freight.openSolicitations = :openSolicitations', {
+            openSolicitations: true,
+          })
           .getCount(),
 
         this.freightRoutesRepository
@@ -250,7 +256,9 @@ export class DashboardService {
           .leftJoin('route.reviewUserDrive', 'review')
           .where('route.companyId = :userId', { userId })
           .andWhere('route.status = :status', { status: 'COMPLETED' })
-          .andWhere('review.id IS NULL OR review.isCompanyReviewingUser = false')
+          .andWhere(
+            'review.id IS NULL OR review.isCompanyReviewingUser = false',
+          )
           .getCount(),
 
         this.freightRoutesRepository.count({
@@ -280,24 +288,29 @@ export class DashboardService {
   async getFreightsByMonth(userId: string) {
     try {
       const currentYear = new Date().getFullYear();
-      
-     
+
       const freights = await this.freightRepository
         .createQueryBuilder('freight')
         .select('EXTRACT(MONTH FROM freight.createdAt)', 'month')
         .addSelect('COUNT(*)', 'count')
         .where('freight.companyId = :userId', { userId })
-        .andWhere('EXTRACT(YEAR FROM freight.createdAt) = :year', { year: currentYear })
+        .andWhere('EXTRACT(YEAR FROM freight.createdAt) = :year', {
+          year: currentYear,
+        })
         .groupBy('EXTRACT(MONTH FROM freight.createdAt)')
         .orderBy('EXTRACT(MONTH FROM freight.createdAt)', 'ASC')
         .getRawMany();
 
       const monthlyData = freights.map((item) => {
         const monthNumber = parseInt(item.month);
-        const monthName = new Date(currentYear, monthNumber - 1, 1).toLocaleString('pt-BR', {
+        const monthName = new Date(
+          currentYear,
+          monthNumber - 1,
+          1,
+        ).toLocaleString('pt-BR', {
           month: 'long',
         });
-        
+
         return {
           monthName: monthName.charAt(0).toUpperCase() + monthName.slice(1),
           count: parseInt(item.count),
@@ -317,12 +330,33 @@ export class DashboardService {
   async getFreightsByRegion(userId: string) {
     try {
       const stateToRegion = {
-        'AC': 'Norte', 'AP': 'Norte', 'AM': 'Norte', 'PA': 'Norte', 'RO': 'Norte', 'RR': 'Norte', 'TO': 'Norte',
-        'AL': 'Nordeste', 'BA': 'Nordeste', 'CE': 'Nordeste', 'MA': 'Nordeste', 'PB': 'Nordeste', 
-        'PE': 'Nordeste', 'PI': 'Nordeste', 'RN': 'Nordeste', 'SE': 'Nordeste',
-        'GO': 'Centro-Oeste', 'MT': 'Centro-Oeste', 'MS': 'Centro-Oeste', 'DF': 'Centro-Oeste',
-        'ES': 'Sudeste', 'MG': 'Sudeste', 'RJ': 'Sudeste', 'SP': 'Sudeste',
-        'PR': 'Sul', 'RS': 'Sul', 'SC': 'Sul'
+        AC: 'Norte',
+        AP: 'Norte',
+        AM: 'Norte',
+        PA: 'Norte',
+        RO: 'Norte',
+        RR: 'Norte',
+        TO: 'Norte',
+        AL: 'Nordeste',
+        BA: 'Nordeste',
+        CE: 'Nordeste',
+        MA: 'Nordeste',
+        PB: 'Nordeste',
+        PE: 'Nordeste',
+        PI: 'Nordeste',
+        RN: 'Nordeste',
+        SE: 'Nordeste',
+        GO: 'Centro-Oeste',
+        MT: 'Centro-Oeste',
+        MS: 'Centro-Oeste',
+        DF: 'Centro-Oeste',
+        ES: 'Sudeste',
+        MG: 'Sudeste',
+        RJ: 'Sudeste',
+        SP: 'Sudeste',
+        PR: 'Sul',
+        RS: 'Sul',
+        SC: 'Sul',
       };
 
       const freights = await this.freightRepository.find({
@@ -346,9 +380,9 @@ export class DashboardService {
         .map(([region, count]) => ({
           region,
           count: count as number,
-          percentage: Math.round(((count as number) / totalFreights) * 100)
+          percentage: Math.round(((count as number) / totalFreights) * 100),
         }))
-        .sort((a, b) => b.percentage - a.percentage); 
+        .sort((a, b) => b.percentage - a.percentage);
 
       return regionData;
     } catch (error) {
@@ -362,7 +396,6 @@ export class DashboardService {
 
   async getTopDrivers(userId: string) {
     try {
-
       const topDrivers = await this.freightRoutesRepository
         .createQueryBuilder('route')
         .leftJoin('route.userDrive', 'userDrive')
@@ -384,29 +417,38 @@ export class DashboardService {
         return [];
       }
 
-      const driverIds = topDrivers.map(driver => driver.userId);
+      const driverIds = topDrivers.map((driver) => driver.userId);
       const allVehicles = await this.vehicleRepository
         .createQueryBuilder('vehicle')
-        .select(['vehicle.id', 'vehicle.vehicleType', 'vehicle.bodyType', 'vehicle.plateNumber', 'vehicle.userId', 'vehicle.isMainVehicle'])
+        .select([
+          'vehicle.id',
+          'vehicle.vehicleType',
+          'vehicle.bodyType',
+          'vehicle.plateNumber',
+          'vehicle.userId',
+          'vehicle.isMainVehicle',
+        ])
         .where('vehicle.userId IN (:...driverIds)', { driverIds })
         .getMany();
 
-      const vehiclesByDriver = allVehicles.reduce((acc, vehicle) => {
-        if (!acc[vehicle.userId]) {
-          acc[vehicle.userId] = [];
-        }
-        acc[vehicle.userId].push(vehicle);
-        return acc;
-      }, {} as Record<string, any[]>);
+      const vehiclesByDriver = allVehicles.reduce(
+        (acc, vehicle) => {
+          if (!acc[vehicle.userId]) {
+            acc[vehicle.userId] = [];
+          }
+          acc[vehicle.userId].push(vehicle);
+          return acc;
+        },
+        {} as Record<string, any[]>,
+      );
 
-      return topDrivers.map(driver => ({
+      return topDrivers.map((driver) => ({
         userId: driver.userId,
         name: driver.name,
         photo: driver.photo,
         totalTrips: parseInt(driver.totalTrips),
-        vehicles: vehiclesByDriver[driver.userId] || []
+        vehicles: vehiclesByDriver[driver.userId] || [],
       }));
-
     } catch (error) {
       console.error('Top Drivers Error:', error);
       throw new HttpException(
