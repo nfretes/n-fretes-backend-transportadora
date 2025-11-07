@@ -35,6 +35,7 @@ import { DistanceModule } from '@components/distance/distance.module';
 import { SapiensModule } from '@components/sapiens/sapiens.module';
 import { SiimpWebhookModule } from '@components/webhooks/siimp/siimp-webhook.module';
 import { ExternalApiModule } from '@components/external-api/external-api.module';
+import { DownloadTrackingModule } from '@components/download-tracking/download-tracking.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { ExternalApiModule } from '@components/external-api/external-api.module'
     SapiensModule,
     SiimpWebhookModule,
     ExternalApiModule,
+    DownloadTrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

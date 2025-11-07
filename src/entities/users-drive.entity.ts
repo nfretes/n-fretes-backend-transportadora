@@ -73,6 +73,10 @@ export class UsersDrive {
   @Column({ nullable: true })
   complement?: string;
 
+  @Column({ default: false })
+  isSucess: boolean;
+
+
   @Column({ nullable: true })
   district: string;
 

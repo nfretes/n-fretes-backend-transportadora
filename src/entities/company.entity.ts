@@ -37,6 +37,9 @@ export class Company {
   @Column({ nullable: true })
   phoneNumber: string;
 
+  @Column({ type: 'json', nullable: true })
+  phoneNumberJson?: { number?: string; contact?: string };
+
   @Column({ nullable: true })
   phoneContact: string;
 
@@ -64,6 +67,9 @@ export class Company {
 
   @Column({ default: false })
   isCompleted: boolean;
+
+  @Column({ default: false })
+  isSucess: boolean;
 
   @Column({ default: false })
   isOn: boolean;
