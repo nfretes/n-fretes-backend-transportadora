@@ -76,7 +76,6 @@ export class UsersDrive {
   @Column({ default: false })
   isSucess: boolean;
 
-
   @Column({ nullable: true })
   district: string;
 

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UsersCountDownload, PlatformType } from '@entities/users-count-dowload.entity';
+import {
+  UsersCountDownload,
+  PlatformType,
+} from '@entities/users-count-dowload.entity';
 
 @Injectable()
 export class DownloadTrackingService {
@@ -10,7 +13,11 @@ export class DownloadTrackingService {
     private readonly downloadRepository: Repository<UsersCountDownload>,
   ) {}
 
-  async registerDownloadClick(platform: PlatformType): Promise<UsersCountDownload> {
+  async registerDownloadClick(
+    platform: PlatformType,
+  ): Promise<UsersCountDownload> {
+    console.log(platform, 'platform received');
+
     const download = this.downloadRepository.create({
       platform,
     });

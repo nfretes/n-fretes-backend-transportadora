@@ -1,9 +1,4 @@
-import {
-  Entity,
-  Column,
-  CreateDateColumn,
-  PrimaryColumn,
-} from 'typeorm';
+import { Entity, Column, CreateDateColumn, PrimaryColumn } from 'typeorm';
 
 export enum PlatformType {
   IOS = 'ios',

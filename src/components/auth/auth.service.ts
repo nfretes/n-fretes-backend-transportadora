@@ -44,7 +44,8 @@ export class AuthService {
 
   async generateJwt(payload: any) {
     const secret = this.configService.get<string>('JWT_SECRET');
-    const expiration = this.configService.get<string>('JWT_EXPIRATION') || '30d';
+    const expiration =
+      this.configService.get<string>('JWT_EXPIRATION') || '30d';
     return jwt.sign(payload, secret, { expiresIn: '30d' });
   }
 
