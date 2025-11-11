@@ -29,6 +29,7 @@ import {
   ContactCompanyRegisterDto,
   ContactCompanyLoginDto,
 } from './dto/ContactCompanyAuth.dto';
+import { UpdateCompanyLoginDto } from './dto/UpdateCompanyLogin.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -216,5 +217,37 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciais inválidas' })
   async loginContactCompany(@Body() dto: ContactCompanyLoginDto) {
     return this.authService.loginContactCompany(dto);
+  }
+
+  @Post('update-company-login')
+  @ApiOperation({
+    summary: 'Atualizar dados do contato e criar senha para login',
+    description:
+      'Atualiza CPF, email e cria senha para o contato da empresa fazer login',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dados atualizados com sucesso',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Dados atualizados com sucesso. Contato pode fazer login.',
+        },
+        companyId: { type: 'string', example: 'uuid-da-empresa' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Contato da empresa não encontrado',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'CPF ou Email já cadastrado em outro contato',
+  })
+  async updateCompanyLogin(@Body() updateDto: UpdateCompanyLoginDto) {
+    return this.authService.updateCompanyForLogin(updateDto);
   }
 }

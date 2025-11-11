@@ -253,12 +253,14 @@ export class DashboardService {
 
         this.freightRoutesRepository
           .createQueryBuilder('route')
-          .leftJoin('route.reviewUserDrive', 'review')
+          .leftJoin(
+            'route.reviewUserDrive',
+            'review',
+            'review.routeId = route.id AND review.isCompanyReviewingUser = true',
+          )
           .where('route.companyId = :userId', { userId })
           .andWhere('route.status = :status', { status: 'COMPLETED' })
-          .andWhere(
-            'review.id IS NULL OR review.isCompanyReviewingUser = false',
-          )
+          .andWhere('review.id IS NULL')
           .getCount(),
 
         this.freightRoutesRepository.count({

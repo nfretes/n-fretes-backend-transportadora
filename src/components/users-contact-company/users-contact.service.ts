@@ -2,6 +2,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
+import { ContactCompany } from '@entities/contact-company.entity';
+import { Freight } from '@entities/freight.entity';
 import {
   CompanyUsersContactsDto,
   updateCompanyUsersContactsDto,
@@ -20,6 +22,10 @@ export class UsersContactCompanyService {
     private usersContactCompanyRepository: Repository<CompanyUsersContacts>,
     @InjectRepository(UsersDrive)
     private usersDriveRepository: Repository<UsersDrive>,
+    @InjectRepository(ContactCompany)
+    private contactCompanyRepository: Repository<ContactCompany>,
+    @InjectRepository(Freight)
+    private freightRepository: Repository<Freight>,
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -236,5 +242,71 @@ export class UsersContactCompanyService {
     });
 
     return findUser;
+  }
+
+  async getContactCompanyInfo(contactId: string) {
+    try {
+      const contactCompany = await this.contactCompanyRepository.findOne({
+        where: { id: contactId },
+        relations: ['company'],
+        select: {
+          id: true,
+          name: true,
+          password: true,
+          phoneNumber: true,
+          company: {
+            id: true,
+            name: true,
+            nameFantasy: true,
+            photoUrl: true,
+          },
+        },
+      });
+
+      if (!contactCompany) {
+        throw new HttpException(
+          'Contato da empresa não encontrado',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const hasPassword = !!contactCompany.password;
+
+      if (hasPassword) {
+        return { register: true };
+      }
+
+      const freights = await this.freightRepository.find({
+        where: { companyId: contactCompany.company.id },
+        order: { createdAt: 'DESC' },
+        take: 15,
+        select: {
+          id: true,
+          originCity: true,
+          destinyCity: true,
+          originState: true,
+          destinyState: true,
+          Valuefreight: true,
+          createdAt: true,
+          isActive: true,
+          openSolicitations: true,
+        },
+      });
+
+      return {
+        register: false,
+        contactName: contactCompany.name,
+        companyName:
+          contactCompany.company.name || contactCompany.company.nameFantasy,
+        phoneNumber: contactCompany.phoneNumber,
+        photoUrl: contactCompany.company.photoUrl,
+        freights: freights,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar informações do contato da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

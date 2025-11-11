@@ -255,18 +255,6 @@ export class FreightService {
       const { take, page } =
         this.paginationService.getDefaultPaginationParams(params);
 
-      const hasActiveSubscription = await this.companyRepository
-        .createQueryBuilder('company')
-        .leftJoin('company.subscription', 'subscription')
-        .where('company.id = :companyId', { companyId })
-        .andWhere('subscription.status = 1')
-        .getOne();
-
-      const maxFreights = hasActiveSubscription ? take : 3;
-
-      const now = new Date();
-      now.setHours(now.getHours() - 3);
-
       // Excluir fretes marcados como excluídos por padrão
       queryBuilder.where('freight.isExclude = false');
 
@@ -432,29 +420,11 @@ export class FreightService {
           'company.createdAt',
           'company.city',
         ])
-        .leftJoin('company.subscription', 'subscription-company')
-        .addSelect('subscription-company.status')
-        .addSelect(
-          'CASE WHEN subscription-company.status = 1 THEN 0 ELSE 1 END',
-          'status_priority',
-        )
-        .addSelect(
-          `
-          CASE 
-            WHEN freight.isFeatured = true AND freight.expiresAt > :now THEN 0
-            ELSE 1
-          END
-        `,
-          'featured_priority',
-        )
-        .setParameter('now', now)
-        .addOrderBy('featured_priority', 'ASC')
-        .addOrderBy('status_priority', 'ASC')
         .addOrderBy('freight.createdAt', 'DESC');
 
       const [result, total] = await queryBuilder
-        .skip((page - 1) * maxFreights)
-        .take(maxFreights)
+        .skip((page - 1) * take)
+        .take(take)
         .getManyAndCount();
 
       const regions = {
@@ -542,15 +512,7 @@ export class FreightService {
 
       const [result, total] = await queryBuilder
         .leftJoinAndSelect('freight.company', 'company')
-        .leftJoin('company.subscription', 'subscription-company')
-        .addSelect('subscription-company.status')
-        .addSelect(
-          'CASE WHEN subscription-company.status = 1 THEN 0 ELSE 1 END',
-          'status_priority',
-        )
-        .addOrderBy('status_priority', 'ASC')
         .addOrderBy('freight.createdAt', 'DESC')
-
         .skip((page - 1) * take)
         .take(take)
         .getManyAndCount();
@@ -859,6 +821,146 @@ export class FreightService {
   }
 
   /****************************************FILTERS REGIONS****************************************** */
+  async getAllFreightsRegionsMapping(): Promise<any> {
+    try {
+      // Query otimizada - busca apenas os campos necessários de TODOS os fretes ativos
+      const freights = await this.freightRepository
+        .createQueryBuilder('freight')
+        .select([
+          'freight.originCity',
+          'freight.originState',
+          'freight.destinyCity',
+          'freight.destinyState',
+        ])
+        .where('freight.isExclude = false')
+        .andWhere('freight.openSolicitations = true')
+        .andWhere('freight.isActive = true')
+        .getMany();
+
+      const regions = {
+        origin: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+        destiny: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+      };
+
+      // Mapear TODOS os fretes
+      freights.forEach((freight) => {
+        this.classifyCity(
+          freight.originState,
+          `${freight.originCity}`,
+          regions.origin,
+        );
+        this.classifyCity(
+          freight.destinyState,
+          `${freight.destinyCity}`,
+          regions.destiny,
+        );
+      });
+
+      const formatRegions = (data: Record<string, Set<string>>) => {
+        return Object.entries(data)
+          .filter(([_, cities]) => cities.size > 0)
+          .reduce((acc, [region, cities]) => {
+            acc[region] = Array.from(cities);
+            return acc;
+          }, {});
+      };
+
+      return {
+        origin: formatRegions(regions.origin),
+        destiny: formatRegions(regions.destiny),
+        totalFreights: freights.length,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao mapear regiões de todos os fretes',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getAllFreightsRegionsMappingByCompany(userId: string): Promise<any> {
+    try {
+      // Query otimizada - busca apenas os campos necessários de TODOS os fretes ativos da empresa
+      const freights = await this.freightRepository
+        .createQueryBuilder('freight')
+        .select([
+          'freight.originCity',
+          'freight.originState',
+          'freight.destinyCity',
+          'freight.destinyState',
+        ])
+        .where('freight.companyId = :companyId', { companyId: userId })
+        .andWhere('freight.isExclude = false')
+        .andWhere('freight.openSolicitations = true')
+        .andWhere('freight.isActive = true')
+        .getMany();
+
+      const regions = {
+        origin: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+        destiny: {
+          norte: new Set<string>(),
+          nordeste: new Set<string>(),
+          centroOeste: new Set<string>(),
+          sudeste: new Set<string>(),
+          sul: new Set<string>(),
+        },
+      };
+
+      // Mapear TODOS os fretes da empresa
+      freights.forEach((freight) => {
+        this.classifyCity(
+          freight.originState,
+          `${freight.originCity}`,
+          regions.origin,
+        );
+        this.classifyCity(
+          freight.destinyState,
+          `${freight.destinyCity}`,
+          regions.destiny,
+        );
+      });
+
+      const formatRegions = (data: Record<string, Set<string>>) => {
+        return Object.entries(data)
+          .filter(([_, cities]) => cities.size > 0)
+          .reduce((acc, [region, cities]) => {
+            acc[region] = Array.from(cities);
+            return acc;
+          }, {});
+      };
+
+      return {
+        origin: formatRegions(regions.origin),
+        destiny: formatRegions(regions.destiny),
+        totalFreights: freights.length,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message ||
+          'Erro ao mapear regiões de todos os fretes da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async classifyRegionByState(userId: string): Promise<any> {
     try {
       const freights = await this.freightRepository.find({

@@ -204,6 +204,23 @@ export class FreightController {
     return result;
   }
 
+  @ApiOperation({
+    summary: 'Mapeamento completo de regiões de todos os fretes ativos',
+  })
+  @Get('all-regions-mapping')
+  async getAllFreightsRegionsMapping() {
+    return this.freightService.getAllFreightsRegionsMapping();
+  }
+
+  @ApiOperation({
+    summary: 'Mapeamento completo de regiões dos fretes ativos da empresa',
+  })
+  @Get('company-regions-mapping')
+  @UseGuards(JwtAuthGuard)
+  async getAllFreightsRegionsMappingByCompany(@GetUserId() userId: string) {
+    return this.freightService.getAllFreightsRegionsMappingByCompany(userId);
+  }
+
   /********************************************************************************** */
 
   @ApiOperation({

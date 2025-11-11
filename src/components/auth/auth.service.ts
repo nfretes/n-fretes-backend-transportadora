@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcrypt';
-import { Like, MoreThan, Repository } from 'typeorm';
+import { Like, MoreThan, Not, Repository } from 'typeorm';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -663,5 +663,93 @@ export class AuthService {
     const payload = { username: contact.company.cnpj, sub: contact.companyId };
     const token = await this.generateJwt(payload);
     return { access_token: token, company: false };
+  }
+
+  async updateCompanyForLogin(updateDto: {
+    cpf: string;
+    password: string;
+    email: string;
+    contactId: string;
+    cnpj: string;
+  }): Promise<{ message: string }> {
+    try {
+      const { cpf, password, email, contactId, cnpj } = updateDto;
+
+      const contactCompany = await this.contactCompanyRepository.findOne({
+        where: { id: contactId },
+        relations: ['company'],
+      });
+
+      if (!contactCompany) {
+        throw new HttpException(
+          'Contato da empresa não encontrado',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (!contactCompany.company) {
+        throw new HttpException(
+          'Empresa vinculada ao contato não encontrada',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const company = contactCompany.company;
+
+      const existingCpf = await this.contactCompanyRepository.findOne({
+        where: {
+          cpf,
+          id: Not(contactCompany.id),
+        },
+      });
+
+      if (existingCpf) {
+        throw new HttpException(
+          'CPF já cadastrado em outro contato',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const existingEmail = await this.contactCompanyRepository.findOne({
+        where: {
+          email,
+          id: Not(contactCompany.id),
+        },
+      });
+
+      if (existingEmail) {
+        throw new HttpException(
+          'Email já cadastrado em outro contato',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      await this.contactCompanyRepository.update(contactCompany.id, {
+        cpf,
+        password: hashedPassword,
+        email,
+        isActive: true,
+      });
+
+      await this.companyRepository.update(company.id, {
+        cnpj: cnpj,
+      });
+
+      return {
+        message: 'sucesso',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('Erro ao atualizar contato:', error);
+      throw new HttpException(
+        'Erro interno do servidor',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

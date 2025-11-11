@@ -124,4 +124,27 @@ export class UsersContactCompanyController {
   async searchByCpf(@Param('cpf') cpf: string, @GetUserId() userId: string) {
     return this.usersContactCompanyService.searchUsersByCpf(cpf, userId);
   }
+
+  /********************************************************************************** */
+  @Get(':id/contact-info')
+  @ApiOperation({
+    summary:
+      'Verifica status de registro do contato e retorna dados da empresa',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do ContactCompany',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Informações do contato da empresa retornadas com sucesso',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Contato da empresa não encontrado',
+  })
+  async getContactCompanyInfo(@Param('id') id: string) {
+    return this.usersContactCompanyService.getContactCompanyInfo(id);
+  }
 }
