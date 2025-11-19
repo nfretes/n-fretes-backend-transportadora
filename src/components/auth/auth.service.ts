@@ -65,13 +65,7 @@ export class AuthService {
       if (existingUser) {
         throw new HttpException('CNPJ já cadastrado', HttpStatus.BAD_REQUEST);
       }
-      const existingCpf = await this.companyRepository.findOne({
-        where: { cpf: registerDto.cpf },
-      });
-      if (existingCpf) {
-        throw new HttpException('CPF já cadastrado', HttpStatus.BAD_REQUEST);
-      }
-
+  
       const existingEmail = await this.companyRepository.findOne({
         where: { email: registerDto.email },
       });
