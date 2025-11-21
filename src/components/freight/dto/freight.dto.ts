@@ -278,6 +278,17 @@ export class CreateFreightDto {
   @IsString()
   @IsNotEmpty()
   contactCompanyId?: string;
+
+  @ApiProperty({ 
+    description: 'IDs dos contatos da empresa', 
+    required: false,
+    isArray: true,
+    type: 'string'
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  contactCompanyIds?: string[];
 }
 
 export class UpdateFreightDto extends PartialType(CreateFreightDto) {}

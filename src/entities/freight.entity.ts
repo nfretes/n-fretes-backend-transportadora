@@ -141,6 +141,9 @@ export class Freight {
   @JoinColumn({ name: 'contactCompanyId' })
   contactCompany: ContactCompany;
 
+  @Column({ type: 'simple-array', nullable: true })
+  contactCompanyIds: string[];
+
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.freight)
   freightRequest: FreightRequest[];
 
