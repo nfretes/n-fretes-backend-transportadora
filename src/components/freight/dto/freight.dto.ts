@@ -279,11 +279,11 @@ export class CreateFreightDto {
   @IsNotEmpty()
   contactCompanyId?: string;
 
-  @ApiProperty({ 
-    description: 'IDs dos contatos da empresa', 
+  @ApiProperty({
+    description: 'IDs dos contatos da empresa',
     required: false,
     isArray: true,
-    type: 'string'
+    type: 'string',
   })
   @IsArray()
   @IsOptional()
