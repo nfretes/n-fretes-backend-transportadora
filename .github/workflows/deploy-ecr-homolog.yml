@@ -8,7 +8,6 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: transportadora-homolog
   ECR_REGISTRY:  993068267445.dkr.ecr.us-east-1.amazonaws.com
- 
 jobs:
   build-and-push:
     name: Build and Push to ECR
