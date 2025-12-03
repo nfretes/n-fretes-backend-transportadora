@@ -16,12 +16,14 @@ const config: ConfigObject = {
   logging: `${process.env.DATABASE_QUERY_LOGGING}`,
   schema: 'public',
   uuidExtension: 'uuid-ossp',
-  ssl: process.env.DB_SSL,
+  ssl: process.env.NODE_ENV === 'production' ? process.env.DB_SSL : false,
   extra: {
     softDelete: true,
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    ...(process.env.NODE_ENV === 'production' && {
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    }),
   },
 };
 

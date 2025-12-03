@@ -65,7 +65,7 @@ export class AuthService {
       if (existingUser) {
         throw new HttpException('CNPJ já cadastrado', HttpStatus.BAD_REQUEST);
       }
-  
+
       const existingEmail = await this.companyRepository.findOne({
         where: { email: registerDto.email },
       });
@@ -160,6 +160,8 @@ export class AuthService {
   ): Promise<AuthResponseDto & { company: boolean }> {
     const { cnpj, password } = loginDto;
     const user = await this.companyRepository.findOne({ where: { cnpj } });
+
+    console.log(user, 'USER LOGIN');
 
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.BAD_REQUEST);
@@ -412,9 +414,7 @@ export class AuthService {
         );
       }
 
-      await this.recoverCodeRepository.update(recoveryCode.id, {
-        used: true,
-      });
+ 
 
       return {
         success: true,
@@ -437,7 +437,7 @@ export class AuthService {
   async changePasswordByRecoveryCode(
     resetPasswordDto: any,
   ): Promise<{ message: string }> {
-    const { phoneNumber, newPassword } = resetPasswordDto;
+    const { phoneNumber, newPassword, code } = resetPasswordDto;
     const phoneNumberVariations = [phoneNumber, phoneNumber.replace(')', ') ')];
 
     const user = await this.companyRepository.findOne({
@@ -446,6 +446,17 @@ export class AuthService {
       })),
     });
 
+       const recoveryCode = await this.recoverCodeRepository.findOne({
+        where: {
+          code,
+          used: false,
+          phoneNumber: this.formatPhoneNumber(phoneNumber),
+          expiresAt: MoreThan(new Date()),
+        },
+      });
+
+   
+
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
     }
@@ -453,6 +464,10 @@ export class AuthService {
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedNewPassword;
     await this.companyRepository.save(user);
+
+         await this.recoverCodeRepository.update(recoveryCode.id, {
+        used: true,
+      });
 
     return { message: 'Senha alterada com sucesso' };
   }

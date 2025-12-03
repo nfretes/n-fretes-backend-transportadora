@@ -36,6 +36,8 @@ import { SapiensModule } from '@components/sapiens/sapiens.module';
 import { SiimpWebhookModule } from '@components/webhooks/siimp/siimp-webhook.module';
 import { ExternalApiModule } from '@components/external-api/external-api.module';
 import { DownloadTrackingModule } from '@components/download-tracking/download-tracking.module';
+import { IntegrationsModule } from '@components/integrations/integrations.module';
+import { SeedModule } from '@components/seed/seed.module';
 
 @Module({
   imports: [
@@ -83,6 +85,8 @@ import { DownloadTrackingModule } from '@components/download-tracking/download-t
     SiimpWebhookModule,
     ExternalApiModule,
     DownloadTrackingModule,
+    IntegrationsModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],
