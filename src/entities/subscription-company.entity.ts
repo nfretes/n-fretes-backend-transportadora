@@ -46,6 +46,15 @@ export class SubscriptionCompany {
   @Column({ nullable: true })
   interval: number;
 
+  @Column({ nullable: true })
+  trialStartDate: Date;
+
+  @Column({ nullable: true })
+  trialEndDate: Date;
+
+  @Column({ default: false })
+  isInTrial: boolean;
+
   @OneToOne(() => Company, (company) => company.subscription)
   @JoinColumn({ name: 'companyId' })
   company: Company[];

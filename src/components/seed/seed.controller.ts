@@ -1,5 +1,12 @@
 import { Controller, Post, Param, Query, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiExcludeEndpoint, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiExcludeEndpoint,
+  ApiBody,
+} from '@nestjs/swagger';
 import { SeedService } from './seed.service';
 
 @ApiTags('Seed')
@@ -11,7 +18,8 @@ export class SeedController {
   @ApiExcludeEndpoint()
   @ApiOperation({
     summary: 'Popular dados fake para empresa',
-    description: 'Cria fretes, solicitações e contatos de motoristas fake para uma empresa',
+    description:
+      'Cria fretes, solicitações e contatos de motoristas fake para uma empresa',
   })
   @ApiParam({
     name: 'companyId',
@@ -46,7 +54,8 @@ export class SeedController {
   @ApiExcludeEndpoint()
   @ApiOperation({
     summary: 'Atualizar fotos e localizações dos motoristas',
-    description: 'Adiciona fotos aleatórias e localizações no Brasil para os motoristas especificados',
+    description:
+      'Adiciona fotos aleatórias e localizações no Brasil para os motoristas especificados',
   })
   @ApiBody({
     schema: {
@@ -64,14 +73,17 @@ export class SeedController {
     },
   })
   async updateDriversPhotosAndLocations(@Body() body: { driverIds: string[] }) {
-    return await this.seedService.updateDriversPhotosAndLocations(body.driverIds);
+    return await this.seedService.updateDriversPhotosAndLocations(
+      body.driverIds,
+    );
   }
 
   @Post('company/:companyId/add-drivers-contacts')
   @ApiExcludeEndpoint()
   @ApiOperation({
     summary: 'Adicionar motoristas aos contatos da empresa',
-    description: 'Cria relacionamento entre empresa e motoristas na tabela company-users-contacts',
+    description:
+      'Cria relacionamento entre empresa e motoristas na tabela company-users-contacts',
   })
   @ApiParam({
     name: 'companyId',
@@ -97,14 +109,18 @@ export class SeedController {
     @Param('companyId') companyId: string,
     @Body() body: { driverIds: string[] },
   ) {
-    return await this.seedService.addDriversToCompanyContacts(companyId, body.driverIds);
+    return await this.seedService.addDriversToCompanyContacts(
+      companyId,
+      body.driverIds,
+    );
   }
 
   @Post('drivers/update-data-vehicles')
   @ApiExcludeEndpoint()
   @ApiOperation({
     summary: 'Atualizar dados dos motoristas e criar veículos',
-    description: 'Adiciona CNH, endereço e cria veículo com placa aleatória para os motoristas especificados',
+    description:
+      'Adiciona CNH, endereço e cria veículo com placa aleatória para os motoristas especificados',
   })
   @ApiBody({
     schema: {

@@ -21,6 +21,7 @@ import {
   ContactCompanyLoginDto,
 } from './dto/ContactCompanyAuth.dto';
 import { CompanySearchService } from '@components/company-search/company-search.service';
+import { PlansCompany } from '@entities/plans-company.entity';
 
 @Injectable()
 export class AuthService {
@@ -39,6 +40,8 @@ export class AuthService {
     private featureLogsRepository: Repository<FeatureLog>,
     @InjectRepository(ContactCompany)
     private contactCompanyRepository: Repository<ContactCompany>,
+    @InjectRepository(PlansCompany)
+    private planCompanyRepository: Repository<PlansCompany>,
     private companySearchService: CompanySearchService,
   ) {}
 
@@ -110,7 +113,7 @@ export class AuthService {
         isActive: true,
         isCompleted: true,
         isOn: true,
-        cnpj,
+        cnpj: this.formatCNPJ(cnpj),
         name: this.formatName(name),
         nameFantasy: this.formatName(nameFantasy),
         zipcode: findByCnpj.endereco.cep,
@@ -123,17 +126,29 @@ export class AuthService {
 
       const savedUser = await queryRunner.manager.save(newUser);
 
+      const plan = await this.planCompanyRepository.findOne({
+        where: {
+          isTrial: true,
+        },
+      });
+
+      const trialDays = plan.trialDays || 7;
+      const trialEndDate = new Date(
+        Date.now() + trialDays * 24 * 60 * 60 * 1000,
+      );
+
       const subscriptionCompany = this.subscriptionCompanyRepository.create({
         //@ts-ignore
         companyId: savedUser.id,
         status: 1,
-        planId: '4',
+        planId: plan.id,
         interval: 1,
-        amount: 249.0,
-        nextRecurrency: new Date(
-          Date.now() + 90 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        isInTrial: true,
+        amount: plan.value,
+        trialStartDate: new Date(),
+        trialEndDate: trialEndDate,
+        nextRecurrency: trialEndDate.toISOString(),
+        endDate: trialEndDate.toISOString(),
       });
 
       await queryRunner.manager.save(subscriptionCompany);
@@ -258,6 +273,20 @@ export class AuthService {
         return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
       })
       .join(' ');
+  }
+
+  private formatCNPJ(cnpj: string): string {
+    if (!cnpj) return '';
+
+    const cleaned = cnpj.replace(/\D/g, '');
+    if (cleaned.length === 14) {
+      return cleaned.replace(
+        /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+        '$1.$2.$3/$4-$5',
+      );
+    }
+
+    return cnpj;
   }
 
   async generateRecoveryCodeAndSendNumber(
@@ -414,8 +443,6 @@ export class AuthService {
         );
       }
 
- 
-
       return {
         success: true,
         message: 'Código validado com sucesso',
@@ -446,16 +473,14 @@ export class AuthService {
       })),
     });
 
-       const recoveryCode = await this.recoverCodeRepository.findOne({
-        where: {
-          code,
-          used: false,
-          phoneNumber: this.formatPhoneNumber(phoneNumber),
-          expiresAt: MoreThan(new Date()),
-        },
-      });
-
-   
+    const recoveryCode = await this.recoverCodeRepository.findOne({
+      where: {
+        code,
+        used: false,
+        phoneNumber: this.formatPhoneNumber(phoneNumber),
+        expiresAt: MoreThan(new Date()),
+      },
+    });
 
     if (!user) {
       throw new HttpException('Usuário não encontrado', HttpStatus.NOT_FOUND);
@@ -465,9 +490,9 @@ export class AuthService {
     user.password = hashedNewPassword;
     await this.companyRepository.save(user);
 
-         await this.recoverCodeRepository.update(recoveryCode.id, {
-        used: true,
-      });
+    await this.recoverCodeRepository.update(recoveryCode.id, {
+      used: true,
+    });
 
     return { message: 'Senha alterada com sucesso' };
   }
@@ -499,7 +524,12 @@ export class AuthService {
           'number',
           'isOn',
         ],
-        relations: ['contacts', 'CompanyUsersContacts'],
+        relations: [
+          'contacts',
+          'CompanyUsersContacts',
+          'subscription',
+          'subscription.plan',
+        ],
       });
 
       if (!user) {
@@ -743,7 +773,7 @@ export class AuthService {
       });
 
       await this.companyRepository.update(company.id, {
-        cnpj: cnpj,
+        cnpj: this.formatCNPJ(cnpj),
       });
 
       return {

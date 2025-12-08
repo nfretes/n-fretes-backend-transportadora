@@ -359,12 +359,12 @@ export class AsaasService {
       const nextRecurrency = new Date(now);
       nextRecurrency.setMonth(nextRecurrency.getMonth() + 1);
 
-      const endDate = new Date(now);
-      endDate.setFullYear(endDate.getFullYear() + 1);
+      const endDate = new Date(nextRecurrency);
 
-      const newInterval = existingSubscription
-        ? existingSubscription.interval + 1
-        : 1;
+      const newInterval =
+        existingSubscription && !existingSubscription.isInTrial
+          ? existingSubscription.interval + 1
+          : 1;
 
       const transaction = this.transactionRepository.create({
         amount: plan.value,
@@ -382,6 +382,7 @@ export class AsaasService {
         existingSubscription.endDate = endDate.toISOString();
         existingSubscription.planId = plan.id;
         existingSubscription.interval = newInterval;
+        existingSubscription.isInTrial = false;
 
         await queryRunner.manager.save(existingSubscription);
       } else {
@@ -394,6 +395,7 @@ export class AsaasService {
           endDate: endDate.toISOString(),
           planId: plan.id,
           interval: newInterval,
+          isInTrial: false,
         });
 
         await queryRunner.manager.save(newSubscription);

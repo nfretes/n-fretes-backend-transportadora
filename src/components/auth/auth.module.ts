@@ -14,6 +14,7 @@ import { ContactCompany } from '@entities/contact-company.entity';
 import { CompanyService } from '@components/company/company.service';
 import { CompanySearchModule } from '@components/company-search/company-search.module';
 import { CompanySearchService } from '@components/company-search/company-search.service';
+import { PlansCompany } from '@entities/plans-company.entity';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CompanySearchService } from '@components/company-search/company-search.
       FeatureLog,
       FeatureUsage,
       ContactCompany,
+      PlansCompany,
     ]),
     HttpModule,
   ],
