@@ -39,6 +39,8 @@ export class CompanySearchService {
 
       // Usando ReceitaWS - API gratuita de consulta CNPJ
       const response = await fetch(`https://receitaws.com.br/v1/cnpj/${cnpj}`);
+
+      console.log(response, 'retorno');
       const data = await response.json();
 
       if (data.status === 'ERROR') {

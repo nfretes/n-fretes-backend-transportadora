@@ -4,13 +4,28 @@ import { Repository, In } from 'typeorm';
 import { Company } from '@entities/company.entity';
 import { Freight } from '@entities/freight.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
-import { FreightRequest, FreightRequestStatus } from '@entities/freight-requests.entity';
-import { Notification, NotificationCategory, NotificationStatus, EntityType, IconStyles } from '@entities/notifications.entity';
+import {
+  FreightRequest,
+  FreightRequestStatus,
+} from '@entities/freight-requests.entity';
+import {
+  Notification,
+  NotificationCategory,
+  NotificationStatus,
+  EntityType,
+  IconStyles,
+} from '@entities/notifications.entity';
 import { UsersDrive } from '@entities/users-drive.entity';
 import { UsersLocation } from '@entities/users-location.entity';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
 import { Vehicle } from '@entities/vehicles.entity';
-import { FreightLocal, SpecieOfLoad, TypeOfLoad, PaymentMethod, Toll } from 'src/enum/freight';
+import {
+  FreightLocal,
+  SpecieOfLoad,
+  TypeOfLoad,
+  PaymentMethod,
+  Toll,
+} from 'src/enum/freight';
 import { VehicleType, BodyType } from 'src/enum/vehicle';
 
 @Injectable()
@@ -72,7 +87,7 @@ export class SeedService {
       results.freights.push(freight);
 
       const requestsPerFreight = Math.floor(Math.random() * 4) + 2;
-      
+
       for (let j = 0; j < requestsPerFreight; j++) {
         const request = await this.createFakeRequest(freight.id, companyId);
         if (request) {
@@ -83,7 +98,11 @@ export class SeedService {
 
     console.log('Criando 20 notificações...');
     for (let i = 0; i < 20; i++) {
-      const notification = await this.createFakeNotification(companyId, results.freights, i);
+      const notification = await this.createFakeNotification(
+        companyId,
+        results.freights,
+        i,
+      );
       results.notifications.push(notification);
     }
 
@@ -101,8 +120,14 @@ export class SeedService {
 
   private async createFakeContact(companyId: string, index: number) {
     const names = [
-      'João Silva', 'Maria Santos', 'Pedro Oliveira', 'Ana Costa',
-      'Carlos Souza', 'Juliana Lima', 'Fernando Alves', 'Patrícia Rocha',
+      'João Silva',
+      'Maria Santos',
+      'Pedro Oliveira',
+      'Ana Costa',
+      'Carlos Souza',
+      'Juliana Lima',
+      'Fernando Alves',
+      'Patrícia Rocha',
     ];
 
     const name = names[index % names.length] || `Motorista ${index + 1}`;
@@ -130,7 +155,7 @@ export class SeedService {
 
     const origin = cities[Math.floor(Math.random() * cities.length)];
     let destiny = cities[Math.floor(Math.random() * cities.length)];
-    
+
     while (destiny.city === origin.city) {
       destiny = cities[Math.floor(Math.random() * cities.length)];
     }
@@ -175,7 +200,11 @@ export class SeedService {
     return await this.freightRequestsRepository.save(request);
   }
 
-  private async createFakeNotification(companyId: string, freights: any[], index: number) {
+  private async createFakeNotification(
+    companyId: string,
+    freights: any[],
+    index: number,
+  ) {
     const titles = [
       'Nova solicitação de frete',
       'Frete aceito com sucesso',
@@ -203,7 +232,10 @@ export class SeedService {
       senderId: companyId,
       recipientType: EntityType.COMPANY,
       recipientId: companyId,
-      status: Math.random() > 0.3 ? NotificationStatus.UNREAD : NotificationStatus.READ,
+      status:
+        Math.random() > 0.3
+          ? NotificationStatus.UNREAD
+          : NotificationStatus.READ,
       iconStyle: IconStyles.FREIGHT_REQUEST,
       relatedEntityType: 'freight',
       relatedEntityId: relatedFreight?.id || null,
@@ -256,11 +288,11 @@ export class SeedService {
       { city: 'Brasília - DF', lat: -15.8267, lng: -47.9218 },
       { city: 'Salvador - BA', lat: -12.9714, lng: -38.5014 },
       { city: 'Fortaleza - CE', lat: -3.7172, lng: -38.5433 },
-      { city: 'Recife - PE', lat: -8.0476, lng: -34.8770 },
-      { city: 'Manaus - AM', lat: -3.1190, lng: -60.0217 },
+      { city: 'Recife - PE', lat: -8.0476, lng: -34.877 },
+      { city: 'Manaus - AM', lat: -3.119, lng: -60.0217 },
       { city: 'Campinas - SP', lat: -22.9099, lng: -47.0626 },
       { city: 'Goiânia - GO', lat: -16.6869, lng: -49.2648 },
-      { city: 'Florianópolis - SC', lat: -27.5954, lng: -48.5480 },
+      { city: 'Florianópolis - SC', lat: -27.5954, lng: -48.548 },
       { city: 'Santos - SP', lat: -23.9618, lng: -46.3322 },
     ];
 
@@ -269,7 +301,10 @@ export class SeedService {
     });
 
     if (drivers.length === 0) {
-      throw new HttpException('Nenhum motorista encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Nenhum motorista encontrado',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const results = {
@@ -279,7 +314,8 @@ export class SeedService {
 
     for (const driver of drivers) {
       // Atualizar foto do motorista
-      const randomPhoto = driverPhotos[Math.floor(Math.random() * driverPhotos.length)];
+      const randomPhoto =
+        driverPhotos[Math.floor(Math.random() * driverPhotos.length)];
       driver.photoFaceURL = randomPhoto;
       await this.usersDriveRepository.save(driver);
 
@@ -290,8 +326,11 @@ export class SeedService {
       });
 
       // Criar localização para o motorista
-      const randomLocation = brazilianLocations[Math.floor(Math.random() * brazilianLocations.length)];
-      
+      const randomLocation =
+        brazilianLocations[
+          Math.floor(Math.random() * brazilianLocations.length)
+        ];
+
       // Adicionar pequena variação nas coordenadas para simular movimento
       const latVariation = (Math.random() - 0.5) * 0.1; // ±0.05 graus
       const lngVariation = (Math.random() - 0.5) * 0.1;
@@ -340,7 +379,10 @@ export class SeedService {
     });
 
     if (drivers.length === 0) {
-      throw new HttpException('Nenhum motorista encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Nenhum motorista encontrado',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const results = {
@@ -354,12 +396,14 @@ export class SeedService {
 
     for (const driver of drivers) {
       // Verificar se já existe relacionamento
-      const existingContact = await this.companyUsersContactsRepository.findOne({
-        where: {
-          companyId: companyId,
-          userId: driver.id,
+      const existingContact = await this.companyUsersContactsRepository.findOne(
+        {
+          where: {
+            companyId: companyId,
+            userId: driver.id,
+          },
         },
-      });
+      );
 
       if (existingContact) {
         results.contactsSkipped.push({
@@ -403,7 +447,10 @@ export class SeedService {
     });
 
     if (drivers.length === 0) {
-      throw new HttpException('Nenhum motorista encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Nenhum motorista encontrado',
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     const vehicleTypesList = [
@@ -462,8 +509,10 @@ export class SeedService {
 
       // Atualizar endereço se não tiver
       if (!driver.street || !driver.city) {
-        const randomCity = brazilianCities[Math.floor(Math.random() * brazilianCities.length)];
-        const randomStreet = streetNames[Math.floor(Math.random() * streetNames.length)];
+        const randomCity =
+          brazilianCities[Math.floor(Math.random() * brazilianCities.length)];
+        const randomStreet =
+          streetNames[Math.floor(Math.random() * streetNames.length)];
 
         driver.street = randomStreet;
         driver.number = String(Math.floor(Math.random() * 9000) + 1000);
@@ -484,8 +533,10 @@ export class SeedService {
       });
 
       // Criar veículo para o motorista
-      const randomVehicleType = vehicleTypesList[Math.floor(Math.random() * vehicleTypesList.length)];
-      const randomBodyType = bodyTypesList[Math.floor(Math.random() * bodyTypesList.length)];
+      const randomVehicleType =
+        vehicleTypesList[Math.floor(Math.random() * vehicleTypesList.length)];
+      const randomBodyType =
+        bodyTypesList[Math.floor(Math.random() * bodyTypesList.length)];
 
       const vehicle = this.vehicleRepository.create({
         userId: driver.id,
@@ -494,7 +545,9 @@ export class SeedService {
         plateNumber: this.generateRandomPlate(),
         plateState: driver.state || 'SP',
         year: Math.floor(Math.random() * 15) + 2010, // 2010-2024
-        color: ['Branco', 'Preto', 'Prata', 'Azul', 'Vermelho'][Math.floor(Math.random() * 5)],
+        color: ['Branco', 'Preto', 'Prata', 'Azul', 'Vermelho'][
+          Math.floor(Math.random() * 5)
+        ],
         isPlateValid: true,
         tracker: Math.random() > 0.5,
       });
@@ -522,20 +575,24 @@ export class SeedService {
 
   private generateRandomCNH(): string {
     // Gerar CNH com 11 dígitos
-    const cnh = Array.from({ length: 11 }, () => Math.floor(Math.random() * 10)).join('');
+    const cnh = Array.from({ length: 11 }, () =>
+      Math.floor(Math.random() * 10),
+    ).join('');
     return cnh;
   }
 
   private generateRandomANTT(): string {
     // Gerar ANTT com 9 dígitos
-    const antt = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join('');
+    const antt = Array.from({ length: 9 }, () =>
+      Math.floor(Math.random() * 10),
+    ).join('');
     return antt;
   }
 
   private generateRandomPlate(): string {
     // Formato: ABC-1D23 (padrão Mercosul)
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const plate = 
+    const plate =
       letters[Math.floor(Math.random() * letters.length)] +
       letters[Math.floor(Math.random() * letters.length)] +
       letters[Math.floor(Math.random() * letters.length)] +

@@ -9,6 +9,12 @@ import {
 import { SubscriptionCompany } from './subscription-company.entity';
 import { PlanFeatureLimit } from './plan-feature-limits.entity';
 
+export enum BillingCycle {
+  MONTHLY = 'MONTHLY',
+  ANNUALLY = 'ANNUALLY',
+  WEEKLY = 'WEEKLY',
+}
+
 @Entity({ schema: 'public', name: 'plans-company' })
 export class PlansCompany {
   @PrimaryColumn({ default: () => 'gen_random_uuid()' })
@@ -26,6 +32,12 @@ export class PlansCompany {
   @Column({ type: 'float' })
   value: number;
 
+  @Column({ type: 'int', default: 0 })
+  trialDays: number;
+
+  @Column({ default: false })
+  isTrial: boolean;
+
   @OneToMany(() => SubscriptionCompany, (subscription) => subscription.plan)
   subscriptions: SubscriptionCompany[];
 
@@ -34,6 +46,13 @@ export class PlansCompany {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({
+    type: 'enum',
+    enum: BillingCycle,
+    default: BillingCycle.MONTHLY,
+  })
+  billingCycle: BillingCycle;
 
   @OneToMany(() => PlanFeatureLimit, (limit) => limit.plan)
   featureLimits: PlanFeatureLimit[];
