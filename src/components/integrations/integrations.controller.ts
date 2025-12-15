@@ -29,7 +29,6 @@ export class IntegrationsController {
   constructor(private readonly integrationsService: IntegrationsService) {}
 
   @Post('register')
-  @ApiExcludeEndpoint()
   async register(@Body() createDto: CreateIntegrationDto) {
     const integration =
       await this.integrationsService.createIntegration(createDto);
