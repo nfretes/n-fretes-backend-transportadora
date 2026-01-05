@@ -186,6 +186,12 @@ export class Freight {
   @Column({ nullable: true })
   isExcludeUserId: string;
 
+  @Column({ default: false })
+  isToShare: boolean;
+
+  @Column({ nullable: true })
+  sourceFreightId: string;
+
   @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date;
 }

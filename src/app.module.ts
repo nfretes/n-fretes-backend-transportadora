@@ -38,6 +38,8 @@ import { ExternalApiModule } from '@components/external-api/external-api.module'
 import { DownloadTrackingModule } from '@components/download-tracking/download-tracking.module';
 import { IntegrationsModule } from '@components/integrations/integrations.module';
 import { SeedModule } from '@components/seed/seed.module';
+import { FretebrasModule } from '@components/fretebras/fretebras.module';
+import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
 
 @Module({
   imports: [
@@ -87,6 +89,8 @@ import { SeedModule } from '@components/seed/seed.module';
     DownloadTrackingModule,
     IntegrationsModule,
     SeedModule,
+    FretebrasModule,
+    PgNotifyModule
   ],
   controllers: [AppController],
   providers: [AppService],
