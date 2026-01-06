@@ -128,7 +128,8 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
         distance: body.distancia,
         product: body.carga,
         tracker: body.has_tracking || false,
-        Valuefreight: body.preco || 0,
+        Valuefreight: this.parsePrice(body.preco),
+        weightOfLoad: '0',
         calValue: PaymentMethod.TOCOMBINE,
         valueCall: this.mapValueCall(body.tipo_valor),
         unityMetric: UnityMetric.BYTONS,
@@ -143,6 +144,20 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       console.error('[SQS-LISTENER] Erro ao processar mensagem:', error);
     }
+  }
+
+  private parsePrice(price: any): number {
+    if (!price) return 0;
+    
+    if (typeof price === 'number') return price;
+    
+    if (typeof price === 'string') {
+      const normalizedPrice = price.replace(/\./g, '').replace(',', '.');
+      const parsedPrice = parseFloat(normalizedPrice);
+      return isNaN(parsedPrice) ? 0 : parsedPrice;
+    }
+    
+    return 0;
   }
 
   private mapValueCall(tipoValor: string): string {
