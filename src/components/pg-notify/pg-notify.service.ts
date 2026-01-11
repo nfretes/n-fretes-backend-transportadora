@@ -1,10 +1,10 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'pg';
 import { SQSService } from '../sqs/sqs.service';
 
 @Injectable()
-export class PgNotifyService implements OnModuleInit, OnModuleDestroy {
+export class PgNotifyService implements OnModuleInit {
   private client: Client;
   private readonly queueUrlFreightCreate: string;
 
@@ -42,7 +42,6 @@ export class PgNotifyService implements OnModuleInit, OnModuleDestroy {
           } catch (error) {
             console.error('[PG-NOTIFY] Erro ao processar notificação:', error);
           }
-      console.log('[PG-NOTIFY] Desconectando do PostgreSQL');
         }
       });
 
@@ -55,12 +54,6 @@ export class PgNotifyService implements OnModuleInit, OnModuleDestroy {
       });
     } catch (error) {
       console.error('[PG-NOTIFY] Falha ao conectar ao PostgreSQL:', error);
-    }
-  }
-
-  async onModuleDestroy() {
-    if (this.client) {
-      await this.client.end();
     }
   }
 }
