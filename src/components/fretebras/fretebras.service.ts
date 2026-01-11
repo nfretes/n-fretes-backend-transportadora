@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, IsNull } from 'typeorm';
+import { Repository, Not, IsNull, In } from 'typeorm';
+import { Client } from 'pg';
 import { firstValueFrom } from 'rxjs';
 import { UsersDrive } from '../../entities/users-drive.entity';
 import {
@@ -68,6 +69,13 @@ export class FretebrasService {
     @InjectRepository(UsersDrive)
     private readonly usersDriveRepository: Repository<UsersDrive>,
   ) {}
+
+  // New: Fretebras DB client for cross-checks
+  private fretebrasClient: Client;
+
+  initFretebrasClient(client: Client) {
+    this.fretebrasClient = client;
+  }
 
 
   async getGroups(): Promise<ZApiGroupsResponse> {
@@ -293,5 +301,162 @@ export class FretebrasService {
       this.logger.error('Erro ao processar usuários:', error.message);
       throw new Error(`Falha ao adicionar usuários aos grupos: ${error.message}`);
     }
+  }
+
+  // Fetch all transportadora ids from Fretebras DB and compare with local companies
+  async getMissingTransportadoras(
+    companyRepository: Repository<any>,
+  ): Promise<{ totalFretebras: number; missingCount: number; missingIds: string[] }> {
+    if (!this.fretebrasClient) {
+      // lazy init using env vars if not provided
+      this.fretebrasClient = new Client({
+        host: process.env.DATABASE_HOST_FRETEBRAS,
+        port: Number(process.env.DATABASE_PORT_FRETEBRAS) || 15432,
+        database: process.env.DATABASE_NAME_FRETEBRAS,
+        user: process.env.DATABASE_USERNAME_FRETEBRAS,
+        password: process.env.DATABASE_PASSWORD_FRETEBRAS,
+      });
+      try {
+        // best-effort connect
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.fretebrasClient.connect();
+      } catch (e) {
+        this.logger.error('Erro ao conectar Fretebras DB:', e.message || e);
+      }
+    }
+
+    const res = await this.fretebrasClient.query('SELECT id FROM public.transportadoras');
+    const fretebrasIds: string[] = (res.rows || []).map((r) => String(r.id));
+
+    const total = fretebrasIds.length;
+
+    if (total === 0) {
+      return { totalFretebras: 0, missingCount: 0, missingIds: [] };
+    }
+
+    // fetch existing local company ids
+    const batchSize = 1000;
+    const existingIdsSet = new Set<string>();
+
+    for (let i = 0; i < fretebrasIds.length; i += batchSize) {
+      const batch = fretebrasIds.slice(i, i + batchSize);
+      const existing = await companyRepository.find({
+        where: { id: In(batch) },
+        select: ['id'],
+      });
+      for (const e of existing) existingIdsSet.add(String(e.id));
+    }
+
+    const missingIds = fretebrasIds.filter((id) => !existingIdsSet.has(id));
+
+    return { totalFretebras: total, missingCount: missingIds.length, missingIds };
+  }
+
+  // For each missing transportadora id, fetch full row from Fretebras DB and create company + contacts
+  async syncMissingTransportadoras(
+    companyRepository: Repository<any>,
+    contactRepository: Repository<any>,
+    limit?: number,
+  ): Promise<{
+    processed: number;
+    createdCompanies: string[];
+    errors: { id: string; error: string }[];
+  }> {
+    const result = { processed: 0, createdCompanies: [] as string[], errors: [] as { id: string; error: string }[] };
+
+    const missingInfo = await this.getMissingTransportadoras(companyRepository);
+    const idsToProcess = limit ? missingInfo.missingIds.slice(0, limit) : missingInfo.missingIds;
+
+    if (!this.fretebrasClient) {
+      this.fretebrasClient = new Client({
+        host: process.env.DATABASE_HOST_FRETEBRAS,
+        port: Number(process.env.DATABASE_PORT_FRETEBRAS) || 15432,
+        database: process.env.DATABASE_NAME_FRETEBRAS,
+        user: process.env.DATABASE_USERNAME_FRETEBRAS,
+        password: process.env.DATABASE_PASSWORD_FRETEBRAS,
+      });
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.fretebrasClient.connect();
+      } catch (e) {
+        this.logger.error('Erro ao conectar Fretebras DB:', e.message || e);
+      }
+    }
+
+    for (const id of idsToProcess) {
+      result.processed++;
+      try {
+        const res = await this.fretebrasClient.query(
+          'SELECT * FROM public.transportadoras WHERE id = $1 LIMIT 1',
+          [id],
+        );
+
+        if (!res.rows || res.rows.length === 0) {
+          result.errors.push({ id, error: 'Não encontrada no Fretebras DB' });
+          continue;
+        }
+
+        const t = res.rows[0];
+
+        const companyData: any = {
+          id: t.id,
+          name: t.nome || t.razao_social || null,
+          nameFantasy: t.razao_social || t.nome || null,
+          phoneNumber: null,
+          phoneNumberJson: t.celular_json || t.telefone_json || null,
+          transportCategory: 'Transportadora',
+          isActive: true,
+          photoUrl: t.logo_url || null,
+          city: null,
+          state: null,
+        };
+
+        if (t.bairro_cidade_estado) {
+          const parts = (t.bairro_cidade_estado || '').split(',');
+          if (parts.length >= 2) {
+            companyData.city = parts[0].trim();
+            const statePart = parts[1].split('-')[0].trim();
+            companyData.state = statePart;
+          }
+        }
+
+        const createdCompany = await companyRepository.save(companyData);
+        result.createdCompanies.push(String(createdCompany.id));
+
+        // create contacts from celular_json
+        try {
+          const celularJson = t.celular_json || t.telefone_json || t.telefone || null;
+          let contatos = null;
+          if (celularJson) {
+            contatos = typeof celularJson === 'string' ? JSON.parse(celularJson) : celularJson;
+          }
+
+          if (Array.isArray(contatos) && contatos.length > 0) {
+            for (const c of contatos) {
+              const phone = Object.keys(c)[0];
+              const name = c[phone] || null;
+
+              const exists = await contactRepository.findOne({
+                where: { companyId: createdCompany.id, phoneNumber: phone },
+              });
+
+              if (!exists) {
+                await contactRepository.save({
+                  name,
+                  phoneNumber: phone,
+                  companyId: createdCompany.id,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          this.logger.error('Erro ao criar contatos:', err.message || err);
+        }
+      } catch (err) {
+        result.errors.push({ id, error: err.message || String(err) });
+      }
+    }
+
+    return result;
   }
 }

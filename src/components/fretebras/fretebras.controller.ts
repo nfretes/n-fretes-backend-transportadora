@@ -17,13 +17,73 @@ import {
   ZApiGroup,
   AddUsersToGroupsResponse,
 } from './fretebras.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Company } from '../../entities/company.entity';
+import { Repository } from 'typeorm';
+import { ContactCompany } from '../../entities/contact-company.entity';
 
 @ApiTags('Fretebras - WhatsApp Groups')
 @Controller('fretebras')
 export class FretebrasController {
   private readonly logger = new Logger(FretebrasController.name);
 
-  constructor(private readonly fretebrasService: FretebrasService) {}
+  constructor(
+    private readonly fretebrasService: FretebrasService,
+    @InjectRepository(Company) private readonly companyRepository: Repository<Company>,
+    @InjectRepository(ContactCompany) private readonly contactCompanyRepository: Repository<ContactCompany>,
+  ) {}
+
+  @Post('sync-missing')
+  @ApiOperation({ summary: 'Criar companies e contatos para transportadoras ausentes no banco local' })
+  async syncMissing(): Promise<any> {
+    try {
+      const res = await this.fretebrasService.syncMissingTransportadoras(
+        this.companyRepository,
+        this.contactCompanyRepository,
+      );
+      return res;
+    } catch (error) {
+      this.logger.error('Erro ao sincronizar transportadoras:', error.message);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Erro ao sincronizar transportadoras',
+          error: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('missing')
+  @ApiOperation({
+    summary: 'Listar transportadoras do Fretebras que não estão cadastradas localmente',
+  })
+  async getMissingTransportadoras(): Promise<any> {
+    try {
+      // create a pg client and pass company repository to service
+      // We'll import company repository dynamically via TypeORM in controller
+      // to avoid changing service DI signature.
+      // use repository from nest injection if available
+      // (we fetch repository via global TypeORM in controller constructor if needed)
+      // For simplicity, use a new Client in service using env vars and pass this controller's companyRepo
+      // Get repository via manual injection is not set here; instead, request service to use process.env and find companies via TypeORM repository
+      // So we'll call the service and provide the company repository via (global) injection below.
+      // NOTE: to provide the repository, get it from (this as any).companyRepository if present.
+      // Fallback: use require to import AppDataSource or TypeORM manager.
+      return await this.fretebrasService.getMissingTransportadoras(this.companyRepository);
+    } catch (error) {
+      this.logger.error('Erro ao buscar transportadoras faltantes:', error.message);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Erro ao buscar transportadoras faltantes',
+          error: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   @Get('groups')
   @ApiOperation({
