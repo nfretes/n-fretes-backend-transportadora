@@ -9,6 +9,14 @@ import { ContactCompany } from '../../entities/contact-company.entity';
 import { Freight } from '../../entities/freight.entity';
 import { VehicleType, BodyType } from '../../enum/vehicle';
 import { PaymentMethod, UnityMetric, SpecieOfLoad, Toll } from '../../enum/freight';
+import { FretebrasService } from '../fretebras/fretebras.service';
+import {
+  NFRETES_GROUP_ID_NORTE,
+  NFRETES_GROUP_ID_CENTRO_OESTE,
+  NFRETES_GROUP_ID_NORDESTE,
+  NFRETES_GROUP_ID_SUDESTE,
+  NFRETES_GROUP_ID_SUL,
+} from '../fretebras/group';
 
 @Injectable()
 export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
@@ -25,6 +33,7 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
     private contactCompanyRepository: Repository<ContactCompany>,
     @InjectRepository(Freight)
     private freightRepository: Repository<Freight>,
+    private fretebrasService: FretebrasService,
   ) {
     this.queueUrl = this.configService.get('QUEUE_FREIGHT_CREATE');
     this.sqsClient = new SQSClient({
@@ -236,8 +245,76 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
 
       await this.freightRepository.save(freight);
       console.log('[SQS-LISTENER] ✅ Frete inserido com sucesso! ID:', freight.id);
+
+      // Enviar mensagem no WhatsApp após cadastrar o frete
+      await this.sendFreightNotificationToWhatsApp(body);
     } catch (error) {
       console.error('[SQS-LISTENER] Erro ao processar mensagem:', error);
+    }
+  }
+
+  private getGroupIdByRegion(region: string): string | null {
+    const groupMap = {
+      NORTE: NFRETES_GROUP_ID_NORTE,
+      CENTRO_OESTE: NFRETES_GROUP_ID_CENTRO_OESTE,
+      NORDESTE: NFRETES_GROUP_ID_NORDESTE,
+      SUDESTE: NFRETES_GROUP_ID_SUDESTE,
+      SUL: NFRETES_GROUP_ID_SUL,
+    };
+    return groupMap[region] || null;
+  }
+
+  private formatFreightMessage(freightData: any): string {
+    const origem = freightData.origem_cidade && freightData.origem_estado
+      ? `${freightData.origem_cidade} - ${freightData.origem_estado}`
+      : freightData.origem || 'Origem não informada';
+    
+    const destino = freightData.destino_cidade && freightData.destino_estado
+      ? `${freightData.destino_cidade} - ${freightData.destino_estado}`
+      : freightData.destino || 'Destino não informado';
+    
+    const tipoCarga = freightData.carga || 'Carga não informada';
+    const veiculo = freightData.tipos_veiculo || 'Veículo não informado';
+    const link = 'https://motorista-convite.nfretes.com.br';
+
+    return `🚛 *Novo Frete Disponível!*\n\n` +
+           `📍 *Origem:* ${origem}\n` +
+           `📍 *Destino:* ${destino}\n` +
+           `📦 *Carga:* ${tipoCarga}\n` +
+           `🚚 *Veículo:* ${veiculo}\n\n` +
+           `Para baixar o app e aceitar este frete, clique no link abaixo:\n` +
+           `${link}\n\n` +
+           `_O frete está disponível! Baixe o app, procure pela origem e envie seu convite._`;
+  }
+
+  private async sendFreightNotificationToWhatsApp(freightData: any): Promise<void> {
+    try {
+      // Determina a região do frete
+      const region = this.fretebrasService.getRegionFromFreight(freightData);
+      
+      if (!region) {
+        console.warn('[SQS-LISTENER] Não foi possível determinar região do frete');
+        return;
+      }
+
+      // Busca o ID do grupo correspondente
+      const groupId = this.getGroupIdByRegion(region);
+      
+      if (!groupId) {
+        console.warn('[SQS-LISTENER] Grupo não encontrado para região:', region);
+        return;
+      }
+
+      // Formata a mensagem
+      const message = this.formatFreightMessage(freightData);
+
+      // Envia a mensagem
+      console.log(`[SQS-LISTENER] Enviando notificação para grupo da região ${region}`);
+      await this.fretebrasService.sendTextMessage(groupId, message);
+      console.log(`[SQS-LISTENER] ✅ Notificação enviada com sucesso para região ${region}`);
+    } catch (error) {
+      console.error('[SQS-LISTENER] Erro ao enviar notificação no WhatsApp:', error);
+      // Não lança o erro para não interromper o fluxo principal
     }
   }
 

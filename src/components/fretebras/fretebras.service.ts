@@ -45,13 +45,24 @@ export interface AddUsersToGroupsResponse {
   errors: string[];
 }
 
+export interface SendTextMessageDto {
+  phone: string;
+  message: string;
+}
+
+export interface ZApiSendTextResponse {
+  value: boolean;
+  messageId?: string;
+  message?: string;
+}
+
 @Injectable()
 export class FretebrasService {
   private readonly logger = new Logger(FretebrasService.name);
   private readonly baseUrl = 'https://api.z-api.io';
   private readonly instanceId = '3EBD760D4EA87252D76786079C760A11';
   private readonly instanceToken = '8E7A649870C37DAEFC3E5232';
-  private readonly clientToken = 'Fed31b7b6d90b49c680e7f6fb03ca012fS'
+  private readonly clientToken = 'Ff37625a772494b7185bc047d567b3762S'
   
   private readonly BATCH_SIZE = 50;
   private readonly DELAY_BETWEEN_BATCHES = 2000;
@@ -161,6 +172,89 @@ export class FretebrasService {
       );
       throw error;
     }
+  }
+
+  async sendTextMessage(
+    phone: string,
+    message: string,
+  ): Promise<ZApiSendTextResponse> {
+    try {
+      const url = `${this.baseUrl}/instances/${this.instanceId}/token/${this.instanceToken}/send-text`;
+
+      this.logger.log(`Enviando mensagem para ${phone}`);
+
+      const payload = {
+        phone,
+        message,
+      };
+
+      const response = await firstValueFrom(
+        this.httpService.post<ZApiSendTextResponse>(
+          url,
+          payload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'client-token': this.clientToken,
+            },
+          },
+        ),
+      );
+
+      this.logger.log(`Mensagem enviada com sucesso para ${phone}`);
+
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Erro ao enviar mensagem para ${phone}:`,
+        JSON.stringify(error.response?.data) || error.message,
+      );
+      throw new Error(
+        `Falha ao enviar mensagem: ${JSON.stringify(error.response?.data) || error.message}`,
+      );
+    }
+  }
+
+  getRegionFromFreight(freightData: any): string | null {
+    // Primeiro tenta pela UF do estado de origem
+    if (freightData.origem_estado) {
+      const region = this.getRegionByState(freightData.origem_estado);
+      if (region) {
+        return region;
+      }
+    }
+
+    // Se não encontrou, tenta extrair DDD de telefone se disponível
+    if (freightData.telefone_origem) {
+      const ddd = this.extractDDD(freightData.telefone_origem);
+      if (ddd) {
+        return this.getRegionByDDD(ddd);
+      }
+    }
+
+    return null;
+  }
+
+  private getRegionByState(state: string): string | null {
+    if (!state) return null;
+    
+    const stateUpper = state.toUpperCase();
+    
+    const stateMap = {
+      NORTE: ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+      CENTRO_OESTE: ['DF', 'GO', 'MT', 'MS'],
+      NORDESTE: ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+      SUDESTE: ['ES', 'MG', 'RJ', 'SP'],
+      SUL: ['PR', 'RS', 'SC'],
+    };
+
+    for (const [region, states] of Object.entries(stateMap)) {
+      if (states.includes(stateUpper)) {
+        return region;
+      }
+    }
+    
+    return null;
   }
 
 

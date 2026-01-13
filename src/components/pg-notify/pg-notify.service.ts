@@ -56,4 +56,45 @@ export class PgNotifyService implements OnModuleInit {
       console.error('[PG-NOTIFY] Falha ao conectar ao PostgreSQL:', error);
     }
   }
+
+  async reprocessFreightsFromDate(fromDate: string): Promise<{ processed: number }> {
+    if (!this.client) {
+      throw new Error('Conexão com PostgreSQL Fretebras ainda não inicializada');
+    }
+
+    console.log(`[PG-NOTIFY] Reprocessando fretes a partir de ${fromDate}`);
+
+    try {
+      const query = `
+        SELECT *
+        FROM public.fretes
+        WHERE created_at >= $1::timestamp
+          AND status = 'AVAILABLE'
+        ORDER BY created_at ASC
+      `;
+
+      const result = await this.client.query(query, [fromDate]);
+      const rows = result.rows || [];
+
+      console.log(`[PG-NOTIFY] ${rows.length} fretes encontrados para reprocessar`);
+
+      let processed = 0;
+
+      for (const row of rows) {
+        try {
+          await this.sqsService.sendMessage(this.queueUrlFreightCreate, row);
+          processed++;
+        } catch (err) {
+          console.error('[PG-NOTIFY] Erro ao enviar frete para SQS durante reprocessamento:', err);
+        }
+      }
+
+      console.log(`[PG-NOTIFY] Reprocessamento concluído. Fretes enviados: ${processed}`);
+
+      return { processed };
+    } catch (error) {
+      console.error('[PG-NOTIFY] Erro ao reprocessar fretes por data:', error);
+      throw error;
+    }
+  }
 }
