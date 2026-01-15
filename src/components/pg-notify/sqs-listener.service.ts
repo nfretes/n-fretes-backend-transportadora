@@ -80,7 +80,7 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
       try {
         const command = new ReceiveMessageCommand({
           QueueUrl: this.queueUrl,
-          MaxNumberOfMessages: 10,
+          MaxNumberOfMessages: 1, // Processar apenas 1 mensagem por vez
           WaitTimeSeconds: 20,
         });
 
@@ -90,6 +90,10 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
           for (const message of response.Messages) {
             await this.processMessage(message);
             await this.deleteMessage(message.ReceiptHandle);
+            
+            // Aguardar 1 minuto antes de processar a próxima mensagem
+            console.log('[SQS-LISTENER] ⏳ Aguardando 1 minuto antes da próxima mensagem...');
+            await new Promise(resolve => setTimeout(resolve, 60000)); // 60 segundos = 1 minuto
           }
         }
       } catch (error) {

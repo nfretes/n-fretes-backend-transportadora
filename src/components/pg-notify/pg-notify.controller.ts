@@ -1,13 +1,17 @@
 import { Body, Controller, HttpException, HttpStatus, Logger, Post } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PgNotifyService } from './pg-notify.service';
+import { FreightSyncCronService } from './freight-sync-cron.service';
 
 @ApiTags('PG Notify')
 @Controller('pg-notify')
 export class PgNotifyController {
   private readonly logger = new Logger(PgNotifyController.name);
 
-  constructor(private readonly pgNotifyService: PgNotifyService) {}
+  constructor(
+    private readonly pgNotifyService: PgNotifyService,
+    private readonly freightSyncCronService: FreightSyncCronService,
+  ) {}
 
   @Post('reprocess-from-date')
   @ApiOperation({
@@ -75,6 +79,40 @@ export class PgNotifyController {
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Erro ao reprocessar fretes',
+          error: error.message || String(error),
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('sync-today')
+  @ApiOperation({
+    summary: 'Sincronizar fretes do dia manualmente',
+    description:
+      'Executa manualmente a sincronização de fretes do dia atual. Busca no Fretebras todos os fretes com status AVAILABLE e envia para a fila apenas os que ainda não existem localmente.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sincronização executada com sucesso',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Erro ao sincronizar fretes',
+  })
+  async syncTodayManually() {
+    try {
+      await this.freightSyncCronService.syncManually();
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Sincronização de fretes do dia executada com sucesso',
+      };
+    } catch (error) {
+      this.logger.error('Erro ao sincronizar fretes manualmente:', error.message || error);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'Erro ao sincronizar fretes',
           error: error.message || String(error),
         },
         HttpStatus.INTERNAL_SERVER_ERROR,

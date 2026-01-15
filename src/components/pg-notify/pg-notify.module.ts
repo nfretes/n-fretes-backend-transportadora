@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PgNotifyService } from './pg-notify.service';
 import { SqsListenerService } from './sqs-listener.service';
+import { FreightSyncCronService } from './freight-sync-cron.service';
 import { SqsModule } from '../sqs/sqs.module';
 import { FretebrasModule } from '../fretebras/fretebras.module';
 import { Company } from '../../entities/company.entity';
@@ -16,6 +17,7 @@ import { PgNotifyController } from './pg-notify.controller';
     TypeOrmModule.forFeature([Company, ContactCompany, Freight]),
   ],
   controllers: [PgNotifyController],
-  providers: [PgNotifyService, SqsListenerService],
+  providers: [PgNotifyService, SqsListenerService, FreightSyncCronService],
+  exports: [FreightSyncCronService],
 })
 export class PgNotifyModule {}
