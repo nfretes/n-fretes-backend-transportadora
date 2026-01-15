@@ -24,6 +24,8 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
   private readonly queueUrl: string;
   private isRunning: boolean = false;
   private fretebrasClient: Client;
+  private isConnecting = false;
+  private readonly dbConfig: any;
 
   constructor(
     private configService: ConfigService,
@@ -44,25 +46,80 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    this.fretebrasClient = new Client({
+    this.dbConfig = {
       host: this.configService.get('DATABASE_HOST_FRETEBRAS'),
       port: this.configService.get('DATABASE_PORT_FRETEBRAS') || 15432,
       database: this.configService.get('DATABASE_NAME_FRETEBRAS'),
       user: this.configService.get('DATABASE_USERNAME_FRETEBRAS'),
       password: this.configService.get('DATABASE_PASSWORD_FRETEBRAS'),
-    });
+      connectionTimeoutMillis: 10000,
+      query_timeout: 30000,
+      keepAlive: true,
+    };
   }
 
   async onModuleInit() {
     this.isRunning = true;
     console.log('[SQS-LISTENER] Iniciando escuta da fila:', this.queueUrl);
-    try {
-      await this.fretebrasClient.connect();
-      console.log('[SQS-LISTENER] Conectado ao PostgreSQL Fretebras (consulta)');
-    } catch (err) {
-      console.error('[SQS-LISTENER] Falha ao conectar ao PostgreSQL Fretebras:', err.message || err);
-    }
+    await this.connectToFretebras();
     this.pollQueue();
+  }
+
+  private async connectToFretebras() {
+    if (this.isConnecting) return;
+    this.isConnecting = true;
+
+    try {
+      if (this.fretebrasClient) {
+        try {
+          await this.fretebrasClient.end();
+        } catch (err) {
+          // Ignorar erro
+        }
+      }
+
+      this.fretebrasClient = new Client(this.dbConfig);
+
+      this.fretebrasClient.on('error', (err) => {
+        console.error('[SQS-LISTENER] ❌ Erro na conexão Fretebras:', err.message);
+        this.reconnectToFretebras();
+      });
+
+      this.fretebrasClient.on('end', () => {
+        console.warn('[SQS-LISTENER] ⚠️ Conexão Fretebras encerrada, reconectando...');
+        this.reconnectToFretebras();
+      });
+
+      await this.fretebrasClient.connect();
+      console.log('[SQS-LISTENER] ✅ Conectado ao PostgreSQL Fretebras (consulta)');
+    } catch (err) {
+      console.error('[SQS-LISTENER] ❌ Falha ao conectar ao PostgreSQL Fretebras:', err.message || err);
+      this.reconnectToFretebras();
+    } finally {
+      this.isConnecting = false;
+    }
+  }
+
+  private reconnectToFretebras() {
+    console.log('[SQS-LISTENER] 🔄 Reconectando ao Fretebras em 5 segundos...');
+    setTimeout(() => {
+      this.connectToFretebras();
+    }, 5000);
+  }
+
+  private async ensureConnection(): Promise<boolean> {
+    try {
+      if (!this.fretebrasClient) {
+        await this.connectToFretebras();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      await this.fretebrasClient.query('SELECT 1');
+      return true;
+    } catch (error) {
+      console.error('[SQS-LISTENER] ❌ Conexão não disponível:', error.message);
+      this.reconnectToFretebras();
+      return false;
+    }
   }
 
   async onModuleDestroy() {
@@ -117,6 +174,13 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
       if (!company) {
         console.log('[SQS-LISTENER] Empresa não encontrada localmente, consultando Fretebras DB...');
         try {
+          // Garantir conexão antes de consultar
+          const isConnected = await this.ensureConnection();
+          if (!isConnected) {
+            console.error('[SQS-LISTENER] Conexão Fretebras não disponível, não foi possível buscar empresa');
+            return;
+          }
+
           const transportadoraId = body.transportadora_id;
           const res = await this.fretebrasClient.query(
             `SELECT id, slug, external_id, nome, razao_social, ramo, ativa_ha, endereco, bairro_cidade_estado, telefone, telefone_json, celular, celular_json, whatsapp, site, logo_url, url_empresa, grupo_id, dados_completos, created_at, updated_at FROM public.transportadoras WHERE id::text = $1 OR external_id::text = $1 OR slug = $1 LIMIT 1`,

@@ -12,6 +12,8 @@ export class FreightSyncCronService {
   private readonly logger = new Logger(FreightSyncCronService.name);
   private fretebrasClient: Client;
   private readonly queueUrlFreightCreate: string;
+  private isConnecting = false;
+  private readonly dbConfig: any;
 
   constructor(
     private configService: ConfigService,
@@ -21,23 +23,83 @@ export class FreightSyncCronService {
   ) {
     this.queueUrlFreightCreate = this.configService.get('QUEUE_FREIGHT_CREATE');
     
-    this.fretebrasClient = new Client({
+    this.dbConfig = {
       host: this.configService.get('DATABASE_HOST_FRETEBRAS'),
       port: this.configService.get('DATABASE_PORT_FRETEBRAS') || 15432,
       database: this.configService.get('DATABASE_NAME_FRETEBRAS'),
       user: this.configService.get('DATABASE_USERNAME_FRETEBRAS'),
       password: this.configService.get('DATABASE_PASSWORD_FRETEBRAS'),
-    });
+      connectionTimeoutMillis: 10000,
+      query_timeout: 30000,
+      keepAlive: true,
+    };
 
     this.connectToFretebras();
   }
 
   private async connectToFretebras() {
+    if (this.isConnecting) {
+      this.logger.warn('⚠️ Conexão já em andamento, aguardando...');
+      return;
+    }
+
+    this.isConnecting = true;
+
     try {
+      // Encerrar conexão antiga se existir
+      if (this.fretebrasClient) {
+        try {
+          await this.fretebrasClient.end();
+        } catch (err) {
+          // Ignorar erro ao encerrar
+        }
+      }
+
+      // Criar nova conexão
+      this.fretebrasClient = new Client(this.dbConfig);
+
+      // Tratar erros de conexão
+      this.fretebrasClient.on('error', (err) => {
+        this.logger.error('❌ Erro na conexão Fretebras:', err.message);
+        this.reconnectToFretebras();
+      });
+
+      this.fretebrasClient.on('end', () => {
+        this.logger.warn('⚠️ Conexão Fretebras encerrada, reconectando...');
+        this.reconnectToFretebras();
+      });
+
       await this.fretebrasClient.connect();
       this.logger.log('✅ Conectado ao banco Fretebras para sincronização CRON');
     } catch (error) {
       this.logger.error('❌ Erro ao conectar ao banco Fretebras:', error.message || error);
+      this.reconnectToFretebras();
+    } finally {
+      this.isConnecting = false;
+    }
+  }
+
+  private reconnectToFretebras() {
+    this.logger.log('🔄 Tentando reconectar ao Fretebras em 5 segundos...');
+    setTimeout(() => {
+      this.connectToFretebras();
+    }, 5000);
+  }
+
+  private async ensureConnection(): Promise<boolean> {
+    try {
+      if (!this.fretebrasClient) {
+        await this.connectToFretebras();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Testar conexão
+      await this.fretebrasClient.query('SELECT 1');
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Conexão não disponível:', error.message);
+      this.reconnectToFretebras();
+      return false;
     }
   }
 
@@ -58,6 +120,13 @@ export class FreightSyncCronService {
     this.logger.log('🔄 Iniciando sincronização periódica de fretes...');
 
     try {
+      // Garantir que a conexão está ativa
+      const isConnected = await this.ensureConnection();
+      if (!isConnected) {
+        this.logger.error('❌ Conexão com Fretebras não disponível, pulando sincronização');
+        return;
+      }
+
       // 1. Buscar fretes do dia atual no banco Fretebras com status AVAILABLE
       const today = new Date();
       today.setHours(0, 0, 0, 0);

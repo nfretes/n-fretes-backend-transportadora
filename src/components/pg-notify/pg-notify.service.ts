@@ -17,44 +17,69 @@ export class PgNotifyService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    await this.connectAndListen();
+  }
+
+  private async connectAndListen() {
     try {
+      if (this.client) {
+        try {
+          await this.client.end();
+        } catch (err) {
+          // Ignorar erro
+        }
+      }
+
       this.client = new Client({
         host: this.configService.get('DATABASE_HOST_FRETEBRAS'),
         port: this.configService.get('DATABASE_PORT_FRETEBRAS') || 15432,
         database: this.configService.get('DATABASE_NAME_FRETEBRAS'),
         user: this.configService.get('DATABASE_USERNAME_FRETEBRAS'),
         password: this.configService.get('DATABASE_PASSWORD_FRETEBRAS'),
+        connectionTimeoutMillis: 10000,
+        query_timeout: 30000,
+        keepAlive: true,
+      });
+
+      this.client.on('error', (error) => {
+        console.error('[PG-NOTIFY] ❌ Erro na conexão:', error.message);
+        this.reconnect();
+      });
+
+      this.client.on('end', () => {
+        console.warn('[PG-NOTIFY] ⚠️ Conexão encerrada, reconectando...');
+        this.reconnect();
       });
 
       await this.client.connect();
-      console.log('[PG-NOTIFY] Conectado ao PostgreSQL Fretebras');
+      console.log('[PG-NOTIFY] ✅ Conectado ao PostgreSQL Fretebras');
       
       await this.client.query('LISTEN novo_frete');
-      console.log('[PG-NOTIFY] Escutando canal "novo_frete"');
+      console.log('[PG-NOTIFY] 👂 Escutando canal "novo_frete"');
 
       this.client.on('notification', async (msg) => {
         if (msg.channel === 'novo_frete') {
           try {
-            console.log('[PG-NOTIFY] Notificação recebida:', msg.payload);
+            console.log('[PG-NOTIFY] 📨 Notificação recebida:', msg.payload);
             const freightData = JSON.parse(msg.payload);
             await this.sqsService.sendMessage(this.queueUrlFreightCreate, freightData);
-            console.log('[PG-NOTIFY] Frete enviado para SQS com sucesso');
+            console.log('[PG-NOTIFY] ✅ Frete enviado para SQS com sucesso');
           } catch (error) {
-            console.error('[PG-NOTIFY] Erro ao processar notificação:', error);
+            console.error('[PG-NOTIFY] ❌ Erro ao processar notificação:', error);
           }
         }
       });
-
-      this.client.on('error', (error) => {
-        console.error('[PG-NOTIFY] Erro na conexão:', error);
-      });
-
-      this.client.on('end', () => {
-        console.log('[PG-NOTIFY] Conexão encerrada');
-      });
     } catch (error) {
-      console.error('[PG-NOTIFY] Falha ao conectar ao PostgreSQL:', error);
+      console.error('[PG-NOTIFY] ❌ Falha ao conectar ao PostgreSQL:', error.message);
+      this.reconnect();
     }
+  }
+
+  private reconnect() {
+    console.log('[PG-NOTIFY] 🔄 Reconectando em 5 segundos...');
+    setTimeout(() => {
+      this.connectAndListen();
+    }, 5000);
   }
 
   async reprocessFreightsFromDate(fromDate: string): Promise<{ processed: number }> {
