@@ -28,6 +28,8 @@ export class FreightSyncCronService {
   private readonly logger = new Logger(FreightSyncCronService.name);
   private fretebrasClient: Client;
   private isConnecting = false;
+  private isReconnecting = false;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
   private readonly dbConfig: any;
 
   constructor(
@@ -46,9 +48,10 @@ export class FreightSyncCronService {
       database: this.configService.get('DATABASE_NAME_FRETEBRAS'),
       user: this.configService.get('DATABASE_USERNAME_FRETEBRAS'),
       password: this.configService.get('DATABASE_PASSWORD_FRETEBRAS'),
-      connectionTimeoutMillis: 10000,
-      query_timeout: 30000,
+      connectionTimeoutMillis: 30000, 
+      query_timeout: 60000, 
       keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
     };
 
     this.connectToFretebras();
@@ -56,44 +59,44 @@ export class FreightSyncCronService {
 
   private async connectToFretebras() {
     if (this.isConnecting) {
-      this.logger.warn('⚠️ Conexão já em andamento, aguardando...');
+      this.logger.debug('⏳ Conexão já em andamento, aguardando...');
       return;
     }
 
     this.isConnecting = true;
 
     try {
-      // Encerrar conexão antiga se existir
       if (this.fretebrasClient) {
         try {
+          this.fretebrasClient.removeAllListeners();
           await this.fretebrasClient.end();
+          this.logger.debug('🔌 Conexão anterior encerrada');
         } catch (err) {
-          // Ignorar erro ao encerrar
         }
+        this.fretebrasClient = null;
       }
-
-      // Criar nova conexão
       this.fretebrasClient = new Client(this.dbConfig);
 
-      // Tratar erros de conexão
       this.fretebrasClient.on('error', (err) => {
-        this.logger.error('❌ Erro na conexão Fretebras:', err.message);
-        this.reconnectToFretebras();
+        this.logger.error(`❌ Erro na conexão Fretebras: ${err.message}`);
+        if (!this.isReconnecting) {
+          this.reconnectToFretebras();
+        }
       });
 
       this.fretebrasClient.on('end', () => {
-        this.logger.warn('⚠️ Conexão Fretebras encerrada, reconectando...');
-        this.reconnectToFretebras();
+        this.logger.warn('⚠️ Conexão Fretebras encerrada');
+        if (!this.isReconnecting) {
+          this.reconnectToFretebras();
+        }
       });
 
       await this.fretebrasClient.connect();
-      this.logger.log(
-        '✅ Conectado ao banco Fretebras para sincronização CRON',
-      );
+      this.logger.log('✅ Conectado ao banco Fretebras para sincronização CRON');
+      this.isReconnecting = false;
     } catch (error) {
       this.logger.error(
-        '❌ Erro ao conectar ao banco Fretebras:',
-        error.message || error,
+        `❌ Falha ao conectar ao banco Fretebras: ${error.message || error}`,
       );
       this.reconnectToFretebras();
     } finally {
@@ -102,25 +105,44 @@ export class FreightSyncCronService {
   }
 
   private reconnectToFretebras() {
-    this.logger.log('🔄 Tentando reconectar ao Fretebras em 5 segundos...');
-    setTimeout(() => {
+    if (this.isReconnecting) {
+      return;
+    }
+
+    this.isReconnecting = true;
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+
+    this.logger.log('🔄 Reconectando ao Fretebras em 10 segundos...');
+    this.reconnectTimeout = setTimeout(() => {
       this.connectToFretebras();
-    }, 5000);
+    }, 10000); // Aumentado para 10 segundos
   }
 
   private async ensureConnection(): Promise<boolean> {
     try {
       if (!this.fretebrasClient) {
+        this.logger.warn('⚠️ Cliente não existe, criando nova conexão...');
         await this.connectToFretebras();
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
-      // Testar conexão
-      await this.fretebrasClient.query('SELECT 1');
+      // Testar conexão com timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout ao testar conexão')), 5000),
+      );
+
+      const queryPromise = this.fretebrasClient.query('SELECT 1');
+
+      await Promise.race([queryPromise, timeoutPromise]);
       return true;
     } catch (error) {
-      this.logger.error('❌ Conexão não disponível:', error.message);
-      this.reconnectToFretebras();
+      this.logger.error(`❌ Conexão não disponível: ${error.message}`);
+      if (!this.isReconnecting) {
+        this.reconnectToFretebras();
+      }
       return false;
     }
   }
@@ -762,14 +784,21 @@ export class FreightSyncCronService {
 
   async onModuleDestroy() {
     try {
+      // Limpar timeout de reconexão
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+
+      // Encerrar conexão com Fretebras
       if (this.fretebrasClient) {
+        this.fretebrasClient.removeAllListeners();
         await this.fretebrasClient.end();
         this.logger.log('🔌 Conexão com Fretebras encerrada');
       }
     } catch (error) {
       this.logger.error(
-        '❌ Erro ao encerrar conexão Fretebras:',
-        error.message || error,
+        `❌ Erro ao encerrar conexão Fretebras: ${error.message || error}`,
       );
     }
   }
