@@ -15,7 +15,7 @@ export class VersionApp {
   version: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  platform: string; 
+  platform: string;
 
   @Column({ type: 'boolean', default: false })
   forceUpdate: boolean;

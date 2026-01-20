@@ -1,4 +1,11 @@
-import { Body, Controller, HttpException, HttpStatus, Logger, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpException,
+  HttpStatus,
+  Logger,
+  Post,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PgNotifyService } from './pg-notify.service';
 import { FreightSyncCronService } from './freight-sync-cron.service';
@@ -26,7 +33,8 @@ export class PgNotifyController {
         date: {
           type: 'string',
           example: '2025-01-01T00:00:00',
-          description: 'Data inicial (ISO ou formato aceito pelo PostgreSQL) para buscar fretes',
+          description:
+            'Data inicial (ISO ou formato aceito pelo PostgreSQL) para buscar fretes',
         },
       },
       required: ['date'],
@@ -61,20 +69,26 @@ export class PgNotifyController {
         throw new HttpException(
           {
             statusCode: HttpStatus.BAD_REQUEST,
-            message: 'Data inválida, use um formato ISO (ex: 2025-01-01T00:00:00)',
+            message:
+              'Data inválida, use um formato ISO (ex: 2025-01-01T00:00:00)',
           },
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      const result = await this.pgNotifyService.reprocessFreightsFromDate(parsed.toISOString());
+      const result = await this.pgNotifyService.reprocessFreightsFromDate(
+        parsed.toISOString(),
+      );
       return result;
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
 
-      this.logger.error('Erro ao reprocessar fretes pelo PG Notify:', error.message || error);
+      this.logger.error(
+        'Erro ao reprocessar fretes pelo PG Notify:',
+        error.message || error,
+      );
       throw new HttpException(
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -108,7 +122,10 @@ export class PgNotifyController {
         message: 'Sincronização de fretes do dia executada com sucesso',
       };
     } catch (error) {
-      this.logger.error('Erro ao sincronizar fretes manualmente:', error.message || error);
+      this.logger.error(
+        'Erro ao sincronizar fretes manualmente:',
+        error.message || error,
+      );
       throw new HttpException(
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

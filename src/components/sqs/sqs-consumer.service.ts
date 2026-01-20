@@ -156,7 +156,7 @@ export class SQSConsumerService implements OnModuleInit, OnModuleDestroy {
 
           // Atualizar timestamp de último processamento
           this.lastProcessedTime.set(queueName, Date.now());
-          
+
           // Aguardar 1 minuto antes de processar próxima mensagem
           this.logger.log(
             `⏱️ Aguardando ${this.RATE_LIMIT_DELAY / 1000}s antes de processar próxima mensagem de ${queueName}...`,
@@ -350,11 +350,11 @@ export class SQSConsumerService implements OnModuleInit, OnModuleDestroy {
 
   private async checkRateLimit(queueName: string): Promise<void> {
     const lastProcessed = this.lastProcessedTime.get(queueName);
-    
+
     if (lastProcessed) {
       const timeSinceLastProcessed = Date.now() - lastProcessed;
       const remainingWait = this.RATE_LIMIT_DELAY - timeSinceLastProcessed;
-      
+
       if (remainingWait > 0) {
         this.logger.log(
           `⏳ Rate limit ativo para ${queueName}. Aguardando ${Math.ceil(remainingWait / 1000)}s...`,

@@ -75,8 +75,6 @@ export class AuthController {
 
   /********************************************************************************** */
 
-  
-
   @Post('login')
   @ApiOperation({ summary: 'Realizar login do usuário' })
   @ApiResponse({

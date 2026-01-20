@@ -8,7 +8,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-
 export enum DestinationType {
   CITY = 'CITY',
   STATE = 'STATE',

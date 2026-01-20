@@ -8,7 +8,10 @@ import { Company } from '@entities/company.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
 
 @Module({
-  imports: [HttpModule, TypeOrmModule.forFeature([UsersDrive, Company, ContactCompany])],
+  imports: [
+    HttpModule,
+    TypeOrmModule.forFeature([UsersDrive, Company, ContactCompany]),
+  ],
   controllers: [FretebrasController],
   providers: [FretebrasService],
   exports: [FretebrasService],

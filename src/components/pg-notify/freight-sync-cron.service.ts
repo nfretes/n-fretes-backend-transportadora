@@ -8,7 +8,12 @@ import { Freight } from '../../entities/freight.entity';
 import { Company } from '../../entities/company.entity';
 import { ContactCompany } from '../../entities/contact-company.entity';
 import { VehicleType, BodyType } from '../../enum/vehicle';
-import { PaymentMethod, UnityMetric, SpecieOfLoad, Toll } from '../../enum/freight';
+import {
+  PaymentMethod,
+  UnityMetric,
+  SpecieOfLoad,
+  Toll,
+} from '../../enum/freight';
 import { FretebrasService } from '../fretebras/fretebras.service';
 import {
   NFRETES_GROUP_ID_NORTE,
@@ -35,7 +40,6 @@ export class FreightSyncCronService {
     private contactCompanyRepository: Repository<ContactCompany>,
     private fretebrasService: FretebrasService,
   ) {
-    
     this.dbConfig = {
       host: this.configService.get('DATABASE_HOST_FRETEBRAS'),
       port: this.configService.get('DATABASE_PORT_FRETEBRAS') || 15432,
@@ -83,9 +87,14 @@ export class FreightSyncCronService {
       });
 
       await this.fretebrasClient.connect();
-      this.logger.log('✅ Conectado ao banco Fretebras para sincronização CRON');
+      this.logger.log(
+        '✅ Conectado ao banco Fretebras para sincronização CRON',
+      );
     } catch (error) {
-      this.logger.error('❌ Erro ao conectar ao banco Fretebras:', error.message || error);
+      this.logger.error(
+        '❌ Erro ao conectar ao banco Fretebras:',
+        error.message || error,
+      );
       this.reconnectToFretebras();
     } finally {
       this.isConnecting = false;
@@ -103,7 +112,7 @@ export class FreightSyncCronService {
     try {
       if (!this.fretebrasClient) {
         await this.connectToFretebras();
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       // Testar conexão
@@ -117,11 +126,11 @@ export class FreightSyncCronService {
   }
 
   /**
-   * Cron job que roda a cada 1 minuto
+   * Cron job que roda a cada 10 minutos
    * Busca fretes do dia no Fretebras, sincroniza com o banco local
    * e envia notificações agrupadas por região no WhatsApp
    */
-  @Cron('0 */1 * * * *', {
+  @Cron('0 */10 * * * *', {
     name: 'freight-sync',
     timeZone: 'America/Sao_Paulo',
   })
@@ -132,7 +141,9 @@ export class FreightSyncCronService {
       // Garantir que a conexão está ativa
       const isConnected = await this.ensureConnection();
       if (!isConnected) {
-        this.logger.error('❌ Conexão com Fretebras não disponível, pulando sincronização');
+        this.logger.error(
+          '❌ Conexão com Fretebras não disponível, pulando sincronização',
+        );
         return;
       }
 
@@ -141,7 +152,9 @@ export class FreightSyncCronService {
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      this.logger.log(`📅 Buscando fretes do dia ${todayISO} com status AVAILABLE`);
+      this.logger.log(
+        `📅 Buscando fretes do dia ${todayISO} com status AVAILABLE`,
+      );
 
       const query = `
         SELECT *
@@ -154,7 +167,9 @@ export class FreightSyncCronService {
       const result = await this.fretebrasClient.query(query);
       const freightsFromFretebras = result.rows || [];
 
-      this.logger.log(`📦 Encontrados ${freightsFromFretebras.length} fretes no Fretebras`);
+      this.logger.log(
+        `📦 Encontrados ${freightsFromFretebras.length} fretes no Fretebras`,
+      );
 
       if (freightsFromFretebras.length === 0) {
         this.logger.log('✅ Nenhum frete para sincronizar');
@@ -162,14 +177,20 @@ export class FreightSyncCronService {
       }
 
       // 2. Extrair IDs dos fretes encontrados
-      const fretebrasIds = freightsFromFretebras.map(f => f.id?.toString() || f.external_id?.toString()).filter(Boolean);
+      const fretebrasIds = freightsFromFretebras
+        .map((f) => f.id?.toString() || f.external_id?.toString())
+        .filter(Boolean);
 
       if (fretebrasIds.length === 0) {
-        this.logger.warn('⚠️ Nenhum ID válido encontrado nos fretes do Fretebras');
+        this.logger.warn(
+          '⚠️ Nenhum ID válido encontrado nos fretes do Fretebras',
+        );
         return;
       }
 
-      this.logger.log(`🔍 Verificando ${fretebrasIds.length} IDs no banco local...`);
+      this.logger.log(
+        `🔍 Verificando ${fretebrasIds.length} IDs no banco local...`,
+      );
 
       // 3. Verificar quais desses IDs já existem no banco local
       const existingFreights = await this.freightRepository
@@ -178,12 +199,15 @@ export class FreightSyncCronService {
         .where('freight.id IN (:...ids)', { ids: fretebrasIds })
         .getMany();
 
-      const existingIds = new Set(existingFreights.map(f => f.id));
-      this.logger.log(`✅ ${existingIds.size} fretes já existem no banco local`);
+      const existingIds = new Set(existingFreights.map((f) => f.id));
+      this.logger.log(
+        `✅ ${existingIds.size} fretes já existem no banco local`,
+      );
 
       // 4. Filtrar apenas os fretes que NÃO existem localmente
-      const freightsToCreate = freightsFromFretebras.filter(freight => {
-        const freightId = freight.id?.toString() || freight.external_id?.toString();
+      const freightsToCreate = freightsFromFretebras.filter((freight) => {
+        const freightId =
+          freight.id?.toString() || freight.external_id?.toString();
         return freightId && !existingIds.has(freightId);
       });
 
@@ -195,7 +219,8 @@ export class FreightSyncCronService {
       }
 
       // 5. AGRUPAR POR REGIÃO ANTES DE SALVAR (máximo 10 por região)
-      const freightsByRegionToProcess = this.groupNewFreightsByRegion(freightsToCreate);
+      const freightsByRegionToProcess =
+        this.groupNewFreightsByRegion(freightsToCreate);
 
       // 6. Processar e salvar APENAS os 10 fretes de cada região
       let savedCount = 0;
@@ -208,17 +233,23 @@ export class FreightSyncCronService {
         SUL: [],
       };
 
-      for (const [region, freights] of Object.entries(freightsByRegionToProcess)) {
+      for (const [region, freights] of Object.entries(
+        freightsByRegionToProcess,
+      )) {
         if (Array.isArray(freights) && freights.length > 0) {
-          this.logger.log(`📍 Processando ${freights.length} fretes da região ${region}`);
-          
+          this.logger.log(
+            `📍 Processando ${freights.length} fretes da região ${region}`,
+          );
+
           for (const freightData of freights) {
             try {
               const freight = await this.processAndSaveFreight(freightData);
               if (freight) {
                 savedCount++;
                 savedFreightsByRegion[region].push(freightData);
-                this.logger.debug(`✅ Frete ${freight.id} salvo no banco (${region})`);
+                this.logger.debug(
+                  `✅ Frete ${freight.id} salvo no banco (${region})`,
+                );
               }
             } catch (error) {
               errorCount++;
@@ -238,18 +269,23 @@ export class FreightSyncCronService {
 
       this.logger.log(
         `🎉 Sincronização concluída! ` +
-        `Total encontrados: ${freightsFromFretebras.length} | ` +
-        `Já existentes: ${existingIds.size} | ` +
-        `Novos disponíveis: ${freightsToCreate.length} | ` +
-        `Salvos (10 por região): ${savedCount} | ` +
-        `Erros: ${errorCount}`,
+          `Total encontrados: ${freightsFromFretebras.length} | ` +
+          `Já existentes: ${existingIds.size} | ` +
+          `Novos disponíveis: ${freightsToCreate.length} | ` +
+          `Salvos (10 por região): ${savedCount} | ` +
+          `Erros: ${errorCount}`,
       );
     } catch (error) {
-      this.logger.error('❌ Erro durante sincronização de fretes:', error.message || error);
+      this.logger.error(
+        '❌ Erro durante sincronização de fretes:',
+        error.message || error,
+      );
     }
   }
 
-  private async processAndSaveFreight(freightData: any): Promise<Freight | null> {
+  private async processAndSaveFreight(
+    freightData: any,
+  ): Promise<Freight | null> {
     try {
       // Buscar ou criar empresa
       let company = await this.companyRepository.findOne({
@@ -258,18 +294,26 @@ export class FreightSyncCronService {
       });
 
       if (!company) {
-        this.logger.log(`Empresa ${freightData.transportadora_id} não encontrada, consultando Fretebras DB...`);
-        company = await this.fetchAndCreateCompany(freightData.transportadora_id);
+        this.logger.log(
+          `Empresa ${freightData.transportadora_id} não encontrada, consultando Fretebras DB...`,
+        );
+        company = await this.fetchAndCreateCompany(
+          freightData.transportadora_id,
+        );
         if (!company) return null;
       }
 
       // Adicionar nome da transportadora ao freightData para usar na mensagem
-      freightData.transportadora_nome = company.name || company.nameFantasy || 'Transportadora';
+      freightData.transportadora_nome =
+        company.name || company.nameFantasy || 'Transportadora';
 
       // Buscar ou criar contato
       let contactCompanyId = null;
       if (freightData.contatos) {
-        contactCompanyId = await this.processContact(freightData.contatos, company.id);
+        contactCompanyId = await this.processContact(
+          freightData.contatos,
+          company.id,
+        );
       } else if (company.contacts && company.contacts.length > 0) {
         contactCompanyId = company.contacts[0].id;
       }
@@ -291,7 +335,9 @@ export class FreightSyncCronService {
         valueCall: this.mapValueCall(freightData.tipo_valor),
         unityMetric: UnityMetric.BYTONS,
         specieOfLoad: this.mapSpecieOfLoad(freightData.especie),
-        Toll: freightData.pedagio_incluido ? Toll.INCLUEDVALUE : Toll.PAYMENTPARTY,
+        Toll: freightData.pedagio_incluido
+          ? Toll.INCLUEDVALUE
+          : Toll.PAYMENTPARTY,
         vehicleTypes: this.mapVehicleTypes(freightData.tipos_veiculo),
         bodyTypes: this.mapBodyTypes(freightData.carrocerias),
       });
@@ -303,7 +349,9 @@ export class FreightSyncCronService {
     }
   }
 
-  private async fetchAndCreateCompany(transportadoraId: string): Promise<Company | null> {
+  private async fetchAndCreateCompany(
+    transportadoraId: string,
+  ): Promise<Company | null> {
     try {
       const res = await this.fretebrasClient.query(
         `SELECT id, slug, external_id, nome, razao_social, ramo, ativa_ha, endereco, bairro_cidade_estado, 
@@ -341,10 +389,14 @@ export class FreightSyncCronService {
         const company = await this.companyRepository.save(companyData);
 
         // Criar contatos
-        const celularJson = t.celular_json || t.telefone_json || t.telefone || null;
+        const celularJson =
+          t.celular_json || t.telefone_json || t.telefone || null;
         if (celularJson) {
           try {
-            const contatos = typeof celularJson === 'string' ? JSON.parse(celularJson) : celularJson;
+            const contatos =
+              typeof celularJson === 'string'
+                ? JSON.parse(celularJson)
+                : celularJson;
             if (Array.isArray(contatos)) {
               for (const c of contatos) {
                 const phone = Object.keys(c)[0];
@@ -375,9 +427,15 @@ export class FreightSyncCronService {
     }
   }
 
-  private async processContact(contatosData: any, companyId: string): Promise<string | null> {
+  private async processContact(
+    contatosData: any,
+    companyId: string,
+  ): Promise<string | null> {
     try {
-      const contatos = typeof contatosData === 'string' ? JSON.parse(contatosData) : contatosData;
+      const contatos =
+        typeof contatosData === 'string'
+          ? JSON.parse(contatosData)
+          : contatosData;
       if (contatos.whatsapp && contatos.whatsapp.length > 0) {
         const whatsappData = contatos.whatsapp[0];
         const phoneNumber = Object.keys(whatsappData)[0];
@@ -422,18 +480,22 @@ export class FreightSyncCronService {
     }
 
     // Limitar a 10 fretes por região
-    Object.keys(regions).forEach(region => {
+    Object.keys(regions).forEach((region) => {
       const total = regions[region].length;
       regions[region] = regions[region].slice(0, 10);
       if (total > 0) {
-        this.logger.log(`📊 Região ${region}: ${total} novos, processando ${regions[region].length}`);
+        this.logger.log(
+          `📊 Região ${region}: ${total} novos, processando ${regions[region].length}`,
+        );
       }
     });
 
     return regions;
   }
 
-  private groupFreightsByRegion(freights: Array<{ freight: Freight; data: any }>) {
+  private groupFreightsByRegion(
+    freights: Array<{ freight: Freight; data: any }>,
+  ) {
     const regions = {
       NORTE: [],
       NORDESTE: [],
@@ -450,7 +512,7 @@ export class FreightSyncCronService {
     }
 
     // Limitar a 10 fretes por região
-    Object.keys(regions).forEach(region => {
+    Object.keys(regions).forEach((region) => {
       regions[region] = regions[region].slice(0, 10);
     });
 
@@ -475,32 +537,45 @@ export class FreightSyncCronService {
         }
 
         try {
-          const message = this.formatGroupedFreightMessage(freights, groupInfo.name);
+          const message = this.formatGroupedFreightMessage(
+            freights,
+            groupInfo.name,
+          );
           await this.fretebrasService.sendTextMessage(groupInfo.id, message);
-          this.logger.log(`✅ Enviados ${freights.length} fretes para região ${region}`);
+          this.logger.log(
+            `✅ Enviados ${freights.length} fretes para região ${region}`,
+          );
         } catch (error) {
-          this.logger.error(`❌ Erro ao enviar mensagem para região ${region}:`, error);
+          this.logger.error(
+            `❌ Erro ao enviar mensagem para região ${region}:`,
+            error,
+          );
         }
       }
     }
   }
 
-  private formatGroupedFreightMessage(freights: any[], regionName: string): string {
+  private formatGroupedFreightMessage(
+    freights: any[],
+    regionName: string,
+  ): string {
     const link = 'https://motorista-convite.nfretes.com.br';
     let message = `🚛 *Novos Fretes Disponíveis - Região ${regionName}!*\n\n`;
 
     freights.forEach((freight, index) => {
-      const origem = freight.origem_cidade && freight.origem_estado
-        ? `${freight.origem_cidade} - ${freight.origem_estado}`
-        : freight.origem || 'Origem não informada';
-      
-      const destino = freight.destino_cidade && freight.destino_estado
-        ? `${freight.destino_cidade} - ${freight.destino_estado}`
-        : freight.destino || 'Destino não informado';
-      
+      const origem =
+        freight.origem_cidade && freight.origem_estado
+          ? `${freight.origem_cidade} - ${freight.origem_estado}`
+          : freight.origem || 'Origem não informada';
+
+      const destino =
+        freight.destino_cidade && freight.destino_estado
+          ? `${freight.destino_cidade} - ${freight.destino_estado}`
+          : freight.destino || 'Destino não informado';
+
       const tipoCarga = freight.carga || 'Carga não informada';
       const veiculo = freight.tipos_veiculo || 'Veículo não informado';
-      
+
       // Formatar data e hora
       let dataHora = '';
       if (freight.created_at) {
@@ -514,7 +589,10 @@ export class FreightSyncCronService {
       }
 
       // Nome da transportadora
-      const transportadora = freight.transportadora_nome || freight.nome_transportadora || 'Transportadora';
+      const transportadora =
+        freight.transportadora_nome ||
+        freight.nome_transportadora ||
+        'Transportadora';
 
       message += `━━━━━━━━━━━━━━━━━━━━\n`;
       message += `*Frete ${index + 1}* ${dataHora ? `- ${dataHora}` : ''}\n`;
@@ -555,7 +633,10 @@ export class FreightSyncCronService {
     if (tipoValor.toLowerCase().includes('tonelada')) {
       return 'Por toneladas';
     }
-    if (tipoValor.toLowerCase().includes('kg') || tipoValor.toLowerCase().includes('quilo')) {
+    if (
+      tipoValor.toLowerCase().includes('kg') ||
+      tipoValor.toLowerCase().includes('quilo')
+    ) {
       return 'Por quilos';
     }
     return 'Por toneladas';
@@ -565,23 +646,23 @@ export class FreightSyncCronService {
     if (!especie) return SpecieOfLoad.OTHERS;
     const especieLower = especie.toLowerCase();
     const map: Record<string, SpecieOfLoad> = {
-      'animais': SpecieOfLoad.ANIMAL,
+      animais: SpecieOfLoad.ANIMAL,
       'big bag': SpecieOfLoad.BIGBAG,
-      'bobina': SpecieOfLoad.COIL,
-      'caixas': SpecieOfLoad.BOX,
-      'container': SpecieOfLoad.CONTAINER,
-      'fardos': SpecieOfLoad.BALES,
-      'fracionada': SpecieOfLoad.FRACTIONAL,
-      'granel': SpecieOfLoad.BULK,
-      'metro': SpecieOfLoad.METRIC_CUBIC,
-      'milheiro': SpecieOfLoad.MILHEIRO,
-      'mudanças': SpecieOfLoad.CHANGES,
-      'palhetes': SpecieOfLoad.PALLETS,
-      'paletes': SpecieOfLoad.PALLETS,
-      'passageiros': SpecieOfLoad.PASSENGER,
-      'sacos': SpecieOfLoad.BAGS,
-      'tambor': SpecieOfLoad.DRUM,
-      'unidades': SpecieOfLoad.UNITYS,
+      bobina: SpecieOfLoad.COIL,
+      caixas: SpecieOfLoad.BOX,
+      container: SpecieOfLoad.CONTAINER,
+      fardos: SpecieOfLoad.BALES,
+      fracionada: SpecieOfLoad.FRACTIONAL,
+      granel: SpecieOfLoad.BULK,
+      metro: SpecieOfLoad.METRIC_CUBIC,
+      milheiro: SpecieOfLoad.MILHEIRO,
+      mudanças: SpecieOfLoad.CHANGES,
+      palhetes: SpecieOfLoad.PALLETS,
+      paletes: SpecieOfLoad.PALLETS,
+      passageiros: SpecieOfLoad.PASSENGER,
+      sacos: SpecieOfLoad.BAGS,
+      tambor: SpecieOfLoad.DRUM,
+      unidades: SpecieOfLoad.UNITYS,
     };
     for (const [key, value] of Object.entries(map)) {
       if (especieLower.includes(key)) return value;
@@ -591,29 +672,32 @@ export class FreightSyncCronService {
 
   private mapVehicleTypes(tipos: string): VehicleType[] {
     if (!tipos) return [VehicleType.TRUCK];
-    const tiposArray = tipos.replace(/"/g, '').split(',').map(t => t.trim().toLowerCase());
+    const tiposArray = tipos
+      .replace(/"/g, '')
+      .split(',')
+      .map((t) => t.trim().toLowerCase());
     const result: VehicleType[] = [];
     const map: Record<string, VehicleType> = {
       '3/4': VehicleType.THREE_FOUR,
       'three quarter': VehicleType.THREE_QUARTER,
-      'fiorino': VehicleType.FIORINO,
-      'toco': VehicleType.TOCO,
-      'vcl': VehicleType.VCL,
-      'bitruck': VehicleType.BIT_TRUCK,
+      fiorino: VehicleType.FIORINO,
+      toco: VehicleType.TOCO,
+      vcl: VehicleType.VCL,
+      bitruck: VehicleType.BIT_TRUCK,
       'bit truck': VehicleType.BIT_TRUCK,
-      'truck': VehicleType.TRUCK,
-      'bitrem': VehicleType.BI_TRAIN,
+      truck: VehicleType.TRUCK,
+      bitrem: VehicleType.BI_TRAIN,
       'bi train': VehicleType.BI_TRAIN,
       'carreta ls': VehicleType.CART_LS,
-      'carreta': VehicleType.CART,
+      carreta: VehicleType.CART,
       'cart ls': VehicleType.CART_LS,
-      'cart': VehicleType.CART,
-      'rodotrem': VehicleType.ROAD_TRAIN,
+      cart: VehicleType.CART,
+      rodotrem: VehicleType.ROAD_TRAIN,
       'road train': VehicleType.ROAD_TRAIN,
-      'vanderleia': VehicleType.VANDERLEIA,
-      'vanderléia': VehicleType.VANDERLEIA,
+      vanderleia: VehicleType.VANDERLEIA,
+      vanderléia: VehicleType.VANDERLEIA,
     };
-    tiposArray.forEach(tipo => {
+    tiposArray.forEach((tipo) => {
       for (const [key, value] of Object.entries(map)) {
         if (tipo === key || tipo.includes(key)) {
           if (!result.includes(value)) {
@@ -628,31 +712,34 @@ export class FreightSyncCronService {
 
   private mapBodyTypes(carrocerias: string): BodyType[] {
     if (!carrocerias) return [BodyType.CHEST];
-    const carroceriasArray = carrocerias.replace(/"/g, '').split(',').map(c => c.trim().toLowerCase());
+    const carroceriasArray = carrocerias
+      .replace(/"/g, '')
+      .split(',')
+      .map((c) => c.trim().toLowerCase());
     const result: BodyType[] = [];
     const map: Record<string, BodyType> = {
       'baú refrigerado': BodyType.REFRIGERATED_CHEST,
       'bau refrigerado': BodyType.REFRIGERATED_CHEST,
       'baú frigorífico': BodyType.FRIDGE_CHEST,
       'bau frigorifico': BodyType.FRIDGE_CHEST,
-      'baú': BodyType.CHEST,
-      'bau': BodyType.CHEST,
-      'sider': BodyType.SIDER,
-      'caçamba': BodyType.BUCKET,
-      'cacamba': BodyType.BUCKET,
+      baú: BodyType.CHEST,
+      bau: BodyType.CHEST,
+      sider: BodyType.SIDER,
+      caçamba: BodyType.BUCKET,
+      cacamba: BodyType.BUCKET,
       'grade baixa': BodyType.LOW_GRILLE,
-      'graneleiro': BodyType.BULK_CARRIER,
-      'plataforma': BodyType.PLATFORM,
-      'prancha': BodyType.BOARD,
-      'cavalo': BodyType.ONLY_HORSE,
-      'container': BodyType.CONTAINER,
-      'gaiola': BodyType.CAGE,
-      'munck': BodyType.MUNK,
-      'munk': BodyType.MUNK,
-      'silo': BodyType.SILO,
-      'tanque': BodyType.TANK,
+      graneleiro: BodyType.BULK_CARRIER,
+      plataforma: BodyType.PLATFORM,
+      prancha: BodyType.BOARD,
+      cavalo: BodyType.ONLY_HORSE,
+      container: BodyType.CONTAINER,
+      gaiola: BodyType.CAGE,
+      munck: BodyType.MUNK,
+      munk: BodyType.MUNK,
+      silo: BodyType.SILO,
+      tanque: BodyType.TANK,
     };
-    carroceriasArray.forEach(carroceria => {
+    carroceriasArray.forEach((carroceria) => {
       for (const [key, value] of Object.entries(map)) {
         if (carroceria === key || carroceria.includes(key)) {
           if (!result.includes(value)) {
@@ -680,7 +767,10 @@ export class FreightSyncCronService {
         this.logger.log('🔌 Conexão com Fretebras encerrada');
       }
     } catch (error) {
-      this.logger.error('❌ Erro ao encerrar conexão Fretebras:', error.message || error);
+      this.logger.error(
+        '❌ Erro ao encerrar conexão Fretebras:',
+        error.message || error,
+      );
     }
   }
 }

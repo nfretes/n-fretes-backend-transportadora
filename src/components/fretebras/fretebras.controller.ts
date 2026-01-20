@@ -29,12 +29,17 @@ export class FretebrasController {
 
   constructor(
     private readonly fretebrasService: FretebrasService,
-    @InjectRepository(Company) private readonly companyRepository: Repository<Company>,
-    @InjectRepository(ContactCompany) private readonly contactCompanyRepository: Repository<ContactCompany>,
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
+    @InjectRepository(ContactCompany)
+    private readonly contactCompanyRepository: Repository<ContactCompany>,
   ) {}
 
   @Post('sync-missing')
-  @ApiOperation({ summary: 'Criar companies e contatos para transportadoras ausentes no banco local' })
+  @ApiOperation({
+    summary:
+      'Criar companies e contatos para transportadoras ausentes no banco local',
+  })
   async syncMissing(): Promise<any> {
     try {
       const res = await this.fretebrasService.syncMissingTransportadoras(
@@ -57,7 +62,8 @@ export class FretebrasController {
 
   @Get('missing')
   @ApiOperation({
-    summary: 'Listar transportadoras do Fretebras que não estão cadastradas localmente',
+    summary:
+      'Listar transportadoras do Fretebras que não estão cadastradas localmente',
   })
   async getMissingTransportadoras(): Promise<any> {
     try {
@@ -71,9 +77,14 @@ export class FretebrasController {
       // So we'll call the service and provide the company repository via (global) injection below.
       // NOTE: to provide the repository, get it from (this as any).companyRepository if present.
       // Fallback: use require to import AppDataSource or TypeORM manager.
-      return await this.fretebrasService.getMissingTransportadoras(this.companyRepository);
+      return await this.fretebrasService.getMissingTransportadoras(
+        this.companyRepository,
+      );
     } catch (error) {
-      this.logger.error('Erro ao buscar transportadoras faltantes:', error.message);
+      this.logger.error(
+        'Erro ao buscar transportadoras faltantes:',
+        error.message,
+      );
       throw new HttpException(
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -88,7 +99,8 @@ export class FretebrasController {
   @Get('groups')
   @ApiOperation({
     summary: 'Listar todos os grupos do WhatsApp',
-    description: 'Retorna a lista de todos os grupos disponíveis na instância do WhatsApp',
+    description:
+      'Retorna a lista de todos os grupos disponíveis na instância do WhatsApp',
   })
   @ApiResponse({
     status: 200,
@@ -132,7 +144,7 @@ export class FretebrasController {
   ): Promise<ZApiGroup> {
     try {
       const group = await this.fretebrasService.getGroupInfo(groupPhone);
-      
+
       if (!group) {
         throw new HttpException(
           {
@@ -148,7 +160,7 @@ export class FretebrasController {
       if (error instanceof HttpException) {
         throw error;
       }
-      
+
       this.logger.error(
         `Erro ao buscar informações do grupo ${groupPhone}:`,
         error.message,
@@ -167,7 +179,8 @@ export class FretebrasController {
   @Post('groups/add-participant')
   @ApiOperation({
     summary: 'Adicionar participante(s) a um grupo',
-    description: 'Adiciona um ou mais participantes a um grupo específico do WhatsApp',
+    description:
+      'Adiciona um ou mais participantes a um grupo específico do WhatsApp',
   })
   @ApiBody({
     schema: {
@@ -182,7 +195,8 @@ export class FretebrasController {
           type: 'array',
           items: { type: 'string' },
           example: ['5511988888888', '5511977777777'],
-          description: 'Array de telefones dos participantes (com código do país)',
+          description:
+            'Array de telefones dos participantes (com código do país)',
         },
       },
       required: ['groupPhone', 'phone'],
@@ -240,7 +254,8 @@ export class FretebrasController {
   @Post('add-users-to-groups')
   @ApiOperation({
     summary: 'Adicionar todos os usuários aos grupos por região',
-    description: 'Busca todos os usuários drive e adiciona aos grupos do WhatsApp baseado na região (estado)',
+    description:
+      'Busca todos os usuários drive e adiciona aos grupos do WhatsApp baseado na região (estado)',
   })
   @ApiResponse({
     status: 200,
@@ -254,7 +269,10 @@ export class FretebrasController {
     try {
       return await this.fretebrasService.addUsersToGroupsByRegion();
     } catch (error) {
-      this.logger.error('Erro ao adicionar usuários aos grupos:', error.message);
+      this.logger.error(
+        'Erro ao adicionar usuários aos grupos:',
+        error.message,
+      );
       throw new HttpException(
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

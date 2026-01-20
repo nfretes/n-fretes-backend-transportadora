@@ -90,7 +90,7 @@ import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
     IntegrationsModule,
     SeedModule,
     FretebrasModule,
-    PgNotifyModule
+    PgNotifyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

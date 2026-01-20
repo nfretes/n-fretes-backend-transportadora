@@ -62,17 +62,71 @@ export class FretebrasService {
   private readonly baseUrl = 'https://api.z-api.io';
   private readonly instanceId = '3EBD760D4EA87252D76786079C760A11';
   private readonly instanceToken = '8E7A649870C37DAEFC3E5232';
-  private readonly clientToken = 'Ff37625a772494b7185bc047d567b3762S'
-  
+  private readonly clientToken = 'Ff37625a772494b7185bc047d567b3762S';
+
   private readonly BATCH_SIZE = 50;
   private readonly DELAY_BETWEEN_BATCHES = 2000;
-  
+
   private readonly dddMap = {
     NORTE: ['63', '68', '69', '91', '92', '93', '94', '95', '96', '97'],
     CENTRO_OESTE: ['61', '62', '64', '65', '66', '67'],
-    NORDESTE: ['71', '73', '74', '75', '77', '79', '81', '82', '83', '84', '85', '86', '87', '88', '89', '98', '99'],
-    SUDESTE: ['11', '12', '13', '14', '15', '16', '17', '18', '19', '21', '22', '24', '27', '28', '31', '32', '33', '34', '35', '37', '38'],
-    SUL: ['41', '42', '43', '44', '45', '46', '47', '48', '49', '51', '53', '54', '55'],
+    NORDESTE: [
+      '71',
+      '73',
+      '74',
+      '75',
+      '77',
+      '79',
+      '81',
+      '82',
+      '83',
+      '84',
+      '85',
+      '86',
+      '87',
+      '88',
+      '89',
+      '98',
+      '99',
+    ],
+    SUDESTE: [
+      '11',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
+      '17',
+      '18',
+      '19',
+      '21',
+      '22',
+      '24',
+      '27',
+      '28',
+      '31',
+      '32',
+      '33',
+      '34',
+      '35',
+      '37',
+      '38',
+    ],
+    SUL: [
+      '41',
+      '42',
+      '43',
+      '44',
+      '45',
+      '46',
+      '47',
+      '48',
+      '49',
+      '51',
+      '53',
+      '54',
+      '55',
+    ],
   };
 
   constructor(
@@ -88,7 +142,6 @@ export class FretebrasService {
     this.fretebrasClient = client;
   }
 
-
   async getGroups(): Promise<ZApiGroupsResponse> {
     try {
       const url = `${this.baseUrl}/instances/${this.instanceId}/token/${this.instanceToken}/groups?page=1&pageSize=10`;
@@ -99,16 +152,21 @@ export class FretebrasService {
         this.httpService.get<ZApiGroupsResponse>(url, {
           headers: {
             'Content-Type': 'application/json',
-            "client-token": this.clientToken,
+            'client-token': this.clientToken,
           },
         }),
       );
 
-      this.logger.log(`${response.data.groups?.length || 0} grupos encontrados`);
+      this.logger.log(
+        `${response.data.groups?.length || 0} grupos encontrados`,
+      );
 
       return response.data;
     } catch (error) {
-      this.logger.error('Erro ao buscar grupos:', error.response?.data || error.message);
+      this.logger.error(
+        'Erro ao buscar grupos:',
+        error.response?.data || error.message,
+      );
       throw new Error(`Falha ao buscar grupos: ${error.message}`);
     }
   }
@@ -133,16 +191,12 @@ export class FretebrasService {
       this.logger.debug(`Payload: ${JSON.stringify(payload)}`);
 
       const response = await firstValueFrom(
-        this.httpService.post<ZApiAddParticipantResponse>(
-          url,
-          payload,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-               "client-token": this.clientToken,
-            },
+        this.httpService.post<ZApiAddParticipantResponse>(url, payload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'client-token': this.clientToken,
           },
-        ),
+        }),
       );
 
       this.logger.log(
@@ -189,16 +243,12 @@ export class FretebrasService {
       };
 
       const response = await firstValueFrom(
-        this.httpService.post<ZApiSendTextResponse>(
-          url,
-          payload,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'client-token': this.clientToken,
-            },
+        this.httpService.post<ZApiSendTextResponse>(url, payload, {
+          headers: {
+            'Content-Type': 'application/json',
+            'client-token': this.clientToken,
           },
-        ),
+        }),
       );
 
       this.logger.log(`Mensagem enviada com sucesso para ${phone}`);
@@ -237,9 +287,9 @@ export class FretebrasService {
 
   private getRegionByState(state: string): string | null {
     if (!state) return null;
-    
+
     const stateUpper = state.toUpperCase();
-    
+
     const stateMap = {
       NORTE: ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
       CENTRO_OESTE: ['DF', 'GO', 'MT', 'MS'],
@@ -253,11 +303,9 @@ export class FretebrasService {
         return region;
       }
     }
-    
+
     return null;
   }
-
-
 
   private extractDDD(phoneNumber: string): string | null {
     const cleaned = phoneNumber.replace(/\D/g, '');
@@ -276,7 +324,7 @@ export class FretebrasService {
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private chunkArray<T>(array: T[], size: number): T[][] {
@@ -331,13 +379,17 @@ export class FretebrasService {
 
         const ddd = this.extractDDD(user.phoneNumber);
         if (!ddd) {
-          errors.push(`Usuário ${user.name} (${user.id}): Não foi possível extrair DDD do telefone "${user.phoneNumber}"`);
+          errors.push(
+            `Usuário ${user.name} (${user.id}): Não foi possível extrair DDD do telefone "${user.phoneNumber}"`,
+          );
           continue;
         }
 
         const region = this.getRegionByDDD(ddd);
         if (!region) {
-          errors.push(`Usuário ${user.name} (${user.id}): DDD "${ddd}" não mapeado`);
+          errors.push(
+            `Usuário ${user.name} (${user.id}): DDD "${ddd}" não mapeado`,
+          );
           continue;
         }
 
@@ -358,8 +410,10 @@ export class FretebrasService {
 
         const groupId = this.getGroupIdByRegion(region);
         const batches = this.chunkArray(phones, this.BATCH_SIZE);
-        
-        this.logger.log(`Região ${region}: ${phones.length} usuários divididos em ${batches.length} lotes`);
+
+        this.logger.log(
+          `Região ${region}: ${phones.length} usuários divididos em ${batches.length} lotes`,
+        );
 
         let successCount = 0;
         let batchNumber = 0;
@@ -367,23 +421,35 @@ export class FretebrasService {
         for (const batch of batches) {
           batchNumber++;
           try {
-            this.logger.log(`Processando lote ${batchNumber}/${batches.length} da região ${region} (${batch.length} números)`);
+            this.logger.log(
+              `Processando lote ${batchNumber}/${batches.length} da região ${region} (${batch.length} números)`,
+            );
             await this.addParticipantToGroup(groupId, batch);
             successCount += batch.length;
-            this.logger.log(`Lote ${batchNumber}/${batches.length} da região ${region} adicionado com sucesso`);
-            
+            this.logger.log(
+              `Lote ${batchNumber}/${batches.length} da região ${region} adicionado com sucesso`,
+            );
+
             if (batchNumber < batches.length) {
               await this.delay(this.DELAY_BETWEEN_BATCHES);
             }
           } catch (error) {
-            errors.push(`Erro no lote ${batchNumber} da região ${region}: ${error.message}`);
-            this.logger.error(`Erro no lote ${batchNumber} da região ${region}:`, error.message);
+            errors.push(
+              `Erro no lote ${batchNumber} da região ${region}: ${error.message}`,
+            );
+            this.logger.error(
+              `Erro no lote ${batchNumber} da região ${region}:`,
+              error.message,
+            );
           }
         }
 
-        const regionKey = region === 'CENTRO_OESTE' ? 'centroOeste' : region.toLowerCase();
+        const regionKey =
+          region === 'CENTRO_OESTE' ? 'centroOeste' : region.toLowerCase();
         results[regionKey].count = successCount;
-        this.logger.log(`Região ${region}: ${successCount}/${phones.length} usuários adicionados com sucesso`);
+        this.logger.log(
+          `Região ${region}: ${successCount}/${phones.length} usuários adicionados com sucesso`,
+        );
       }
 
       return {
@@ -393,14 +459,20 @@ export class FretebrasService {
       };
     } catch (error) {
       this.logger.error('Erro ao processar usuários:', error.message);
-      throw new Error(`Falha ao adicionar usuários aos grupos: ${error.message}`);
+      throw new Error(
+        `Falha ao adicionar usuários aos grupos: ${error.message}`,
+      );
     }
   }
 
   // Fetch all transportadora ids from Fretebras DB and compare with local companies
   async getMissingTransportadoras(
     companyRepository: Repository<any>,
-  ): Promise<{ totalFretebras: number; missingCount: number; missingIds: string[] }> {
+  ): Promise<{
+    totalFretebras: number;
+    missingCount: number;
+    missingIds: string[];
+  }> {
     if (!this.fretebrasClient) {
       // lazy init using env vars if not provided
       this.fretebrasClient = new Client({
@@ -419,7 +491,9 @@ export class FretebrasService {
       }
     }
 
-    const res = await this.fretebrasClient.query('SELECT id FROM public.transportadoras');
+    const res = await this.fretebrasClient.query(
+      'SELECT id FROM public.transportadoras',
+    );
     const fretebrasIds: string[] = (res.rows || []).map((r) => String(r.id));
 
     const total = fretebrasIds.length;
@@ -443,7 +517,11 @@ export class FretebrasService {
 
     const missingIds = fretebrasIds.filter((id) => !existingIdsSet.has(id));
 
-    return { totalFretebras: total, missingCount: missingIds.length, missingIds };
+    return {
+      totalFretebras: total,
+      missingCount: missingIds.length,
+      missingIds,
+    };
   }
 
   // For each missing transportadora id, fetch full row from Fretebras DB and create company + contacts
@@ -456,10 +534,16 @@ export class FretebrasService {
     createdCompanies: string[];
     errors: { id: string; error: string }[];
   }> {
-    const result = { processed: 0, createdCompanies: [] as string[], errors: [] as { id: string; error: string }[] };
+    const result = {
+      processed: 0,
+      createdCompanies: [] as string[],
+      errors: [] as { id: string; error: string }[],
+    };
 
     const missingInfo = await this.getMissingTransportadoras(companyRepository);
-    const idsToProcess = limit ? missingInfo.missingIds.slice(0, limit) : missingInfo.missingIds;
+    const idsToProcess = limit
+      ? missingInfo.missingIds.slice(0, limit)
+      : missingInfo.missingIds;
 
     if (!this.fretebrasClient) {
       this.fretebrasClient = new Client({
@@ -519,10 +603,14 @@ export class FretebrasService {
 
         // create contacts from celular_json
         try {
-          const celularJson = t.celular_json || t.telefone_json || t.telefone || null;
+          const celularJson =
+            t.celular_json || t.telefone_json || t.telefone || null;
           let contatos = null;
           if (celularJson) {
-            contatos = typeof celularJson === 'string' ? JSON.parse(celularJson) : celularJson;
+            contatos =
+              typeof celularJson === 'string'
+                ? JSON.parse(celularJson)
+                : celularJson;
           }
 
           if (Array.isArray(contatos) && contatos.length > 0) {
