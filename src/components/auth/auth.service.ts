@@ -132,10 +132,8 @@ export class AuthService {
         },
       });
 
-      const trialDays = plan.trialDays || 7;
-      const trialEndDate = new Date(
-        Date.now() + trialDays * 24 * 60 * 60 * 1000,
-      );
+      const trialEndDate = new Date();
+      trialEndDate.setMonth(trialEndDate.getMonth() + 1);
 
       const subscriptionCompany = this.subscriptionCompanyRepository.create({
         //@ts-ignore

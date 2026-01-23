@@ -152,10 +152,7 @@ export class FreightSyncCronService {
    * Busca fretes do dia no Fretebras, sincroniza com o banco local
    * e envia notificações agrupadas por região no WhatsApp
    */
-  @Cron('0 */10 * * * *', {
-    name: 'freight-sync',
-    timeZone: 'America/Sao_Paulo',
-  })
+ 
   async syncFreightsFromToday() {
     this.logger.log('🔄 Iniciando sincronização periódica de fretes...');
 
