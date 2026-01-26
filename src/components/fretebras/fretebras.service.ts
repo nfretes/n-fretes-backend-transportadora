@@ -466,9 +466,7 @@ export class FretebrasService {
   }
 
   // Fetch all transportadora ids from Fretebras DB and compare with local companies
-  async getMissingTransportadoras(
-    companyRepository: Repository<any>,
-  ): Promise<{
+  async getMissingTransportadoras(companyRepository: Repository<any>): Promise<{
     totalFretebras: number;
     missingCount: number;
     missingIds: string[];

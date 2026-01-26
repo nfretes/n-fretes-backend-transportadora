@@ -48,8 +48,8 @@ export class FreightSyncCronService {
       database: this.configService.get('DATABASE_NAME_FRETEBRAS'),
       user: this.configService.get('DATABASE_USERNAME_FRETEBRAS'),
       password: this.configService.get('DATABASE_PASSWORD_FRETEBRAS'),
-      connectionTimeoutMillis: 30000, 
-      query_timeout: 60000, 
+      connectionTimeoutMillis: 30000,
+      query_timeout: 60000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,
     };
@@ -71,8 +71,7 @@ export class FreightSyncCronService {
           this.fretebrasClient.removeAllListeners();
           await this.fretebrasClient.end();
           this.logger.debug('🔌 Conexão anterior encerrada');
-        } catch (err) {
-        }
+        } catch (err) {}
         this.fretebrasClient = null;
       }
       this.fretebrasClient = new Client(this.dbConfig);
@@ -92,7 +91,9 @@ export class FreightSyncCronService {
       });
 
       await this.fretebrasClient.connect();
-      this.logger.log('✅ Conectado ao banco Fretebras para sincronização CRON');
+      this.logger.log(
+        '✅ Conectado ao banco Fretebras para sincronização CRON',
+      );
       this.isReconnecting = false;
     } catch (error) {
       this.logger.error(
@@ -152,7 +153,7 @@ export class FreightSyncCronService {
    * Busca fretes do dia no Fretebras, sincroniza com o banco local
    * e envia notificações agrupadas por região no WhatsApp
    */
- 
+
   async syncFreightsFromToday() {
     this.logger.log('🔄 Iniciando sincronização periódica de fretes...');
 

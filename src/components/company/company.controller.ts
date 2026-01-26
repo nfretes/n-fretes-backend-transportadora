@@ -88,7 +88,8 @@ export class CompanyController {
   @Get('subscription-validity')
   @ApiOperation({
     summary: 'Verificar validade da assinatura',
-    description: 'Verifica se a assinatura da empresa está válida, checando o trialEndDate e status',
+    description:
+      'Verifica se a assinatura da empresa está válida, checando o trialEndDate e status',
   })
   @ApiResponse({
     status: 200,
@@ -107,9 +108,7 @@ export class CompanyController {
     status: 500,
     description: 'Erro ao verificar validade',
   })
-  async checkSubscriptionValidity(
-    @GetUserId() userId: string,
-  ): Promise<{
+  async checkSubscriptionValidity(@GetUserId() userId: string): Promise<{
     isValid: boolean;
     status: number;
     isInTrial: boolean;

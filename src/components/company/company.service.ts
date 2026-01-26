@@ -71,10 +71,7 @@ export class CompanyService {
       });
 
       if (!company) {
-        throw new HttpException(
-          'Empresa não encontrada',
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException('Empresa não encontrada', HttpStatus.NOT_FOUND);
       }
 
       return { isSucess: company.isSucess };
@@ -93,16 +90,10 @@ export class CompanyService {
       });
 
       if (!company) {
-        throw new HttpException(
-          'Empresa não encontrada',
-          HttpStatus.NOT_FOUND,
-        );
+        throw new HttpException('Empresa não encontrada', HttpStatus.NOT_FOUND);
       }
 
-      await this.companyRepository.update(
-        { id: userId },
-        { isSucess: true },
-      );
+      await this.companyRepository.update({ id: userId }, { isSucess: true });
 
       return {
         message: 'Status atualizado com sucesso',
