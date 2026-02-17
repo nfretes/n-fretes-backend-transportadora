@@ -49,4 +49,12 @@ export class companyUpdateDto {
   @IsOptional()
   @IsString()
   photoUrl: string;
+
+    @ApiProperty({
+    description: 'Foto do usuário da transportadora',
+    example: 'Foto do usuário da transportadora',
+  })
+  @IsOptional()
+  @IsString()
+  userPhotoURL: string;
 }

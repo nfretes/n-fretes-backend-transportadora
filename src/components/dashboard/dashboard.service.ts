@@ -459,4 +459,101 @@ export class DashboardService {
       );
     }
   }
+
+  async getMetricsDashboard(userId: string) {
+    try {
+      const currentDate = new Date();
+      
+
+      const last7DaysStart = new Date(currentDate);
+      last7DaysStart.setDate(currentDate.getDate() - 7);
+      last7DaysStart.setHours(0, 0, 0, 0);
+      
+      const previous7DaysStart = new Date(currentDate);
+      previous7DaysStart.setDate(currentDate.getDate() - 14);
+      previous7DaysStart.setHours(0, 0, 0, 0);
+      
+      const previous7DaysEnd = new Date(last7DaysStart);
+      previous7DaysEnd.setHours(23, 59, 59, 999);
+
+      const [
+        totalFreights, 
+        last7DaysFreights, 
+        previous7DaysFreights,
+        activeFreights,
+        freightsInProgress,
+        pendingRequests
+      ] = await Promise.all([
+        this.freightRepository.count({
+          where: { companyId: userId },
+        }),
+        
+        this.freightRepository.count({
+          where: {
+            companyId: userId,
+            createdAt: Between(last7DaysStart, currentDate),
+          },
+        }),
+        
+        this.freightRepository.count({
+          where: {
+            companyId: userId,
+            createdAt: Between(previous7DaysStart, previous7DaysEnd),
+          },
+        }),
+        
+      
+        this.freightRepository.count({
+          where: {
+            companyId: userId,
+            isActive: true,
+            openSolicitations: true,
+          },
+        }),
+
+        // Fretes em progresso (em rota)
+        this.freightRoutesRepository.count({
+          where: {
+            companyId: userId,
+            status: RouteStatus.IN_PROGRESS,
+          },
+        }),
+
+        // Solicitações de frete pendentes
+        this.freightRequestRepository.count({
+          where: {
+            companyId: userId,
+            status: FreightRequestStatus.PENDING,
+          },
+        }),
+      ]);
+
+   
+      let percentageChange = 0;
+      if (previous7DaysFreights > 0) {
+        percentageChange = ((last7DaysFreights - previous7DaysFreights) / previous7DaysFreights) * 100;
+      } else if (last7DaysFreights > 0) {
+        percentageChange = 100;
+      }
+
+      return {
+        totalFreights,
+        activeFreights,
+        freightsInProgress,
+        pendingRequests,
+        last7Days: {
+          count: last7DaysFreights,
+          percentageChange: Math.round(percentageChange * 100) / 100, 
+          comparison: percentageChange > 0 ? 'increase' : percentageChange < 0 ? 'decrease' : 'stable',
+          previousWeekCount: previous7DaysFreights,
+        },
+      };
+    } catch (error) {
+      console.error('Metrics Dashboard Error:', error);
+      throw new HttpException(
+        'Failed to fetch metrics dashboard data',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

@@ -125,6 +125,10 @@ export class Company {
   @Column({ nullable: true })
   siimpPassword: string;
 
+  @Column({ nullable: true })
+  userPhotoURL: string;
+
+
   @Column({ default: false })
   siimpIntegrationActive: boolean;
 

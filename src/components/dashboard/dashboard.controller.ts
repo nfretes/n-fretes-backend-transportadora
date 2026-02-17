@@ -38,4 +38,10 @@ export class DashboardController {
   async getTopDrivers(@GetUserId() userId: string) {
     return this.dashboardService.getTopDrivers(userId);
   }
+
+    @UseGuards(JwtAuthGuard)
+  @Get('metrics-dashboard')
+  async getMetricsDashboard(@GetUserId() userId: string) {
+    return this.dashboardService.getMetricsDashboard(userId);
+  }
 }

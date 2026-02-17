@@ -60,7 +60,7 @@ export class AuthService {
     await queryRunner.startTransaction();
 
     try {
-      const { cnpj, password, name, nameFantasy, ...userData } = registerDto;
+      const { cnpj, password, name, nameFantasy,email, cpf, ...userData } = registerDto;
 
       const existingUser = await this.companyRepository.findOne({
         where: { cnpj },
@@ -115,6 +115,8 @@ export class AuthService {
         isOn: true,
         cnpj: this.formatCNPJ(cnpj),
         name: this.formatName(name),
+            email,
+        cpf: cpf || null,
         nameFantasy: this.formatName(nameFantasy),
         zipcode: findByCnpj.endereco.cep,
         state: findByCnpj.endereco.uf,
@@ -503,7 +505,7 @@ export class AuthService {
       const user = await this.companyRepository.findOne({
         where: { id: decoded.sub },
         select: [
-          'id',
+           'id',
           'name',
           'email',
           'isActive',
@@ -514,6 +516,8 @@ export class AuthService {
           'phoneContact',
           'photoUrl',
           'phoneNumber',
+          'userPhotoURL',
+          'cpf',
           'city',
           'nameFantasy',
           'state',
@@ -604,44 +608,16 @@ export class AuthService {
   ): Promise<AuthResponseRegisterDto> {
     const { email, cpf, password, ...rest } = dto;
 
-    const subscription = await this.subscriptionCompanyRepository.findOne({
-      where: { companyId: userId },
-      relations: ['plan', 'plan.featureLimits', 'plan.featureLimits.feature'],
-    });
-    if (!subscription || subscription.status !== 1) {
-      throw new HttpException(
-        'Empresa sem assinatura ativa',
-        HttpStatus.FORBIDDEN,
-      );
-    }
 
-    const contactFeature = subscription.plan.featureLimits.find(
-      (f) => f.feature.name === 'contact_company',
-    );
-    if (!contactFeature) {
-      throw new HttpException(
-        'Plano não permite cadastro de contatos administrativos',
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    const totalContacts = await this.contactCompanyRepository.count({
-      where: { companyId: userId, isActive: true },
-    });
-    if (
-      contactFeature.monthlyLimit !== null &&
-      totalContacts >= contactFeature.monthlyLimit
-    ) {
-      throw new HttpException(
-        'Limite de contatos administrativos atingido',
-        HttpStatus.FORBIDDEN,
-      );
-    }
     const exists = await this.contactCompanyRepository.findOne({
-      where: [{ email }, { cpf }],
+      where: [
+        { email, companyId: userId },
+        { cpf, companyId: userId },
+      ],
     });
+
     if (exists) {
-      throw new HttpException('Contato já cadastrado', HttpStatus.BAD_REQUEST);
+      throw new HttpException('Contato já cadastrado nesta empresa', HttpStatus.BAD_REQUEST);
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const contact = this.contactCompanyRepository.create({
@@ -653,28 +629,8 @@ export class AuthService {
       isActive: true,
     });
     await this.contactCompanyRepository.save(contact);
-    if (contactFeature.monthlyLimit !== null) {
-      const usage = await this.featureUsageRepository.findOne({
-        where: {
-          subscriptionId: subscription.id,
-          featureId: contactFeature.feature.id,
-        },
-      });
-      if (usage) {
-        usage.quantityUsed -= 1;
-        await this.featureUsageRepository.save(usage);
-      }
-    }
-    await this.featureLogsRepository.save({
-      subscriptionId: subscription.id,
-      featureId: contactFeature.feature.id,
-      quantityChange: 1,
-      metadata: { contactId: contact.id },
-      relatedEntityId: contact.id,
-      description: `Cadastro de contato administrativo (${email})`,
-      performedById: userId,
-      performedByType: 'USER',
-    });
+  
+  
     return { message: 'Contato cadastrado com sucesso' };
   }
 

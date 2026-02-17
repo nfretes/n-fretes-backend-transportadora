@@ -2,6 +2,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ContactCompany } from '@entities/contact-company.entity';
+import { Freight } from '@entities/freight.entity';
 import {
   CreateContactCompanyDto,
   UpdateContactCompanyDto,
@@ -18,6 +19,8 @@ export class ContactCompanyService {
   constructor(
     @InjectRepository(ContactCompany)
     private contactCompanyRepository: Repository<ContactCompany>,
+    @InjectRepository(Freight)
+    private freightRepository: Repository<Freight>,
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -46,15 +49,16 @@ export class ContactCompanyService {
   async updateContactCompany(
     id: string,
     updateContactCompanyDto: UpdateContactCompanyDto,
+    companyId: string,
   ): Promise<ContactCompanyUpdateResponseDto> {
     try {
       const contactCompany = await this.contactCompanyRepository.findOne({
-        where: { id },
+        where: { id, companyId },
       });
 
       if (!contactCompany) {
         throw new HttpException(
-          'Não foi localizado esse contato da empresa',
+          'Não foi localizado esse contato da empresa ou você não tem permissão para alterá-lo',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -82,15 +86,15 @@ export class ContactCompanyService {
     }
   }
 
-  async getContactId(id: string): Promise<ContactCompanyResponseDto> {
+  async getContactId(id: string, companyId: string): Promise<ContactCompanyResponseDto> {
     try {
       const contactCompany = await this.contactCompanyRepository.findOne({
-        where: { id },
+        where: { id, companyId },
       });
 
       if (!contactCompany) {
         throw new HttpException(
-          'Não foi localizado esse contato da empresa',
+          'Não foi localizado esse contato da empresa ou você não tem permissão para acessá-lo',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -106,6 +110,7 @@ export class ContactCompanyService {
 
   async getCompanyId(
     params: ParamsContactCompany,
+    companyId: string,
   ): Promise<GetContactCompanyResponseDto> {
     try {
       const queryBuilder =
@@ -113,11 +118,9 @@ export class ContactCompanyService {
       const { take = 10, page = 1 } =
         this.paginationService.getDefaultPaginationParams(params);
 
-      if (params.companyId) {
-        queryBuilder.andWhere('contact-company.companyId = :companyId', {
-          companyId: params.companyId,
-        });
-      }
+      queryBuilder.andWhere('contact-company.companyId = :companyId', {
+        companyId,
+      });
 
       if (params.isActive) {
         queryBuilder.andWhere('contact-company.isActive = :isActive', {
@@ -128,6 +131,13 @@ export class ContactCompanyService {
         queryBuilder.andWhere(
           '(unaccent(LOWER(contact-company.name)) ILIKE unaccent(LOWER(:name)))',
           { name: `%${params.name}%` },
+        );
+      }
+
+      if (params.phoneNumber) {
+        queryBuilder.andWhere(
+          'contact-company.phoneNumber ILIKE :phoneNumber',
+          { phoneNumber: `%${params.phoneNumber}%` },
         );
       }
 
@@ -154,7 +164,7 @@ export class ContactCompanyService {
     }
   }
 
-  async softDeleteUsersContactCompany(id: string): Promise<string> {
+  async softDeleteUsersContactCompany(id: string, companyId: string): Promise<string> {
     const queryRunner =
       this.contactCompanyRepository.manager.connection.createQueryRunner();
     await queryRunner.startTransaction();
@@ -163,13 +173,13 @@ export class ContactCompanyService {
       const usersContactCompany = await queryRunner.manager.findOne(
         ContactCompany,
         {
-          where: { id },
+          where: { id, companyId },
         },
       );
 
       if (!usersContactCompany) {
         throw new HttpException(
-          'Não foi localizado um contato para essa empresa',
+          'Não foi localizado um contato para essa empresa ou você não tem permissão para desativá-lo',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -206,6 +216,77 @@ export class ContactCompanyService {
     } catch (error) {
       throw new HttpException(
         error?.message || 'Erro ao buscar contato',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getActiveFreightsByContact(
+    contactId: string,
+    companyId: string,
+  ): Promise<any[]> {
+    try {
+     
+      const contact = await this.contactCompanyRepository.findOne({
+        where: { id: contactId, companyId },
+      });
+
+      if (!contact) {
+        throw new HttpException(
+          'Contato não encontrado ou você não tem permissão para acessá-lo',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+    
+      const freights = await this.freightRepository
+        .createQueryBuilder('freight')
+        .where('freight.isActive = :isActive', { isActive: true })
+        .andWhere('freight.openSolicitations = :openSolicitations', { openSolicitations: true })
+        .andWhere(
+          '(freight.contactCompanyId = :contactId OR :contactId = ANY(string_to_array(freight.contactCompanyIds, \',\')))',
+          { contactId }
+        )
+        .select([
+          'freight.id',
+          'freight.originCity',
+          'freight.originState',
+          'freight.destinyCity',
+          'freight.destinyState',
+          'freight.product',
+          'freight.specieOfLoad',
+          'freight.weightOfLoad',
+          'freight.vehicleTypes',
+          'freight.bodyTypes',
+          'freight.createdAt',
+        ])
+        .orderBy('freight.createdAt', 'DESC')
+        .getMany();
+
+      return freights.map((freight) => ({
+        id: freight.id,
+        origem: {
+          cidade: freight.originCity,
+          estado: freight.originState,
+        },
+        destino: {
+          cidade: freight.destinyCity,
+          estado: freight.destinyState,
+        },
+        carga: {
+          produto: freight.product,
+          especie: freight.specieOfLoad,
+          peso: freight.weightOfLoad,
+        },
+        veiculoNecessario: {
+          tiposVeiculo: freight.vehicleTypes,
+          tiposCarroceria: freight.bodyTypes,
+        },
+        dataCriacao: freight.createdAt,
+      }));
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar fretes do contato',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

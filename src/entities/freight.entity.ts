@@ -186,7 +186,7 @@ export class Freight {
   @Column({ nullable: true })
   isExcludeUserId: string;
 
-  @Column({ default: false })
+  @Column({ default: true })
   isToShare: boolean;
 
   @Column({ nullable: true })

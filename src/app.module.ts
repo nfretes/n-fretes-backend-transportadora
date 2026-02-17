@@ -9,6 +9,7 @@ import configuration from './config/configuration';
 import { AuthModule } from '@components/auth/auth.module';
 import { SubscriptionModule } from '@components/subscriptions-company/subscription-company.module';
 import { ContactCompanyModule } from '@components/contact-company/contact-company.module';
+import { ContactGroupModule } from '@components/contact-group/contact-group.module';
 import { UsersContactCompanyModule } from '@components/users-contact-company/users-contact.module';
 import { FreightModule } from '@components/freight/freight.module';
 import { CompanyModule } from '@components/company/company.module';
@@ -40,6 +41,7 @@ import { IntegrationsModule } from '@components/integrations/integrations.module
 import { SeedModule } from '@components/seed/seed.module';
 import { FretebrasModule } from '@components/fretebras/fretebras.module';
 import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
+import { UIFeaturesModule } from '@components/ui-features/ui-features.module';
 
 @Module({
   imports: [
@@ -62,6 +64,7 @@ import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
     AuthModule,
     SubscriptionModule,
     ContactCompanyModule,
+    ContactGroupModule,
     UsersContactCompanyModule,
     FreightModule,
     CompanyModule,
@@ -91,6 +94,7 @@ import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
     SeedModule,
     FretebrasModule,
     PgNotifyModule,
+    UIFeaturesModule
   ],
   controllers: [AppController],
   providers: [AppService],
