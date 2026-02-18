@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsArray } from 'class-validator';
 
 export class CompanyUsersContactsDto {
   @ApiProperty({
@@ -19,6 +19,17 @@ export class CompanyUsersContactsDto {
   @IsString()
   @IsNotEmpty()
   userId?: string | null;
+
+  @ApiProperty({
+    description: 'Array of group IDs to associate with the contact',
+    example: ['a1b2c3d4-5678-90ab-cdef-1234567890ab'],
+    required: false,
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  groupIds?: string[];
 
   @ApiProperty({
     description: 'Indicates if the contact is active',

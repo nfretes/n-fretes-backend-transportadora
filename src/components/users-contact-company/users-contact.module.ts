@@ -6,6 +6,8 @@ import { PaginationService } from '@components/pagination/pagination.service';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
 import { Freight } from '@entities/freight.entity';
+import { ContactGroup } from '@entities/contact-group.entity';
+import { FreightRoutes } from '@entities/freight-routes.entity';
 
 import { UsersContactCompanyService } from './users-contact.service';
 import { UsersContactCompanyController } from './users-contact.controller';
@@ -19,6 +21,8 @@ import { FeatureLog } from '@entities/feature-logs.entity';
       FeatureLog,
       ContactCompany,
       Freight,
+      ContactGroup,
+      FreightRoutes,
     ]),
   ],
   exports: [TypeOrmModule],

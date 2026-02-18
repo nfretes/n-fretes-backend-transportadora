@@ -1,9 +1,11 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
 import { Freight } from '@entities/freight.entity';
+import { ContactGroup } from '@entities/contact-group.entity';
+import { FreightRoutes } from '@entities/freight-routes.entity';
 import {
   CompanyUsersContactsDto,
   updateCompanyUsersContactsDto,
@@ -26,6 +28,10 @@ export class UsersContactCompanyService {
     private contactCompanyRepository: Repository<ContactCompany>,
     @InjectRepository(Freight)
     private freightRepository: Repository<Freight>,
+    @InjectRepository(ContactGroup)
+    private contactGroupRepository: Repository<ContactGroup>,
+    @InjectRepository(FreightRoutes)
+    private freightRoutesRepository: Repository<FreightRoutes>,
     private readonly paginationService: PaginationService,
   ) {}
 
@@ -40,18 +46,44 @@ export class UsersContactCompanyService {
         },
       });
 
+      let contactToSave: CompanyUsersContacts;
+
       if (existing) {
         existing.isActive = true;
         existing.updatedAt = new Date();
-        await this.usersContactCompanyRepository.save(existing);
-        return existing;
+        contactToSave = await this.usersContactCompanyRepository.save(existing);
+      } else {
+        const create =
+          this.usersContactCompanyRepository.create(createContactCompany);
+        contactToSave = await this.usersContactCompanyRepository.save(create);
+      }
+      if (createContactCompany.groupIds && createContactCompany.groupIds.length > 0) {
+        const groups = await this.contactGroupRepository.find({
+          where: {
+            id: In(createContactCompany.groupIds),
+            companyId: createContactCompany.companyId,
+            isActive: true,
+          },
+          relations: ['contacts'],
+        });
+
+        if (groups.length !== createContactCompany.groupIds.length) {
+          throw new HttpException(
+            'Alguns grupos não foram encontrados ou não pertencem a esta empresa',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+
+ 
+        for (const group of groups) {
+          if (!group.contacts.some((c) => c.id === contactToSave.id)) {
+            group.contacts.push(contactToSave);
+            await this.contactGroupRepository.save(group);
+          }
+        }
       }
 
-      const create =
-        this.usersContactCompanyRepository.create(createContactCompany);
-      const save = await this.usersContactCompanyRepository.save(create);
-
-      return save;
+      return contactToSave;
     } catch (error) {
       throw new HttpException(
         error?.message || 'Erro ao criar contato da empresa',
@@ -110,9 +142,30 @@ export class UsersContactCompanyService {
         .leftJoin('companyUsersContacts.users', 'users_drive')
         .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
         .leftJoin('users_drive.vehicles', 'vehicle')
-        .leftJoin('users_drive.locations', 'location')
-        .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts')
-        .addSelect([
+        .leftJoin(
+          'users_drive.locations',
+          'location',
+          'location.id = (SELECT id FROM users_location WHERE "userId" = users_drive.id ORDER BY "createdAt" DESC LIMIT 1)',
+        )
+        .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts');
+
+      // Join com grupos se groupId for fornecido
+      if (params.groupId) {
+        queryBuilder
+          .leftJoin(
+            'contact-group-members',
+            'groupMembers',
+            'groupMembers.contactId = companyUsersContacts.id',
+          )
+          .leftJoin(
+            'contact-group',
+            'contactGroup',
+            'contactGroup.id = groupMembers.groupId AND contactGroup.isActive = true',
+          )
+          .andWhere('contactGroup.id = :groupId', { groupId: params.groupId });
+      }
+
+      queryBuilder.addSelect([
           'users_drive.name',
           'users_drive.cpf',
           'users_drive.cnh',
@@ -123,6 +176,7 @@ export class UsersContactCompanyService {
           'users_drive.id',
           'users_drive.zipcode',
           'users_drive.isOnRoute',
+          'users_drive.createdAt',
           'vehicle.vehicleType',
           'vehicle.bodyType',
           'vehicle.plateState',
@@ -172,9 +226,57 @@ export class UsersContactCompanyService {
 
       const paginatedResults = allResults.slice(skip, skip + limit);
 
+      // Buscar count de viagens para cada motorista
+      const contactIds = paginatedResults.map((contact) => contact.id);
+      const userIds = paginatedResults.map((contact) => contact.users?.id).filter(Boolean);
+      
+      let tripCounts = new Map<string, number>();
+      if (userIds.length > 0) {
+        const tripsData = await this.freightRoutesRepository
+          .createQueryBuilder('route')
+          .select('route.userDriveId', 'userDriveId')
+          .addSelect('COUNT(*)', 'count')
+          .where('route.userDriveId IN (:...userIds)', { userIds })
+          .groupBy('route.userDriveId')
+          .getRawMany();
+
+        tripsData.forEach((data) => {
+          tripCounts.set(data.userDriveId, parseInt(data.count));
+        });
+      }
+      
+      let groups = [];
+      if (contactIds.length > 0) {
+        groups = await this.contactGroupRepository
+          .createQueryBuilder('group')
+          .leftJoin('group.contacts', 'contact')
+          .where('contact.id IN (:...contactIds)', { contactIds })
+          .andWhere('group.isActive = :isActive', { isActive: true })
+          .select(['group.id', 'group.name', 'contact.id'])
+          .getMany();
+      }
+
+  
+      const groupsByContactId = new Map<string, string[]>();
+      for (const group of groups) {
+        for (const contact of group.contacts) {
+          if (!groupsByContactId.has(contact.id)) {
+            groupsByContactId.set(contact.id, []);
+          }
+          groupsByContactId.get(contact.id).push(group.name);
+        }
+      }
+
+      // Adicionar grupos e count de viagens aos resultados
+      const resultsWithGroups = paginatedResults.map((contact) => ({
+        ...contact,
+        groups: groupsByContactId.get(contact.id) || [],
+        tripCount: tripCounts.get(contact.users?.id) || 0,
+      }));
+
       return {
         //@ts-ignore
-        data: paginatedResults,
+        data: resultsWithGroups,
         count: total,
         page,
         limit,

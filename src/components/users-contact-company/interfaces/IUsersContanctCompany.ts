@@ -7,4 +7,5 @@ export interface ParamsUsersContactCompany {
   companyId?: string;
   excludeNotified?: boolean;
   freightId?: string;
+  groupId?: string;
 }
