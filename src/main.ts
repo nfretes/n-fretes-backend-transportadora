@@ -7,6 +7,7 @@ import { IntegrationsModule } from './components/integrations/integrations.modul
 import { ConfigService } from '@nestjs/config';
 import { json, urlencoded } from 'express';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
+import { SdrModule } from '@components/sdr/srd.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -49,6 +50,33 @@ async function bootstrap() {
     operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
   });
   SwaggerModule.setup('api/external/docs', app, externalDocument);
+
+
+   const sdrConfig = new DocumentBuilder()
+    .setTitle('NFretes - SDR API')
+    .setDescription(
+      'API exclusiva para equipe de SDR (Sales Development Representative). ' +
+      'Fornece endpoints para análise de empresas, motoristas, performance de matching, ' +
+      'análise de mercado e métricas de engajamento. Todos os endpoints requerem autenticação via x-api-key no header.',
+    )
+    .setVersion('1.0')
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+        description: 'Chave de API para autenticação da equipe SDR',
+      },
+      'x-api-key',
+    )
+    .addTag('SDR - Desenvolvimento de Vendas', 'Endpoints para análise e prospecção')
+    .build();
+  const sdrDocument = SwaggerModule.createDocument(app, sdrConfig, {
+    include: [SdrModule],
+    operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+  });
+  SwaggerModule.setup('docs/sdr/api', app, sdrDocument);
+
 
   const port = app.get(ConfigService).get<number>('PORT') || 3001;
 

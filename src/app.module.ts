@@ -42,6 +42,7 @@ import { SeedModule } from '@components/seed/seed.module';
 import { FretebrasModule } from '@components/fretebras/fretebras.module';
 import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
 import { UIFeaturesModule } from '@components/ui-features/ui-features.module';
+import { SdrModule } from '@components/sdr/srd.module';
 
 @Module({
   imports: [
@@ -94,7 +95,8 @@ import { UIFeaturesModule } from '@components/ui-features/ui-features.module';
     SeedModule,
     FretebrasModule,
     PgNotifyModule,
-    UIFeaturesModule
+    UIFeaturesModule,
+    SdrModule
   ],
   controllers: [AppController],
   providers: [AppService],

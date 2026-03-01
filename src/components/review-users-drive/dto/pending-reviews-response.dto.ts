@@ -20,6 +20,7 @@ class FreightInfo {
   product: string;
 }
 
+
 class DriverInfo {
   @ApiProperty({ example: 'driver-uuid-456' })
   id: string;

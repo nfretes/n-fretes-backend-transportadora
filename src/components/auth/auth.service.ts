@@ -130,7 +130,7 @@ export class AuthService {
 
       const plan = await this.planCompanyRepository.findOne({
         where: {
-          isTrial: true,
+          isTrial: false,
         },
       });
 
@@ -143,7 +143,7 @@ export class AuthService {
         status: 1,
         planId: plan.id,
         interval: 1,
-        isInTrial: true,
+        isInTrial: false,
         amount: plan.value,
         trialStartDate: new Date(),
         trialEndDate: trialEndDate,
