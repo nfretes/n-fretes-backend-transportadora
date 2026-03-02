@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Client } from 'pg';
 import { Freight } from '../../entities/freight.entity';
 import { Company } from '../../entities/company.entity';
@@ -150,149 +150,81 @@ export class FreightSyncCronService {
 
   /**
    * Cron job que roda a cada 10 minutos
-   * Busca fretes do dia no Fretebras, sincroniza com o banco local
+   * Busca fretes novos no banco local que ainda não foram compartilhados
    * e envia notificações agrupadas por região no WhatsApp
    */
-
+  @Cron('*/10 * * * *', {
+    name: 'freight-sync',
+    timeZone: 'America/Sao_Paulo',
+  })
   async syncFreightsFromToday() {
     this.logger.log('🔄 Iniciando sincronização periódica de fretes...');
 
     try {
-      // Garantir que a conexão está ativa
-      const isConnected = await this.ensureConnection();
-      if (!isConnected) {
-        this.logger.error(
-          '❌ Conexão com Fretebras não disponível, pulando sincronização',
-        );
-        return;
-      }
-
-      // 1. Buscar fretes do dia atual no banco Fretebras com status AVAILABLE
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
-
-      this.logger.log(
-        `📅 Buscando fretes do dia ${todayISO} com status AVAILABLE`,
-      );
-
-      const query = `
-        SELECT *
-        FROM public.fretes
-        WHERE DATE(created_at) = CURRENT_DATE
-          AND status = 'AVAILABLE'
-        ORDER BY created_at DESC
-      `;
-
-      const result = await this.fretebrasClient.query(query);
-      const freightsFromFretebras = result.rows || [];
-
-      this.logger.log(
-        `📦 Encontrados ${freightsFromFretebras.length} fretes no Fretebras`,
-      );
-
-      if (freightsFromFretebras.length === 0) {
-        this.logger.log('✅ Nenhum frete para sincronizar');
-        return;
-      }
-
-      // 2. Extrair IDs dos fretes encontrados
-      const fretebrasIds = freightsFromFretebras
-        .map((f) => f.id?.toString() || f.external_id?.toString())
-        .filter(Boolean);
-
-      if (fretebrasIds.length === 0) {
-        this.logger.warn(
-          '⚠️ Nenhum ID válido encontrado nos fretes do Fretebras',
-        );
-        return;
-      }
-
-      this.logger.log(
-        `🔍 Verificando ${fretebrasIds.length} IDs no banco local...`,
-      );
-
-      // 3. Verificar quais desses IDs já existem no banco local
-      const existingFreights = await this.freightRepository
-        .createQueryBuilder('freight')
-        .select('freight.id')
-        .where('freight.id IN (:...ids)', { ids: fretebrasIds })
-        .getMany();
-
-      const existingIds = new Set(existingFreights.map((f) => f.id));
-      this.logger.log(
-        `✅ ${existingIds.size} fretes já existem no banco local`,
-      );
-
-      // 4. Filtrar apenas os fretes que NÃO existem localmente
-      const freightsToCreate = freightsFromFretebras.filter((freight) => {
-        const freightId =
-          freight.id?.toString() || freight.external_id?.toString();
-        return freightId && !existingIds.has(freightId);
+      // 1. Buscar fretes do banco local que ainda não foram compartilhados
+      // Apenas fretes com isToShare=true, openSolicitations=true e isActive=true
+      const freightsToShare = await this.freightRepository.find({
+        where: {
+          isToShare: true,
+          openSolicitations: true,
+          isActive: true,
+        },
+        relations: ['company'],
+        order: {
+          createdAt: 'DESC',
+        },
       });
 
-      this.logger.log(`📤 ${freightsToCreate.length} fretes novos encontrados`);
+      this.logger.log(
+        `📦 Encontrados ${freightsToShare.length} fretes para compartilhar`,
+      );
 
-      if (freightsToCreate.length === 0) {
-        this.logger.log('✅ Nenhum frete novo para processar');
+      if (freightsToShare.length === 0) {
+        this.logger.log('✅ Nenhum frete para compartilhar');
         return;
       }
 
-      // 5. AGRUPAR POR REGIÃO ANTES DE SALVAR (máximo 10 por região)
-      const freightsByRegionToProcess =
-        this.groupNewFreightsByRegion(freightsToCreate);
+      // 2. AGRUPAR POR REGIÃO (máximo 10 por região)
+      const freightsByRegion = this.groupLocalFreightsByRegion(freightsToShare);
 
-      // 6. Processar e salvar APENAS os 10 fretes de cada região
-      let savedCount = 0;
+      // 3. Enviar notificações agrupadas para cada região
+      let sharedCount = 0;
       let errorCount = 0;
-      const savedFreightsByRegion = {
-        NORTE: [],
-        NORDESTE: [],
-        CENTRO_OESTE: [],
-        SUDESTE: [],
-        SUL: [],
-      };
 
-      for (const [region, freights] of Object.entries(
-        freightsByRegionToProcess,
-      )) {
+      for (const [region, freights] of Object.entries(freightsByRegion)) {
         if (Array.isArray(freights) && freights.length > 0) {
           this.logger.log(
-            `📍 Processando ${freights.length} fretes da região ${region}`,
+            `📍 Compartilhando ${freights.length} fretes da região ${region}`,
           );
 
-          for (const freightData of freights) {
-            try {
-              const freight = await this.processAndSaveFreight(freightData);
-              if (freight) {
-                savedCount++;
-                savedFreightsByRegion[region].push(freightData);
-                this.logger.debug(
-                  `✅ Frete ${freight.id} salvo no banco (${region})`,
-                );
-              }
-            } catch (error) {
-              errorCount++;
-              this.logger.error(
-                `❌ Erro ao processar frete ${freightData.id}:`,
-                error.message || error,
-              );
-            }
+          try {
+            await this.sendGroupedNotificationsWithUpdate(freights, region);
+            sharedCount += freights.length;
+
+            // 4. Marcar fretes como compartilhados (isToShare = false)
+            const freightIds = freights.map((f) => f.id);
+            await this.freightRepository.update(
+              { id: In(freightIds) },
+              { isToShare: false },
+            );
+
+            this.logger.log(
+              `✅ ${freights.length} fretes compartilhados e marcados (${region})`,
+            );
+          } catch (error) {
+            errorCount += freights.length;
+            this.logger.error(
+              `❌ Erro ao compartilhar fretes da região ${region}:`,
+              error.message || error,
+            );
           }
         }
       }
 
-      this.logger.log(`💾 Fretes salvos: ${savedCount} | Erros: ${errorCount}`);
-
-      // 7. Enviar notificações agrupadas para cada região
-      await this.sendGroupedNotifications(savedFreightsByRegion);
-
       this.logger.log(
         `🎉 Sincronização concluída! ` +
-          `Total encontrados: ${freightsFromFretebras.length} | ` +
-          `Já existentes: ${existingIds.size} | ` +
-          `Novos disponíveis: ${freightsToCreate.length} | ` +
-          `Salvos (10 por região): ${savedCount} | ` +
+          `Total encontrados: ${freightsToShare.length} | ` +
+          `Compartilhados: ${sharedCount} | ` +
           `Erros: ${errorCount}`,
       );
     } catch (error) {
@@ -301,6 +233,351 @@ export class FreightSyncCronService {
         error.message || error,
       );
     }
+  }
+
+  private groupLocalFreightsByRegion(freights: Freight[]) {
+    const regions = {
+      NORTE: [],
+      NORDESTE: [],
+      CENTRO_OESTE: [],
+      SUDESTE: [],
+      SUL: [],
+    };
+
+    // Mapa de estados para regiões
+    const stateToRegion = {
+      AC: 'NORTE',
+      AP: 'NORTE',
+      AM: 'NORTE',
+      PA: 'NORTE',
+      RO: 'NORTE',
+      RR: 'NORTE',
+      TO: 'NORTE',
+      AL: 'NORDESTE',
+      BA: 'NORDESTE',
+      CE: 'NORDESTE',
+      MA: 'NORDESTE',
+      PB: 'NORDESTE',
+      PE: 'NORDESTE',
+      PI: 'NORDESTE',
+      RN: 'NORDESTE',
+      SE: 'NORDESTE',
+      DF: 'CENTRO_OESTE',
+      GO: 'CENTRO_OESTE',
+      MT: 'CENTRO_OESTE',
+      MS: 'CENTRO_OESTE',
+      ES: 'SUDESTE',
+      MG: 'SUDESTE',
+      RJ: 'SUDESTE',
+      SP: 'SUDESTE',
+      PR: 'SUL',
+      RS: 'SUL',
+      SC: 'SUL',
+    };
+
+    // Agrupar por região baseado no estado de origem
+    for (const freight of freights) {
+      const originState = freight.originState?.toUpperCase();
+      const region = stateToRegion[originState] || 'SUDESTE'; // Default SUDESTE
+
+      if (regions[region]) {
+        regions[region].push(freight);
+      }
+    }
+
+    // Limitar a 10 fretes por região
+    Object.keys(regions).forEach((region) => {
+      const total = regions[region].length;
+      regions[region] = regions[region].slice(0, 10);
+      if (total > 0) {
+        this.logger.log(
+          `📊 Região ${region}: ${total} fretes, compartilhando ${regions[region].length}`,
+        );
+      }
+    });
+
+    return regions;
+  }
+
+  private async sendGroupedNotificationsWithUpdate(
+    freights: Freight[],
+    region: string,
+  ) {
+    const regionGroupMap = {
+      NORTE: { id: NFRETES_GROUP_ID_NORTE, name: 'Norte' },
+      NORDESTE: { id: NFRETES_GROUP_ID_NORDESTE, name: 'Nordeste' },
+      CENTRO_OESTE: { id: NFRETES_GROUP_ID_CENTRO_OESTE, name: 'Centro-Oeste' },
+      SUDESTE: { id: NFRETES_GROUP_ID_SUDESTE, name: 'Sudeste' },
+      SUL: { id: NFRETES_GROUP_ID_SUL, name: 'Sul' },
+    };
+
+    const groupInfo = regionGroupMap[region];
+    if (!groupInfo || !groupInfo.id) {
+      this.logger.warn(`Grupo não configurado para região: ${region}`);
+      return;
+    }
+
+    try {
+      const message = this.formatLocalFreightMessage(freights, groupInfo.name);
+      await this.fretebrasService.sendTextMessage(groupInfo.id, message);
+      this.logger.log(
+        `✅ Enviados ${freights.length} fretes para região ${region}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `❌ Erro ao enviar mensagem para região ${region}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  private formatLocalFreightMessage(
+    freights: Freight[],
+    regionName: string,
+  ): string {
+    let message = `🚛 *Novos Fretes Disponíveis - Região ${regionName}!*\n\n`;
+
+    freights.forEach((freight, index) => {
+      const origem =
+        freight.originCity && freight.originState
+          ? `${freight.originCity} - ${freight.originState}`
+          : 'Origem não informada';
+
+      const destino =
+        freight.destinyCity && freight.destinyState
+          ? `${freight.destinyCity} - ${freight.destinyState}`
+          : 'Destino não informado';
+
+      const tipoCarga = freight.product || 'Carga não informada';
+      const veiculo = freight.vehicleTypes?.join(', ') || 'Veículo não informado';
+
+      // Formatar data e hora
+      let dataHora = '';
+      if (freight.createdAt) {
+        const date = new Date(freight.createdAt);
+        const dia = date.getDate().toString().padStart(2, '0');
+        const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+        const ano = date.getFullYear();
+        const hora = date.getHours().toString().padStart(2, '0');
+        const minuto = date.getMinutes().toString().padStart(2, '0');
+        dataHora = `${dia}/${mes}/${ano} às ${hora}:${minuto}`;
+      }
+
+      // Nome da transportadora
+      const transportadora =
+        freight.company?.name ||
+        freight.company?.nameFantasy ||
+        'Transportadora';
+
+      // URL do frete
+      const freightUrl = `https://nfretes.com.br/detalhes-do-frete/${freight.id}/`;
+
+      message += `━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `*Frete ${index + 1}* ${dataHora ? `- ${dataHora}` : ''}\n`;
+      message += `🏢 *Transportadora:* ${transportadora}\n`;
+      message += `📍 *Origem:* ${origem}\n`;
+      message += `📍 *Destino:* ${destino}\n`;
+      message += `📦 *Carga:* ${tipoCarga}\n`;
+      message += `🚚 *Veículo:* ${veiculo}\n`;
+      message += `🔗 ${freightUrl}\n\n`;
+    });
+
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `💡 *Como aceitar estes fretes:*\n`;
+    message += `1️⃣ Clique no link acima de cada frete\n`;
+    message += `2️⃣ Baixe o app nFretes Motorista\n`;
+    message += `3️⃣ Procure pela origem do frete\n`;
+    message += `4️⃣ Envie seu convite!\n\n`;
+    message += `_Fretes disponíveis! Não perca essa oportunidade! 🚚💨_`;
+
+    return message;
+  }
+
+  /**
+   * Método para sincronizar manualmente (útil para testes)
+   */
+  async syncManually() {
+    this.logger.log('🔧 Sincronização manual solicitada');
+    return this.syncFreightsFromToday();
+  }
+
+  async onModuleDestroy() {
+    try {
+      // Limpar timeout de reconexão
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+
+      // Encerrar conexão com Fretebras (mantido para compatibilidade)
+      if (this.fretebrasClient) {
+        this.fretebrasClient.removeAllListeners();
+        await this.fretebrasClient.end();
+        this.logger.log('🔌 Conexão com Fretebras encerrada');
+      }
+    } catch (error) {
+      this.logger.error(
+        `❌ Erro ao encerrar conexão Fretebras: ${error.message || error}`,
+      );
+    }
+  }
+
+  // ======================================================================
+  // MÉTODOS LEGADOS - Mantidos para compatibilidade futura com FreteBras
+  // ======================================================================
+
+  private groupNewFreightsByRegion(freights: any[]) {
+    const regions = {
+      NORTE: [],
+      NORDESTE: [],
+      CENTRO_OESTE: [],
+      SUDESTE: [],
+      SUL: [],
+    };
+
+    // Agrupar por região
+    for (const freightData of freights) {
+      const region = this.fretebrasService.getRegionFromFreight(freightData);
+      if (region && regions[region]) {
+        regions[region].push(freightData);
+      }
+    }
+
+    // Limitar a 10 fretes por região
+    Object.keys(regions).forEach((region) => {
+      const total = regions[region].length;
+      regions[region] = regions[region].slice(0, 10);
+      if (total > 0) {
+        this.logger.log(
+          `📊 Região ${region}: ${total} novos, processando ${regions[region].length}`,
+        );
+      }
+    });
+
+    return regions;
+  }
+
+  private groupFreightsByRegion(
+    freights: Array<{ freight: Freight; data: any }>,
+  ) {
+    const regions = {
+      NORTE: [],
+      NORDESTE: [],
+      CENTRO_OESTE: [],
+      SUDESTE: [],
+      SUL: [],
+    };
+
+    for (const item of freights) {
+      const region = this.fretebrasService.getRegionFromFreight(item.data);
+      if (region && regions[region]) {
+        regions[region].push(item.data);
+      }
+    }
+
+    // Limitar a 10 fretes por região
+    Object.keys(regions).forEach((region) => {
+      regions[region] = regions[region].slice(0, 10);
+    });
+
+    return regions;
+  }
+
+  private async sendGroupedNotifications(freightsByRegion: any) {
+    const regionGroupMap = {
+      NORTE: { id: NFRETES_GROUP_ID_NORTE, name: 'Norte' },
+      NORDESTE: { id: NFRETES_GROUP_ID_NORDESTE, name: 'Nordeste' },
+      CENTRO_OESTE: { id: NFRETES_GROUP_ID_CENTRO_OESTE, name: 'Centro-Oeste' },
+      SUDESTE: { id: NFRETES_GROUP_ID_SUDESTE, name: 'Sudeste' },
+      SUL: { id: NFRETES_GROUP_ID_SUL, name: 'Sul' },
+    };
+
+    for (const [region, freights] of Object.entries(freightsByRegion)) {
+      if (Array.isArray(freights) && freights.length > 0) {
+        const groupInfo = regionGroupMap[region];
+        if (!groupInfo || !groupInfo.id) {
+          this.logger.warn(`Grupo não configurado para região: ${region}`);
+          continue;
+        }
+
+        try {
+          const message = this.formatGroupedFreightMessage(
+            freights,
+            groupInfo.name,
+          );
+          await this.fretebrasService.sendTextMessage(groupInfo.id, message);
+          this.logger.log(
+            `✅ Enviados ${freights.length} fretes para região ${region}`,
+          );
+        } catch (error) {
+          this.logger.error(
+            `❌ Erro ao enviar mensagem para região ${region}:`,
+            error,
+          );
+        }
+      }
+    }
+  }
+
+  private formatGroupedFreightMessage(
+    freights: any[],
+    regionName: string,
+  ): string {
+    const link = 'https://motorista-convite.nfretes.com.br';
+    let message = `🚛 *Novos Fretes Disponíveis - Região ${regionName}!*\n\n`;
+
+    freights.forEach((freight, index) => {
+      const origem =
+        freight.origem_cidade && freight.origem_estado
+          ? `${freight.origem_cidade} - ${freight.origem_estado}`
+          : freight.origem || 'Origem não informada';
+
+      const destino =
+        freight.destino_cidade && freight.destino_estado
+          ? `${freight.destino_cidade} - ${freight.destino_estado}`
+          : freight.destino || 'Destino não informado';
+
+      const tipoCarga = freight.carga || 'Carga não informada';
+      const veiculo = freight.tipos_veiculo || 'Veículo não informado';
+
+      // Formatar data e hora
+      let dataHora = '';
+      if (freight.created_at) {
+        const date = new Date(freight.created_at);
+        const dia = date.getDate().toString().padStart(2, '0');
+        const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+        const ano = date.getFullYear();
+        const hora = date.getHours().toString().padStart(2, '0');
+        const minuto = date.getMinutes().toString().padStart(2, '0');
+        dataHora = `${dia}/${mes}/${ano} às ${hora}:${minuto}`;
+      }
+
+      // Nome da transportadora
+      const transportadora =
+        freight.transportadora_nome ||
+        freight.nome_transportadora ||
+        'Transportadora';
+
+      message += `━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `*Frete ${index + 1}* ${dataHora ? `- ${dataHora}` : ''}\n`;
+      message += `🏢 *Transportadora:* ${transportadora}\n`;
+      message += `📍 *Origem:* ${origem}\n`;
+      message += `📍 *Destino:* ${destino}\n`;
+      message += `📦 *Carga:* ${tipoCarga}\n`;
+      message += `🚚 *Veículo:* ${veiculo}\n`;
+      message += `🔗 ${link}\n\n`;
+    });
+
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `💡 *Como aceitar estes fretes:*\n`;
+    message += `1️⃣ Clique no link acima de cada frete\n`;
+    message += `2️⃣ Baixe o app nFretes Motorista\n`;
+    message += `3️⃣ Procure pela origem do frete\n`;
+    message += `4️⃣ Envie seu convite!\n\n`;
+    message += `_Fretes disponíveis! Não perca essa oportunidade! 🚚💨_`;
+
+    return message;
   }
 
   private async processAndSaveFreight(
@@ -482,159 +759,6 @@ export class FreightSyncCronService {
     return null;
   }
 
-  private groupNewFreightsByRegion(freights: any[]) {
-    const regions = {
-      NORTE: [],
-      NORDESTE: [],
-      CENTRO_OESTE: [],
-      SUDESTE: [],
-      SUL: [],
-    };
-
-    // Agrupar por região
-    for (const freightData of freights) {
-      const region = this.fretebrasService.getRegionFromFreight(freightData);
-      if (region && regions[region]) {
-        regions[region].push(freightData);
-      }
-    }
-
-    // Limitar a 10 fretes por região
-    Object.keys(regions).forEach((region) => {
-      const total = regions[region].length;
-      regions[region] = regions[region].slice(0, 10);
-      if (total > 0) {
-        this.logger.log(
-          `📊 Região ${region}: ${total} novos, processando ${regions[region].length}`,
-        );
-      }
-    });
-
-    return regions;
-  }
-
-  private groupFreightsByRegion(
-    freights: Array<{ freight: Freight; data: any }>,
-  ) {
-    const regions = {
-      NORTE: [],
-      NORDESTE: [],
-      CENTRO_OESTE: [],
-      SUDESTE: [],
-      SUL: [],
-    };
-
-    for (const item of freights) {
-      const region = this.fretebrasService.getRegionFromFreight(item.data);
-      if (region && regions[region]) {
-        regions[region].push(item.data);
-      }
-    }
-
-    // Limitar a 10 fretes por região
-    Object.keys(regions).forEach((region) => {
-      regions[region] = regions[region].slice(0, 10);
-    });
-
-    return regions;
-  }
-
-  private async sendGroupedNotifications(freightsByRegion: any) {
-    const regionGroupMap = {
-      NORTE: { id: NFRETES_GROUP_ID_NORTE, name: 'Norte' },
-      NORDESTE: { id: NFRETES_GROUP_ID_NORDESTE, name: 'Nordeste' },
-      CENTRO_OESTE: { id: NFRETES_GROUP_ID_CENTRO_OESTE, name: 'Centro-Oeste' },
-      SUDESTE: { id: NFRETES_GROUP_ID_SUDESTE, name: 'Sudeste' },
-      SUL: { id: NFRETES_GROUP_ID_SUL, name: 'Sul' },
-    };
-
-    for (const [region, freights] of Object.entries(freightsByRegion)) {
-      if (Array.isArray(freights) && freights.length > 0) {
-        const groupInfo = regionGroupMap[region];
-        if (!groupInfo || !groupInfo.id) {
-          this.logger.warn(`Grupo não configurado para região: ${region}`);
-          continue;
-        }
-
-        try {
-          const message = this.formatGroupedFreightMessage(
-            freights,
-            groupInfo.name,
-          );
-          await this.fretebrasService.sendTextMessage(groupInfo.id, message);
-          this.logger.log(
-            `✅ Enviados ${freights.length} fretes para região ${region}`,
-          );
-        } catch (error) {
-          this.logger.error(
-            `❌ Erro ao enviar mensagem para região ${region}:`,
-            error,
-          );
-        }
-      }
-    }
-  }
-
-  private formatGroupedFreightMessage(
-    freights: any[],
-    regionName: string,
-  ): string {
-    const link = 'https://motorista-convite.nfretes.com.br';
-    let message = `🚛 *Novos Fretes Disponíveis - Região ${regionName}!*\n\n`;
-
-    freights.forEach((freight, index) => {
-      const origem =
-        freight.origem_cidade && freight.origem_estado
-          ? `${freight.origem_cidade} - ${freight.origem_estado}`
-          : freight.origem || 'Origem não informada';
-
-      const destino =
-        freight.destino_cidade && freight.destino_estado
-          ? `${freight.destino_cidade} - ${freight.destino_estado}`
-          : freight.destino || 'Destino não informado';
-
-      const tipoCarga = freight.carga || 'Carga não informada';
-      const veiculo = freight.tipos_veiculo || 'Veículo não informado';
-
-      // Formatar data e hora
-      let dataHora = '';
-      if (freight.created_at) {
-        const date = new Date(freight.created_at);
-        const dia = date.getDate().toString().padStart(2, '0');
-        const mes = (date.getMonth() + 1).toString().padStart(2, '0');
-        const ano = date.getFullYear();
-        const hora = date.getHours().toString().padStart(2, '0');
-        const minuto = date.getMinutes().toString().padStart(2, '0');
-        dataHora = `${dia}/${mes}/${ano} às ${hora}:${minuto}`;
-      }
-
-      // Nome da transportadora
-      const transportadora =
-        freight.transportadora_nome ||
-        freight.nome_transportadora ||
-        'Transportadora';
-
-      message += `━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Frete ${index + 1}* ${dataHora ? `- ${dataHora}` : ''}\n`;
-      message += `🏢 *Transportadora:* ${transportadora}\n`;
-      message += `📍 *Origem:* ${origem}\n`;
-      message += `📍 *Destino:* ${destino}\n`;
-      message += `📦 *Carga:* ${tipoCarga}\n`;
-      message += `🚚 *Veículo:* ${veiculo}\n`;
-      message += `🔗 ${link}\n\n`;
-    });
-
-    message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `💡 *Como aceitar estes fretes:*\n`;
-    message += `1️⃣ Clique no link acima de cada frete\n`;
-    message += `2️⃣ Baixe o app nFretes Motorista\n`;
-    message += `3️⃣ Procure pela origem do frete\n`;
-    message += `4️⃣ Envie seu convite!\n\n`;
-    message += `_Fretes disponíveis! Não perca essa oportunidade! 🚚💨_`;
-
-    return message;
-  }
-
   private parsePrice(price: any): number {
     if (!price) return 0;
     if (typeof price === 'number') return price;
@@ -770,34 +894,5 @@ export class FreightSyncCronService {
       }
     });
     return result.length > 0 ? result : [BodyType.CHEST];
-  }
-
-  /**
-   * Método para sincronizar manualmente (útil para testes)
-   */
-  async syncManually() {
-    this.logger.log('🔧 Sincronização manual solicitada');
-    return this.syncFreightsFromToday();
-  }
-
-  async onModuleDestroy() {
-    try {
-      // Limpar timeout de reconexão
-      if (this.reconnectTimeout) {
-        clearTimeout(this.reconnectTimeout);
-        this.reconnectTimeout = null;
-      }
-
-      // Encerrar conexão com Fretebras
-      if (this.fretebrasClient) {
-        this.fretebrasClient.removeAllListeners();
-        await this.fretebrasClient.end();
-        this.logger.log('🔌 Conexão com Fretebras encerrada');
-      }
-    } catch (error) {
-      this.logger.error(
-        `❌ Erro ao encerrar conexão Fretebras: ${error.message || error}`,
-      );
-    }
   }
 }
