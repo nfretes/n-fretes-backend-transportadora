@@ -26,11 +26,6 @@ import {
 @Injectable()
 export class FreightSyncCronService {
   private readonly logger = new Logger(FreightSyncCronService.name);
-  private fretebrasClient: Client;
-  private isConnecting = false;
-  private isReconnecting = false;
-  private reconnectTimeout: NodeJS.Timeout | null = null;
-  private readonly dbConfig: any;
 
   constructor(
     private configService: ConfigService,
@@ -42,110 +37,62 @@ export class FreightSyncCronService {
     private contactCompanyRepository: Repository<ContactCompany>,
     private fretebrasService: FretebrasService,
   ) {
-    this.dbConfig = {
-      host: this.configService.get('DATABASE_HOST_FRETEBRAS'),
-      port: this.configService.get('DATABASE_PORT_FRETEBRAS') || 15432,
-      database: this.configService.get('DATABASE_NAME_FRETEBRAS'),
-      user: this.configService.get('DATABASE_USERNAME_FRETEBRAS'),
-      password: this.configService.get('DATABASE_PASSWORD_FRETEBRAS'),
-      connectionTimeoutMillis: 30000,
-      query_timeout: 60000,
-      keepAlive: true,
-      keepAliveInitialDelayMillis: 10000,
+    this.logger.log('✅ FreightSyncCronService inicializado (sem conexão Fretebras)');
+  }
+
+  /**
+   * Converter tipo de veículo para português
+   */
+  private convertVehicleType(vehicleType: string): string {
+    const vehicleTypeLabelMap: Record<string, string> = {
+      'ALLLIGHT': 'Todos Leves',
+      'ALLAVERAGE': 'Todos Médios',
+      'TRAINWHELL': 'Roda de Trem',
+      'THREE_QUARTER': 'Três Quartos',
+      'FIORINO': 'Fiorino',
+      'STUMP': 'Tronco',
+      'VCL': 'VCL',
+      'BIT_TRUCK': 'Bitruck',
+      'TRUCK': 'Caminhão',
+      'BI_TRAIN': 'Bi-Trem',
+      'CART': 'Carroça',
+      'CART_LS': 'Carroça LS',
+      'ROAD_TRAIN': 'Road Train',
+      'VANDERLEIA': 'Vanderleia',
+      'THREE_FOUR': 'Três Quatro',
+      'TOCO': 'Toco',
+      'ALLWEIGHT': 'Todos Pesados',
     };
-
-    this.connectToFretebras();
+    return vehicleTypeLabelMap[vehicleType] ?? vehicleType;
   }
 
-  private async connectToFretebras() {
-    if (this.isConnecting) {
-      this.logger.debug('⏳ Conexão já em andamento, aguardando...');
-      return;
-    }
-
-    this.isConnecting = true;
-
-    try {
-      if (this.fretebrasClient) {
-        try {
-          this.fretebrasClient.removeAllListeners();
-          await this.fretebrasClient.end();
-          this.logger.debug('🔌 Conexão anterior encerrada');
-        } catch (err) {}
-        this.fretebrasClient = null;
-      }
-      this.fretebrasClient = new Client(this.dbConfig);
-
-      this.fretebrasClient.on('error', (err) => {
-        this.logger.error(`❌ Erro na conexão Fretebras: ${err.message}`);
-        if (!this.isReconnecting) {
-          this.reconnectToFretebras();
-        }
-      });
-
-      this.fretebrasClient.on('end', () => {
-        this.logger.warn('⚠️ Conexão Fretebras encerrada');
-        if (!this.isReconnecting) {
-          this.reconnectToFretebras();
-        }
-      });
-
-      await this.fretebrasClient.connect();
-      this.logger.log(
-        '✅ Conectado ao banco Fretebras para sincronização CRON',
-      );
-      this.isReconnecting = false;
-    } catch (error) {
-      this.logger.error(
-        `❌ Falha ao conectar ao banco Fretebras: ${error.message || error}`,
-      );
-      this.reconnectToFretebras();
-    } finally {
-      this.isConnecting = false;
-    }
-  }
-
-  private reconnectToFretebras() {
-    if (this.isReconnecting) {
-      return;
-    }
-
-    this.isReconnecting = true;
-
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-
-    this.logger.log('🔄 Reconectando ao Fretebras em 10 segundos...');
-    this.reconnectTimeout = setTimeout(() => {
-      this.connectToFretebras();
-    }, 10000); // Aumentado para 10 segundos
-  }
-
-  private async ensureConnection(): Promise<boolean> {
-    try {
-      if (!this.fretebrasClient) {
-        this.logger.warn('⚠️ Cliente não existe, criando nova conexão...');
-        await this.connectToFretebras();
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-
-      // Testar conexão com timeout
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout ao testar conexão')), 5000),
-      );
-
-      const queryPromise = this.fretebrasClient.query('SELECT 1');
-
-      await Promise.race([queryPromise, timeoutPromise]);
-      return true;
-    } catch (error) {
-      this.logger.error(`❌ Conexão não disponível: ${error.message}`);
-      if (!this.isReconnecting) {
-        this.reconnectToFretebras();
-      }
-      return false;
-    }
+  /**
+   * Converter tipo de carroceria para português
+   */
+  private convertBodyType(bodyType: string): string {
+    const bodyTypeLabelMap: Record<string, string> = {
+      'CHEST': 'Baú',
+      'FRIDGE_CHEST': 'Baú Frigorífico',
+      'REFRIGERATED_CHEST': 'Baú Refrigerado',
+      'SIDER': 'Sider',
+      'BUCKET': 'Caçamba',
+      'LOW_GRILLE': 'Grade Baixa',
+      'BULK_CARRIER': 'Graneleiro',
+      'PLATFORM': 'Plataforma',
+      'BOARD': 'Plataforma de Madeira',
+      'ONLY_HORSE': 'Somente Cavalo',
+      'BUG_CONTAINER_DOOR': 'Porta de Container',
+      'PRATTLE': 'Pau de Arara',
+      'BLINKER': 'Pisca',
+      'CAVAQUEIRA': 'Cavaqueira',
+      'CAGE': 'Gaiola',
+      'CONTAINER': 'Container',
+      'HOPPER': 'Hopper',
+      'MUNK': 'Munk',
+      'SILO': 'Silo',
+      'TANK': 'Tanque',
+    };
+    return bodyTypeLabelMap[bodyType] ?? bodyType;
   }
 
   /**
@@ -161,8 +108,7 @@ export class FreightSyncCronService {
     this.logger.log('🔄 Iniciando sincronização periódica de fretes...');
 
     try {
-      // 1. Buscar fretes do banco local que ainda não foram compartilhados
-      // Apenas fretes com isToShare=true, openSolicitations=true e isActive=true
+
       const freightsToShare = await this.freightRepository.find({
         where: {
           isToShare: true,
@@ -184,10 +130,7 @@ export class FreightSyncCronService {
         return;
       }
 
-      // 2. AGRUPAR POR REGIÃO (máximo 10 por região)
       const freightsByRegion = this.groupLocalFreightsByRegion(freightsToShare);
-
-      // 3. Enviar notificações agrupadas para cada região
       let sharedCount = 0;
       let errorCount = 0;
 
@@ -201,7 +144,7 @@ export class FreightSyncCronService {
             await this.sendGroupedNotificationsWithUpdate(freights, region);
             sharedCount += freights.length;
 
-            // 4. Marcar fretes como compartilhados (isToShare = false)
+    
             const freightIds = freights.map((f) => f.id);
             await this.freightRepository.update(
               { id: In(freightIds) },
@@ -341,16 +284,46 @@ export class FreightSyncCronService {
     freights.forEach((freight, index) => {
       const origem =
         freight.originCity && freight.originState
-          ? `${freight.originCity} - ${freight.originState}`
+          ? `${freight.originCity}/${freight.originState}`
           : 'Origem não informada';
 
       const destino =
         freight.destinyCity && freight.destinyState
-          ? `${freight.destinyCity} - ${freight.destinyState}`
+          ? `${freight.destinyCity}/${freight.destinyState}`
           : 'Destino não informado';
 
-      const tipoCarga = freight.product || 'Carga não informada';
-      const veiculo = freight.vehicleTypes?.join(', ') || 'Veículo não informado';
+      const tipoCarga = freight.product || 'Não informada';
+      
+      // Traduzir e formatar tipos de veículos
+      const veiculo = freight.vehicleTypes?.length 
+        ? freight.vehicleTypes
+            .map(v => this.convertVehicleType(v))
+            .join(', ')
+        : 'Não informado';
+      
+      // Traduzir e formatar tipos de carroceria
+      const carroceria = freight.bodyTypes?.length 
+        ? freight.bodyTypes
+            .map(b => this.convertBodyType(b))
+            .join(', ')
+        : 'Não informada';
+      
+      const peso = freight.weightOfLoad || 'Não informado';
+      const especie = freight.specieOfLoad || '';
+      const distancia = freight.distance ? `${freight.distance} km` : null;
+      
+      // Valor: mostrar "A combinar" se for 0 ou null
+      const valor = freight.Valuefreight && freight.Valuefreight > 0 
+        ? `R$ ${freight.Valuefreight.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : 'A combinar';
+
+      // Adiantamento
+      const adiantamento = freight.valueAdvance && freight.valueAdvance > 0
+        ? `R$ ${freight.valueAdvance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : 'Não informado';
+
+      // Pedágio
+      const pedagio = freight.Toll || 'Não informado';
 
       // Formatar data e hora
       let dataHora = '';
@@ -374,13 +347,26 @@ export class FreightSyncCronService {
       const freightUrl = `https://nfretes.com.br/detalhes-do-frete/${freight.id}/`;
 
       message += `━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `*Frete ${index + 1}* ${dataHora ? `- ${dataHora}` : ''}\n`;
-      message += `🏢 *Transportadora:* ${transportadora}\n`;
-      message += `📍 *Origem:* ${origem}\n`;
-      message += `📍 *Destino:* ${destino}\n`;
-      message += `📦 *Carga:* ${tipoCarga}\n`;
-      message += `🚚 *Veículo:* ${veiculo}\n`;
-      message += `🔗 ${freightUrl}\n\n`;
+      message += `🚛 *Frete ${index + 1}* ${dataHora ? `(${dataHora})` : ''}\n`;
+      message += `🏢 *Empresa:* ${transportadora}\n\n`;
+      
+      message += `📍 *Rota:* ${origem} ➡️ ${destino}\n`;
+      if (distancia) {
+        message += `📏 *Distância:* ${distancia}\n`;
+      }
+      
+      message += `\n📦 *DETALHES DA CARGA*\n`;
+      message += `• *Produto:* ${tipoCarga}\n`;
+      message += `• *Peso:* ${peso}${especie ? ` (${especie})` : ''}\n`;
+      message += `• *Veículo:* ${veiculo}\n`;
+      message += `• *Carroceria:* ${carroceria}\n`;
+      
+      message += `\n💰 *VALORES*\n`;
+      message += `• *Valor do Frete:* ${valor}\n`;
+      message += `• *Adiantamento:* ${adiantamento}\n`;
+      message += `• *Pedágio:* ${pedagio}\n`;
+      
+      message += `\n🔗 *Ver detalhes:* ${freightUrl}\n\n`;
     });
 
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
@@ -403,24 +389,7 @@ export class FreightSyncCronService {
   }
 
   async onModuleDestroy() {
-    try {
-      // Limpar timeout de reconexão
-      if (this.reconnectTimeout) {
-        clearTimeout(this.reconnectTimeout);
-        this.reconnectTimeout = null;
-      }
-
-      // Encerrar conexão com Fretebras (mantido para compatibilidade)
-      if (this.fretebrasClient) {
-        this.fretebrasClient.removeAllListeners();
-        await this.fretebrasClient.end();
-        this.logger.log('🔌 Conexão com Fretebras encerrada');
-      }
-    } catch (error) {
-      this.logger.error(
-        `❌ Erro ao encerrar conexão Fretebras: ${error.message || error}`,
-      );
-    }
+    this.logger.log('🔌 FreightSyncCronService encerrado');
   }
 
   // ======================================================================
@@ -649,79 +618,8 @@ export class FreightSyncCronService {
   private async fetchAndCreateCompany(
     transportadoraId: string,
   ): Promise<Company | null> {
-    try {
-      const res = await this.fretebrasClient.query(
-        `SELECT id, slug, external_id, nome, razao_social, ramo, ativa_ha, endereco, bairro_cidade_estado, 
-         telefone, telefone_json, celular, celular_json, whatsapp, site, logo_url, url_empresa, grupo_id, 
-         dados_completos, created_at, updated_at 
-         FROM public.transportadoras 
-         WHERE id::text = $1 OR external_id::text = $1 OR slug = $1 LIMIT 1`,
-        [transportadoraId],
-      );
-
-      if (res.rows && res.rows.length > 0) {
-        const t = res.rows[0];
-        const companyData: any = {
-          id: t.id,
-          name: t.nome || t.razao_social || null,
-          nameFantasy: t.razao_social || t.nome || null,
-          phoneNumber: null,
-          phoneNumberJson: t.celular_json || t.telefone_json || null,
-          transportCategory: 'Transportadora',
-          isActive: true,
-          photoUrl: t.logo_url || null,
-          city: null,
-          state: null,
-        };
-
-        if (t.bairro_cidade_estado) {
-          const parts = (t.bairro_cidade_estado || '').split(',');
-          if (parts.length >= 2) {
-            companyData.city = parts[0].trim();
-            const statePart = parts[1].split('-')[0].trim();
-            companyData.state = statePart;
-          }
-        }
-
-        const company = await this.companyRepository.save(companyData);
-
-        // Criar contatos
-        const celularJson =
-          t.celular_json || t.telefone_json || t.telefone || null;
-        if (celularJson) {
-          try {
-            const contatos =
-              typeof celularJson === 'string'
-                ? JSON.parse(celularJson)
-                : celularJson;
-            if (Array.isArray(contatos)) {
-              for (const c of contatos) {
-                const phone = Object.keys(c)[0];
-                const name = c[phone] || null;
-                const exists = await this.contactCompanyRepository.findOne({
-                  where: { companyId: company.id, phoneNumber: phone },
-                });
-                if (!exists) {
-                  await this.contactCompanyRepository.save({
-                    name,
-                    phoneNumber: phone,
-                    companyId: company.id,
-                  });
-                }
-              }
-            }
-          } catch (err) {
-            this.logger.error('Erro ao criar contatos:', err.message);
-          }
-        }
-
-        return company;
-      }
-      return null;
-    } catch (error) {
-      this.logger.error('Erro ao buscar empresa no Fretebras:', error);
-      return null;
-    }
+    this.logger.warn(`Empresa ${transportadoraId} não encontrada (Fretebras DB desativado)`);
+    return null;
   }
 
   private async processContact(
