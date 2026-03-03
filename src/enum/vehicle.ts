@@ -1,7 +1,6 @@
 export enum VehicleType {
   THREE_QUARTER = 'Três Quartos',
   FIORINO = 'Fiorino',
-  STUMP = 'Toco',
   VCL = 'VCL',
   BIT_TRUCK = 'Bitruck',
   TRUCK = 'Truck',
@@ -11,10 +10,8 @@ export enum VehicleType {
   ROAD_TRAIN = 'Rodotrem',
   VANDERLEIA = 'Vanderleia',
   ALLLIGHT = 'Leve',
-  THREE_FOUR = 'Três Quartos',
   TOCO = 'Toco',
   ALLWEIGHT = 'Pesado',
-  TRAINWHELL = 'Rodotrem',
   ALLAVERAGE = 'Médio',
 }
 
@@ -29,11 +26,9 @@ export enum BodyType {
   PLATFORM = 'Plataforma',
   BOARD = 'Prancha',
   ONLY_HORSE = 'Cavalo Mecânico',
-  BUG_CONTAINER_DOOR = 'Container',
   PRATTLE = 'Gaiola',
   BLINKER = 'Basculante',
   CAVAQUEIRA = 'Cavaqueira',
-  CAGE = 'Gaiola',
   CONTAINER = 'Container',
   HOPPER = 'Hopper',
   MUNK = 'Munck',

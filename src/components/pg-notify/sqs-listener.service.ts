@@ -522,7 +522,7 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
     const result: VehicleType[] = [];
 
     const map: Record<string, VehicleType> = {
-      '3/4': VehicleType.THREE_FOUR,
+      '3/4': VehicleType.THREE_QUARTER,
       'three quarter': VehicleType.THREE_QUARTER,
       fiorino: VehicleType.FIORINO,
       toco: VehicleType.TOCO,
@@ -586,7 +586,7 @@ export class SqsListenerService implements OnModuleInit, OnModuleDestroy {
       prancha: BodyType.BOARD,
       cavalo: BodyType.ONLY_HORSE,
       container: BodyType.CONTAINER,
-      gaiola: BodyType.CAGE,
+      gaiola: BodyType.PRATTLE,
       munck: BodyType.MUNK,
       munk: BodyType.MUNK,
       silo: BodyType.SILO,
