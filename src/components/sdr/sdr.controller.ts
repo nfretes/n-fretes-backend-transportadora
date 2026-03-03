@@ -160,6 +160,8 @@ export class SdrController {
   async getDriverRetentionRisk(
     @Query() query: SdrDriverRetentionRiskQueryDto,
   ): Promise<SdrDriverRetentionRiskResponseDto> {
+
+
     return this.sdrService.getDriverRetentionRisk(
       query.min_days_since_signup,
       query.never_requested,

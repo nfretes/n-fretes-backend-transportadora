@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, Min, Max, IsUUID } from 'class-validator';
+import { IsOptional, IsNumber, Min, Max, IsUUID, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SdrPostHistoryQueryDto {
@@ -7,7 +7,7 @@ export class SdrPostHistoryQueryDto {
     description: 'Identificador único da empresa para filtrar o histórico de fretes',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
-  @IsUUID()
+  @IsString()
   companyId: string;
 
   @ApiProperty({

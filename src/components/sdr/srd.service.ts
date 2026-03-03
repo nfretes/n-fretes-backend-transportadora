@@ -377,74 +377,90 @@ export class SdrService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - minDaysSinceSignup);
 
-    const queryBuilder = this.usersDriveRepository
+    // Primeiro, obter estatísticas de requests por motorista
+    const requestStats = await this.freightRequestRepository
+      .createQueryBuilder('fr')
+      .select('fr."userDriveId"', 'userDriveId')
+      .addSelect('COUNT(*)', 'totalRequests')
+      .addSelect('MAX(fr."createdAt")', 'lastRequestDate')
+      .groupBy('fr."userDriveId"')
+      .getRawMany();
+
+    // Criar um mapa de estatísticas por motorista
+    const statsByDriver: Record<
+      string,
+      { totalRequests: number; lastRequestDate: Date | null }
+    > = {};
+    requestStats.forEach((stat) => {
+      statsByDriver[stat.userDriveId] = {
+        totalRequests: parseInt(stat.totalRequests) || 0,
+        lastRequestDate: stat.lastRequestDate
+          ? new Date(stat.lastRequestDate)
+          : null,
+      };
+    });
+
+
+    let queryBuilder = this.usersDriveRepository
       .createQueryBuilder('driver')
-      .where('driver.createdAt <= :cutoffDate', { cutoffDate });
+      .where('driver."createdAt" <= :cutoffDate', { cutoffDate })
+      .orderBy('driver."createdAt"', 'ASC');
 
     const drivers = await queryBuilder.getMany();
 
-    const driversWithData = await Promise.all(
-      drivers.map(async (driver) => {
-        const vehicles = await this.vehicleRepository.find({
-          where: { userId: driver.id },
-          order: { isMainVehicle: 'DESC', createdAt: 'DESC' },
-        });
-
-        const requests = await this.freightRequestRepository.find({
-          where: { userDriveId: driver.id },
-          order: { createdAt: 'DESC' },
-          take: 1,
-        });
-
-        const totalRequests = await this.freightRequestRepository.count({
-          where: { userDriveId: driver.id },
-        });
-
-        return {
-          driver,
-          vehicles,
-          totalRequests,
-          lastRequest: requests[0] || null,
-        };
-      }),
-    );
-
-    let filteredDrivers = driversWithData;
-
+    let filteredDrivers = drivers;
     if (neverRequested) {
-      filteredDrivers = filteredDrivers.filter(
-        (item) => item.totalRequests === 0,
+      filteredDrivers = drivers.filter(
+        (driver) => !statsByDriver[driver.id] || statsByDriver[driver.id].totalRequests === 0,
       );
     }
 
-    filteredDrivers.sort((a, b) => {
-      const aDate = a.driver.createdAt.getTime();
-      const bDate = b.driver.createdAt.getTime();
-      return aDate - bDate;
-    });
-
     const total = filteredDrivers.length;
     const paginatedDrivers = filteredDrivers.slice(skip, skip + limit);
+    const driverIds = paginatedDrivers.map((d) => d.id);
 
-    const data = paginatedDrivers.map((item) =>
-      this.mapDriverToRiskDto(
-        item.driver,
-        item.vehicles,
-        item.totalRequests,
-        item.lastRequest,
-      ),
+    const vehicles =
+      driverIds.length > 0
+        ? await this.vehicleRepository
+            .createQueryBuilder('vehicle')
+            .where('vehicle."userId" IN (:...driverIds)', { driverIds })
+            .orderBy('vehicle."isMainVehicle"', 'DESC')
+            .addOrderBy('vehicle."createdAt"', 'DESC')
+            .getMany()
+        : [];
+
+    const vehiclesByDriver = vehicles.reduce(
+      (acc, vehicle) => {
+        if (!acc[vehicle.userId]) {
+          acc[vehicle.userId] = [];
+        }
+        acc[vehicle.userId].push(vehicle);
+        return acc;
+      },
+      {} as Record<string, Vehicle[]>,
     );
 
-    const statistics = this.calculateDriverStatistics(
-      filteredDrivers.map((item) =>
-        this.mapDriverToRiskDto(
-          item.driver,
-          item.vehicles,
-          item.totalRequests,
-          item.lastRequest,
-        ),
-      ),
-    );
+    const data = paginatedDrivers.map((driver) => {
+      const stats = statsByDriver[driver.id] || {
+        totalRequests: 0,
+        lastRequestDate: null,
+      };
+      const driverVehicles = vehiclesByDriver[driver.id] || [];
+
+      const lastRequest = stats.lastRequestDate
+        ? ({ createdAt: stats.lastRequestDate } as FreightRequest)
+        : null;
+
+      return this.mapDriverToRiskDto(
+        driver,
+        driverVehicles,
+        stats.totalRequests,
+        lastRequest,
+      );
+    });
+
+   
+    const statistics = this.calculateDriverStatistics(data);
 
     const totalPages = Math.ceil(total / limit);
 
@@ -569,31 +585,43 @@ export class SdrService {
   ): Promise<SdrMarketHeatmapResponseDto> {
     const skip = (page - 1) * limit;
 
-    // Buscar fretes com suas rotas (ordenados por data de criação)
+    // Buscar fretes com suas rotas e company (ordenados por data de criação)
     const [freights, total] = await this.freightRepository.findAndCount({
       relations: ['company'],
+      where: { isActive: true }, // Apenas fretes ativos
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
     });
 
-   
-    const routeHeatmapPromises = freights.map(async (freight) => {
+    // Coletar todas as cidades únicas para fazer consultas em batch
+    const cities = new Set<string>();
+    freights.forEach((freight) => {
+      if (freight.originCity) cities.add(freight.originCity);
+      if (freight.destinyCity) cities.add(freight.destinyCity);
+    });
 
-      const driversNearOrigin = await this.usersLocationRepository.count({
-        where: {
-          city: freight.originCity,
-        },
+    // Buscar contagem de motoristas por cidade em uma única query
+    const driverCountByCity: Record<string, number> = {};
+    if (cities.size > 0) {
+      const cityArray = Array.from(cities);
+      const driverCounts = await this.usersLocationRepository
+        .createQueryBuilder('location')
+        .select('location.city', 'city')
+        .addSelect('COUNT(DISTINCT location."userId")', 'count')
+        .where('location.city IN (:...cities)', { cities: cityArray })
+        .groupBy('location.city')
+        .getRawMany();
+
+      driverCounts.forEach((row) => {
+        driverCountByCity[row.city] = parseInt(row.count) || 0;
       });
+    }
 
-
-      const driversNearDestiny = await this.usersLocationRepository.count({
-        where: {
-          city: freight.destinyCity,
-        },
-      });
-
-
+    // Mapear os dados usando as contagens já carregadas
+    const data: SdrRouteHeatmapDto[] = freights.map((freight) => {
+      const driversNearOrigin = driverCountByCity[freight.originCity] || 0;
+      const driversNearDestiny = driverCountByCity[freight.destinyCity] || 0;
       const totalDriversInRoute = driversNearOrigin + driversNearDestiny;
 
       let opportunityLevel: 'ALTO' | 'MÉDIO' | 'BAIXO';
@@ -605,7 +633,7 @@ export class SdrService {
         opportunityLevel = 'BAIXO';
       }
 
-      const routeHeatmap: SdrRouteHeatmapDto = {
+      return {
         freightId: freight.id,
         originCity: freight.originCity,
         originState: freight.originState,
@@ -621,12 +649,9 @@ export class SdrService {
         product: freight.product || null,
         freightCreatedAt: freight.createdAt,
       };
-
-      return routeHeatmap;
     });
 
-    const data = await Promise.all(routeHeatmapPromises);
-
+    // Ordenar por total de motoristas (maior para menor)
     data.sort((a, b) => b.totalDriversInRoute - a.totalDriversInRoute);
 
     // Calcular estatísticas
@@ -670,14 +695,78 @@ export class SdrService {
       take: limit,
     });
 
-    const driverActivityPromises = drivers.map(async (driver) => {
-      // Buscar primeira requisição de frete (data de ativação)
-      const firstRequest = await this.freightRequestRepository.findOne({
-        where: { userDriveId: driver.id },
-        order: { createdAt: 'ASC' },
-      });
+    // Coletar IDs dos motoristas
+    const driverIds = drivers.map((d) => d.id);
 
-      const activationDate = firstRequest ? firstRequest.createdAt : null;
+    // Buscar dados relacionados em batch
+    const [firstRequests, totalRequestsData, vehicles, lastLocations] =
+      await Promise.all([
+        // Primeira requisição de cada motorista
+        driverIds.length > 0
+          ? this.freightRequestRepository
+              .createQueryBuilder('fr')
+              .select('fr."userDriveId"', 'userDriveId')
+              .addSelect('MIN(fr."createdAt")', 'firstRequestDate')
+              .where('fr."userDriveId" IN (:...driverIds)', { driverIds })
+              .groupBy('fr."userDriveId"')
+              .getRawMany()
+          : [],
+        // Total de requests por motorista
+        driverIds.length > 0
+          ? this.freightRequestRepository
+              .createQueryBuilder('fr')
+              .select('fr."userDriveId"', 'userDriveId')
+              .addSelect('COUNT(*)', 'total')
+              .where('fr."userDriveId" IN (:...driverIds)', { driverIds })
+              .groupBy('fr."userDriveId"')
+              .getRawMany()
+          : [],
+        // Primeiro veículo de cada motorista
+        driverIds.length > 0
+          ? this.vehicleRepository
+              .createQueryBuilder('vehicle')
+              .where('vehicle."userId" IN (:...driverIds)', { driverIds })
+              .orderBy('vehicle."createdAt"', 'ASC')
+              .getMany()
+          : [],
+        // Última localização de cada motorista
+        driverIds.length > 0
+          ? this.usersLocationRepository
+              .createQueryBuilder('location')
+              .where('location."userId" IN (:...driverIds)', { driverIds })
+              .orderBy('location."updatedAt"', 'DESC')
+              .getMany()
+          : [],
+      ]);
+
+    // Organizar dados por motorista
+    const firstRequestByDriver: Record<string, Date> = {};
+    firstRequests.forEach((row) => {
+      firstRequestByDriver[row.userDriveId] = new Date(row.firstRequestDate);
+    });
+
+    const totalRequestsByDriver: Record<string, number> = {};
+    totalRequestsData.forEach((row) => {
+      totalRequestsByDriver[row.userDriveId] = parseInt(row.total) || 0;
+    });
+
+    const vehicleByDriver: Record<string, Vehicle> = {};
+    vehicles.forEach((vehicle) => {
+      if (!vehicleByDriver[vehicle.userId]) {
+        vehicleByDriver[vehicle.userId] = vehicle;
+      }
+    });
+
+    const locationByDriver: Record<string, UsersLocation> = {};
+    lastLocations.forEach((location) => {
+      if (!locationByDriver[location.userId]) {
+        locationByDriver[location.userId] = location;
+      }
+    });
+
+    // Mapear atividades dos motoristas
+    const data = drivers.map((driver) => {
+      const activationDate = firstRequestByDriver[driver.id] || null;
       const isActivated = !!activationDate;
 
       let daysToActivation: number | null = null;
@@ -688,15 +777,8 @@ export class SdrService {
         daysToActivation = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       }
 
-  
-      const totalRequests = await this.freightRequestRepository.count({
-        where: { userDriveId: driver.id },
-      });
-
-      const vehicle = await this.vehicleRepository.findOne({
-        where: { userId: driver.id },
-        order: { createdAt: 'ASC' },
-      });
+      const totalRequests = totalRequestsByDriver[driver.id] || 0;
+      const vehicle = vehicleByDriver[driver.id] || null;
 
       const vehicleSummary: SdrDriverVehicleSummaryDto | null = vehicle
         ? {
@@ -705,13 +787,8 @@ export class SdrService {
           }
         : null;
 
- 
-      const lastLocation = await this.usersLocationRepository.findOne({
-        where: { userId: driver.id },
-        order: { updatedAt: 'DESC' },
-      });
+      const lastLocation = locationByDriver[driver.id] || null;
 
-      // Meios de contato
       const contact: SdrDriverContactDto = {
         phoneNumber: driver.phoneNumber || null,
         email: driver.email || null,
@@ -719,7 +796,6 @@ export class SdrService {
         hasEmail: !!driver.email,
       };
 
-    
       let engagementStatus: 'ATIVO' | 'INATIVO' | 'NOVO' | 'NÃO ATIVADO';
       const now = new Date();
       const signupDate = new Date(driver.createdAt);
@@ -764,9 +840,7 @@ export class SdrService {
       return driverActivity;
     });
 
-    const data = await Promise.all(driverActivityPromises);
-
- 
+    // Calcular estatísticas
     const totalPages = Math.ceil(total / limit);
     const totalActivated = data.filter((d) => d.isActivated).length;
     const activationRate =
@@ -818,13 +892,60 @@ export class SdrService {
       take: limit,
     });
 
-    const companyAnalysisPromises = companies.map(async (company) => {
-      const firstFreight = await this.freightRepository.findOne({
-        where: { companyId: company.id },
-        order: { createdAt: 'ASC' },
-      });
+    const companyIds = companies.map((c) => c.id);
 
-      const firstFreightDate = firstFreight ? firstFreight.createdAt : null;
+    // Buscar dados em batch
+    const [firstFreights, totalFreightCounts, contacts] = await Promise.all([
+      // Primeiro frete de cada empresa
+      companyIds.length > 0
+        ? this.freightRepository
+            .createQueryBuilder('freight')
+            .select('freight."companyId"', 'companyId')
+            .addSelect('MIN(freight."createdAt")', 'firstFreightDate')
+            .where('freight."companyId" IN (:...companyIds)', { companyIds })
+            .groupBy('freight."companyId"')
+            .getRawMany()
+        : [],
+      // Total de fretes por empresa
+      companyIds.length > 0
+        ? this.freightRepository
+            .createQueryBuilder('freight')
+            .select('freight."companyId"', 'companyId')
+            .addSelect('COUNT(*)', 'total')
+            .where('freight."companyId" IN (:...companyIds)', { companyIds })
+            .groupBy('freight."companyId"')
+            .getRawMany()
+        : [],
+      // Contatos
+      companyIds.length > 0
+        ? this.contactCompanyRepository
+            .createQueryBuilder('contact')
+            .where('contact."companyId" IN (:...companyIds)', { companyIds })
+            .getMany()
+        : [],
+    ]);
+
+    // Organizar dados por empresa
+    const firstFreightByCompany: Record<string, Date> = {};
+    firstFreights.forEach((row) => {
+      firstFreightByCompany[row.companyId] = new Date(row.firstFreightDate);
+    });
+
+    const totalFreightsByCompany: Record<string, number> = {};
+    totalFreightCounts.forEach((row) => {
+      totalFreightsByCompany[row.companyId] = parseInt(row.total) || 0;
+    });
+
+    const contactByCompany: Record<string, ContactCompany> = {};
+    contacts.forEach((contact) => {
+      if (!contactByCompany[contact.companyId]) {
+        contactByCompany[contact.companyId] = contact;
+      }
+    });
+
+    // Mapear dados
+    const data = companies.map((company) => {
+      const firstFreightDate = firstFreightByCompany[company.id] || null;
       const hasPublished = !!firstFreightDate;
 
       let daysToFirstFreight: number | null = null;
@@ -835,15 +956,8 @@ export class SdrService {
         daysToFirstFreight = Math.floor(diffMs / (1000 * 60 * 60 * 24));
       }
 
-      const totalFreights = await this.freightRepository.count({
-        where: { companyId: company.id },
-      });
-
-      const contacts = await this.contactCompanyRepository.find({
-        where: { companyId: company.id },
-        take: 1,
-      });
-      const contact = contacts[0];
+      const totalFreights = totalFreightsByCompany[company.id] || 0;
+      const contact = contactByCompany[company.id];
 
       let engagementSpeed: 'RÁPIDO' | 'MÉDIO' | 'LENTO' | 'NÃO PUBLICOU';
       if (!hasPublished) {
@@ -876,8 +990,6 @@ export class SdrService {
 
       return companyFirstFreight;
     });
-
-    const data = await Promise.all(companyAnalysisPromises);
 
     const totalPages = Math.ceil(total / limit);
 
@@ -938,15 +1050,60 @@ export class SdrService {
       take: limit,
     });
 
-    const companyFrequencyPromises = companies.map(async (company) => {
-      const freights = await this.freightRepository.find({
-        where: { companyId: company.id },
-        order: { createdAt: 'ASC' },
-      });
+    const companyIds = companies.map((c) => c.id);
 
-      const totalFreights = freights.length;
-      const firstFreightDate = freights[0]?.createdAt || null;
-      const lastFreightDate = freights[freights.length - 1]?.createdAt || null;
+    // Buscar estatísticas de fretes em batch
+    const [freightStats, contacts] = await Promise.all([
+      companyIds.length > 0
+        ? this.freightRepository
+            .createQueryBuilder('freight')
+            .select('freight."companyId"', 'companyId')
+            .addSelect('COUNT(*)', 'total')
+            .addSelect('MIN(freight."createdAt")', 'firstFreightDate')
+            .addSelect('MAX(freight."createdAt")', 'lastFreightDate')
+            .where('freight."companyId" IN (:...companyIds)', { companyIds })
+            .groupBy('freight."companyId"')
+            .getRawMany()
+        : [],
+      companyIds.length > 0
+        ? this.contactCompanyRepository
+            .createQueryBuilder('contact')
+            .where('contact."companyId" IN (:...companyIds)', { companyIds })
+            .getMany()
+        : [],
+    ]);
+
+    // Organizar dados por empresa
+    const statsByCompany: Record<
+      string,
+      { total: number; firstDate: Date | null; lastDate: Date | null }
+    > = {};
+    freightStats.forEach((row) => {
+      statsByCompany[row.companyId] = {
+        total: parseInt(row.total) || 0,
+        firstDate: row.firstFreightDate ? new Date(row.firstFreightDate) : null,
+        lastDate: row.lastFreightDate ? new Date(row.lastFreightDate) : null,
+      };
+    });
+
+    const contactByCompany: Record<string, ContactCompany> = {};
+    contacts.forEach((contact) => {
+      if (!contactByCompany[contact.companyId]) {
+        contactByCompany[contact.companyId] = contact;
+      }
+    });
+
+    // Mapear dados
+    const data = companies.map((company) => {
+      const stats = statsByCompany[company.id] || {
+        total: 0,
+        firstDate: null,
+        lastDate: null,
+      };
+
+      const totalFreights = stats.total;
+      const firstFreightDate = stats.firstDate;
+      const lastFreightDate = stats.lastDate;
 
       let activeDays = 0;
       let averagePerDay = 0;
@@ -964,11 +1121,7 @@ export class SdrService {
         averagePerMonth = (totalFreights / activeDays) * 30;
       }
 
-      const contacts = await this.contactCompanyRepository.find({
-        where: { companyId: company.id },
-        take: 1,
-      });
-      const contact = contacts[0];
+      const contact = contactByCompany[company.id];
 
       let activityLevel: 'ALTO' | 'MÉDIO' | 'BAIXO' | 'INATIVO';
       if (totalFreights === 0) {
@@ -999,8 +1152,6 @@ export class SdrService {
 
       return companyFrequency;
     });
-
-    const data = await Promise.all(companyFrequencyPromises);
 
     const totalPages = Math.ceil(total / limit);
 
