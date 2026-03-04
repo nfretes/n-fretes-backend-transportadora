@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Query, HttpCode } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -9,6 +9,7 @@ import { RouteCacheService } from './route-cache.service';
 import { GetRouteCacheQueryDto } from './dto/get-route-cache.dto';
 import { CreateUpdateRouteCacheDto } from './dto/create-update-route-cache.dto';
 import { RouteCacheResponseDto, SaveRouteCacheResponseDto } from './dto/route-cache-response.dto';
+import { CalculateRouteDto } from './dto/calculate-route.dto';
 
 @ApiTags('Route Cache - Cache de Rotas e Pedágios')
 @Controller('route-cache')
@@ -47,6 +48,28 @@ export class RouteCacheController {
     }
 
     return result;
+  }
+
+  @Post('calculate')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Calcular rota com cache inteligente',
+    description:
+      'Busca dados de rota no cache (válido por 20 dias). ' +
+      'Se não encontrar ou estiver expirado, chama a API QUALP, salva o resultado e retorna. ' +
+      'Endpoints preferível para uso no front-end.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dados de rota (do cache ou recém calculados pela API QUALP)',
+    type: RouteCacheResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Parâmetros inválidos' })
+  @ApiResponse({ status: 500, description: 'Erro na API QUALP' })
+  async calculateRoute(
+    @Body() dto: CalculateRouteDto,
+  ): Promise<RouteCacheResponseDto> {
+    return this.routeCacheService.calculateOrGetCached(dto);
   }
 
   @Post()

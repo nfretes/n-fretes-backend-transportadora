@@ -23,6 +23,7 @@ import { ContactCompany } from './contact-company.entity';
 import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
+import { RouteCache } from './route-cache.entity';
 
 @Entity({ schema: 'public', name: 'freight' })
 export class Freight {
@@ -170,6 +171,13 @@ export class Freight {
 
   @Column({ nullable: true })
   distance: string;
+
+  @Column({ nullable: true })
+  routeCacheId: string;
+
+  @ManyToOne(() => RouteCache, { nullable: true, eager: false })
+  @JoinColumn({ name: 'routeCacheId' })
+  routeCache: RouteCache;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,18 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RouteCache } from '@entities/route-cache.entity';
 import { CreateUpdateRouteCacheDto } from './dto/create-update-route-cache.dto';
 import { RouteCacheResponseDto, SaveRouteCacheResponseDto } from './dto/route-cache-response.dto';
+import { QualpService, CalculateTollParams } from './qualp.service';
+import { CalculateRouteDto } from './dto/calculate-route.dto';
 
 @Injectable()
 export class RouteCacheService {
-  
+
+  private readonly logger = new Logger(RouteCacheService.name);
   private readonly CACHE_VALIDITY_DAYS = 20;
 
   constructor(
     @InjectRepository(RouteCache)
     private readonly routeCacheRepository: Repository<RouteCache>,
+    private readonly qualpService: QualpService,
   ) {}
 
   /**
@@ -115,6 +119,56 @@ export class RouteCacheService {
         ? 'Dados de rota atualizados com sucesso'
         : 'Dados de rota salvos com sucesso',
       id: savedCache.id,
+    };
+  }
+
+  /**
+   * Retorna cache válido ou chama a API QUALP e persiste o resultado.
+   * Fluxo: busca no DB → se válido retorna; caso contrário chama QUALP → salva → retorna.
+   */
+  async calculateOrGetCached(
+    dto: CalculateRouteDto,
+  ): Promise<RouteCacheResponseDto> {
+    const cached = await this.getRouteCache(dto.originCity, dto.destinationCity);
+    if (cached) {
+      this.logger.log(`Cache hit: ${dto.originCity} → ${dto.destinationCity}`);
+      return cached;
+    }
+
+    this.logger.log(`Cache miss: chamando QUALP para ${dto.originCity} → ${dto.destinationCity}`);
+
+    const params: CalculateTollParams = {
+      locations: [dto.originCity, dto.destinationCity],
+      axis: dto.axis,
+      fuelPrice: dto.fuelPrice,
+      kmPerLiter: dto.kmPerLiter,
+      routeType: dto.routeType,
+    };
+
+    const result = await this.qualpService.calculateToll(params);
+
+    await this.saveOrUpdateRouteCache({
+      originCity: dto.originCity,
+      destinationCity: dto.destinationCity,
+      tolls: result.tolls.map((t) => ({ ...t, km: String(t.km) })),
+      totalToll: result.totalToll,
+      distance: result.distance,
+      distanceText: result.distanceText,
+      duration: result.duration,
+      fuelConsumption: result.fuelConsumption,
+      coordinates: result.coordinates as any,
+    });
+
+    return {
+      success: true,
+      tolls: result.tolls.map((t) => ({ ...t, km: String(t.km) })),
+      totalToll: result.totalToll,
+      distance: result.distance,
+      distanceText: result.distanceText,
+      duration: result.duration,
+      fuelConsumption: result.fuelConsumption,
+      coordinates: result.coordinates as any,
+      isValid: true,
     };
   }
 
