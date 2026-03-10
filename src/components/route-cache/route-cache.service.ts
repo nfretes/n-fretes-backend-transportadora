@@ -50,6 +50,7 @@ export class RouteCacheService {
     }
 
     return {
+      id: cachedRoute.id,
       success: true,
       tolls: cachedRoute.tolls,
       totalToll: Number(cachedRoute.totalToll),
@@ -147,7 +148,7 @@ export class RouteCacheService {
 
     const result = await this.qualpService.calculateToll(params);
 
-    await this.saveOrUpdateRouteCache({
+    const saved = await this.saveOrUpdateRouteCache({
       originCity: dto.originCity,
       destinationCity: dto.destinationCity,
       tolls: result.tolls.map((t) => ({ ...t, km: String(t.km) })),
@@ -160,6 +161,7 @@ export class RouteCacheService {
     });
 
     return {
+      id: saved.id,
       success: true,
       tolls: result.tolls.map((t) => ({ ...t, km: String(t.km) })),
       totalToll: result.totalToll,

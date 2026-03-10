@@ -44,6 +44,7 @@ import { PgNotifyModule } from '@components/pg-notify/pg-notify.module';
 import { UIFeaturesModule } from '@components/ui-features/ui-features.module';
 import { SdrModule } from '@components/sdr/srd.module';
 import { RouteCacheModule } from '@components/route-cache/route-cache.module';
+import { CompanyOverviewModule } from '@components/company-overview/company-overview.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { RouteCacheModule } from '@components/route-cache/route-cache.module';
     UIFeaturesModule,
     SdrModule,
     RouteCacheModule,
+    CompanyOverviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],

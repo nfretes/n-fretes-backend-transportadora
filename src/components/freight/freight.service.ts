@@ -14,7 +14,6 @@ import { SQSService } from '@components/sqs/sqs.service';
 import { FeatureLog } from '@entities/feature-logs.entity';
 import { FreightIsFeatured, SharingFreightDto } from './dto/sharing.dto';
 import { DistanceService } from '@components/distance/distance.service';
-
 export class FreightService {
   constructor(
     @InjectRepository(Freight)
@@ -47,29 +46,7 @@ export class FreightService {
 
       console.log(data, 'Retorno do data');
 
-      if (
-        data.originLatitude &&
-        data.originLongitude &&
-        data.destinyLatitude &&
-        data.destinyLongitude
-      ) {
-        try {
-          const distanceData = await this.distanceService.calculateRoadDistance(
-            Number(data.originLatitude),
-            Number(data.originLongitude),
-            Number(data.destinyLatitude),
-            Number(data.destinyLongitude),
-          );
-
-          data.distance = distanceData.distance.toString();
-        } catch (error) {
-          console.error(
-            'Erro ao calcular distância rodoviária na criação:',
-            error,
-          );
-        }
-      }
-
+   
       const create = this.freightRepository.create(data);
       const save = await this.freightRepository.save(create);
 
@@ -251,12 +228,17 @@ export class FreightService {
   async getFreightsAll(params: ParamsFreight, userId: string): Promise<any> {
     try {
       const queryBuilder = this.freightRepository.createQueryBuilder('freight');
-      const companyId = userId;
+
       const { take, page } =
         this.paginationService.getDefaultPaginationParams(params);
 
-      // Excluir fretes marcados como excluídos por padrão
+        const { companyId } = params;
+
       queryBuilder.where('freight.isExclude = false');
+
+      if (companyId) {
+        queryBuilder.andWhere('freight.companyId = :companyId', { companyId });
+      }
 
       if (params.id) {
         queryBuilder.andWhere('freight.id = :id', { id: params.id });
@@ -420,12 +402,51 @@ export class FreightService {
           'company.createdAt',
           'company.city',
         ])
+        .leftJoinAndSelect('freight.routeCache', 'routeCache')
         .addOrderBy('freight.createdAt', 'DESC');
 
       const [result, total] = await queryBuilder
         .skip((page - 1) * take)
         .take(take)
         .getManyAndCount();
+
+      let companyStats: Record<string, any> | null = null;
+      let route: Record<string, any> | null = null;
+
+      if (params.id && result.length > 0) {
+        const ownerCompanyId = result[0].companyId;
+
+        console.log(result, 'reotrno')
+        // routeCache já veio populado pelo leftJoinAndSelect acima
+        if (result[0].routeCacheId) {
+          console.log(result[0])
+          route = result[0].routeCache ?? null;
+        }
+
+        const [activeAndOpen, activeTotal] = await Promise.all([
+          this.freightRepository.count({
+            where: {
+              companyId: ownerCompanyId,
+              isActive: true,
+              openSolicitations: true,
+              isExclude: false,
+            },
+          }),
+          this.freightRepository.count({
+            where: {
+              companyId: ownerCompanyId,
+              isActive: true,
+              isExclude: false,
+            },
+          }),
+        ]);
+
+        companyStats = {
+          companyId: ownerCompanyId,
+          activeAndOpenFreights: activeAndOpen,
+          activeFreights: activeTotal,
+        };
+      }
 
       const regions = {
         origin: {
@@ -471,6 +492,8 @@ export class FreightService {
         count: total,
         origin: formatRegions(regions.origin),
         destiny: formatRegions(regions.destiny),
+        ...(companyStats && { companyStats }),
+        ...(route && { route }),
       };
     } catch (error) {
       throw new HttpException(

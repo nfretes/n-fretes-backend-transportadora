@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, Min, Max, IsEnum, IsString } from 'class-validator';
+import { IsOptional, IsNumber, Min, Max, IsEnum, IsString, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum PostingPeriod {
@@ -53,6 +53,24 @@ export class SdrPostingFrequencyQueryDto {
   @IsOptional()
   @IsString()
   companyId?: string;
+
+  @ApiProperty({
+    description: 'Data inicial para filtrar empresas por data de cadastro (formato: YYYY-MM-DD)',
+    example: '2025-01-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({
+    description: 'Data final para filtrar empresas por data de cadastro (formato: YYYY-MM-DD)',
+    example: '2025-12-31',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }
 
 export class SdrCompanyPostingFrequencyDto {

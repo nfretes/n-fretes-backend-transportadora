@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, Min, Max, IsBoolean } from 'class-validator';
+import { IsOptional, IsNumber, Min, Max, IsBoolean, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SdrDriverRetentionRiskQueryDto {
@@ -52,6 +52,24 @@ export class SdrDriverRetentionRiskQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 10;
+
+  @ApiProperty({
+    description: 'Data inicial para filtrar motoristas por data de cadastro (formato: YYYY-MM-DD)',
+    example: '2025-01-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({
+    description: 'Data final para filtrar motoristas por data de cadastro (formato: YYYY-MM-DD)',
+    example: '2025-12-31',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }
 
 export class SdrDriverVehicleDto {

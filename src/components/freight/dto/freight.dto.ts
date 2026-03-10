@@ -117,6 +117,14 @@ export class CreateFreightDto {
   @IsNotEmpty()
   specieOfLoad?: SpecieOfLoad;
 
+  @ApiProperty({
+    description: 'Tipo de carga ANTT (ex: Carga Geral, Granel sólido, Frigorificada ou Aquecida...)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  anttLoadType?: string;
+
   @ApiProperty({ description: 'Peso da carga', required: false })
   @IsString()
   @IsOptional()
@@ -289,6 +297,42 @@ export class CreateFreightDto {
   @IsOptional()
   @IsString({ each: true })
   contactCompanyIds?: string[];
+
+  @ApiProperty({
+    description: 'IDs dos grupos de contato',
+    required: false,
+    isArray: true,
+    type: 'string',
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  contactGroupIds?: string[];
+
+  @ApiProperty({
+    description: 'Frete público (true) ou restrito (false)',
+    required: false,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @ApiProperty({
+    description: 'Permitir compartilhamento do frete',
+    required: false,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isToShare?: boolean;
+
+  
+  @ApiProperty({ description: 'Rota de destino', required: false })
+  @IsString()
+  @IsOptional()
+  routeCacheId?: string;
+  
 }
 
 export class UpdateFreightDto extends PartialType(CreateFreightDto) {}

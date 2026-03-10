@@ -7,6 +7,14 @@ interface DistanceResult {
   status: string;
 }
 
+export interface DistanceByCitiesResult {
+  originCity: string;
+  destinationCity: string;
+  distanceKm: number;
+  durationMinutes: number;
+  status: string;
+}
+
 interface GoogleDistanceMatrixResponse {
   status: string;
   rows: Array<{
@@ -25,6 +33,70 @@ export class DistanceService {
     process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   private readonly baseUrl =
     'https://maps.googleapis.com/maps/api/distancematrix/json';
+
+  /**
+   * Calcula distância rodoviária real entre duas cidades pelo nome.
+   * Usa a Distance Matrix API do Google — aceita nomes de cidades diretamente.
+   */
+  async calculateDistanceByCities(
+    originCity: string,
+    destinationCity: string,
+  ): Promise<DistanceByCitiesResult> {
+    try {
+      if (!this.googleApiKey) {
+        throw new HttpException(
+          'Google Maps API key não configurada',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const response = await axios.get<GoogleDistanceMatrixResponse>(
+        this.baseUrl,
+        {
+          params: {
+            origins: originCity,
+            destinations: destinationCity,
+            key: this.googleApiKey,
+            units: 'metric',
+            mode: 'driving',
+            language: 'pt-BR',
+            region: 'BR',
+          },
+          timeout: 10000,
+        },
+      );
+
+      if (response.data.status !== 'OK') {
+        throw new HttpException(
+          `Erro na API do Google Maps: ${response.data.status}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const element = response.data.rows[0]?.elements[0];
+
+      if (!element || element.status !== 'OK') {
+        throw new HttpException(
+          `Não foi possível calcular a distância entre "${originCity}" e "${destinationCity}". Status: ${element?.status}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return {
+        originCity,
+        destinationCity,
+        distanceKm: Math.round(element.distance.value / 1000),
+        durationMinutes: Math.round(element.duration.value / 60),
+        status: 'OK',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        'Erro ao calcular distância entre cidades',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   async calculateRoadDistance(
     originLat: number,

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, Min, Max, IsUUID } from 'class-validator';
+import { IsOptional, IsNumber, Min, Max, IsUUID, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SdrMatchPerformanceQueryDto {
@@ -37,6 +37,24 @@ export class SdrMatchPerformanceQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 10;
+
+  @ApiProperty({
+    description: 'Data inicial para filtrar solicitações por data de criação (formato: YYYY-MM-DD)',
+    example: '2025-01-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({
+    description: 'Data final para filtrar solicitações por data de criação (formato: YYYY-MM-DD)',
+    example: '2025-12-31',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }
 
 export class SdrRequesterInfoDto {

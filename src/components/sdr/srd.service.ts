@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { Company } from '@entities/company.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
 import { SubscriptionCompany } from '@entities/subscription-company.entity';
@@ -74,10 +74,16 @@ export class SdrService {
   async listCompanies(
     page: number = 1,
     limit: number = 10,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrCompanyListResponseDto> {
     const skip = (page - 1) * limit;
 
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    const whereCondition: any = dateFilter ? { createdAt: dateFilter } : {};
+
     const [companies, total] = await this.companyRepository.findAndCount({
+      where: whereCondition,
       skip,
       take: limit,
       order: {
@@ -147,31 +153,33 @@ export class SdrService {
   ): SdrSubscriptionStatusDto {
     if (!subscription) {
       return {
-        id: null,
-        status: null,
+        statusLabel: 'Sem assinatura',
+        isActive: false,
         planName: null,
         nextRecurrency: null,
-        endDate: null,
-        isExpiringSoon: false,
-        isInTrial: false,
-        trialEndDate: null,
       };
     }
 
-    const isExpiringSoon = this.checkIfExpiringSoon(
-      subscription.nextRecurrency,
-      subscription.endDate,
-    );
+    const statusCode = subscription.status ?? null;
+    let statusLabel: 'Ativo' | 'Inativado' | 'Vencido' | 'Sem assinatura';
+
+    if (statusCode === 1) {
+      statusLabel = 'Ativo';
+    } else if (statusCode === 2) {
+      statusLabel = 'Inativado';
+    } else if (statusCode === 3) {
+      statusLabel = 'Vencido';
+    } else {
+      statusLabel = 'Sem assinatura';
+    }
+
+    const isActive = statusCode === 1;
 
     return {
-      id: subscription.id,
-      status: subscription.status,
+      statusLabel,
+      isActive,
       planName: subscription.plan?.name || null,
-      nextRecurrency: subscription.nextRecurrency,
-      endDate: subscription.endDate,
-      isExpiringSoon,
-      isInTrial: subscription.isInTrial,
-      trialEndDate: subscription.trialEndDate,
+      nextRecurrency: isActive ? (subscription.nextRecurrency ?? null) : null,
     };
   }
 
@@ -209,6 +217,8 @@ export class SdrService {
     companyId: string,
     page: number = 1,
     limit: number = 10,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrPostHistoryResponseDto> {
     const skip = (page - 1) * limit;
 
@@ -221,8 +231,12 @@ export class SdrService {
       throw new Error('Empresa não encontrada');
     }
 
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    const whereCondition: any = { companyId };
+    if (dateFilter) whereCondition.createdAt = dateFilter;
+
     const [freights, total] = await this.freightRepository.findAndCount({
-      where: { companyId },
+      where: whereCondition,
       skip,
       take: limit,
       order: {
@@ -278,6 +292,8 @@ export class SdrService {
     companyId: string | undefined,
     page: number = 1,
     limit: number = 10,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrMatchPerformanceResponseDto> {
     const skip = (page - 1) * limit;
 
@@ -290,6 +306,17 @@ export class SdrService {
 
     if (companyId) {
       queryBuilder.andWhere('freight.companyId = :companyId', { companyId });
+    }
+
+    if (startDate) {
+      queryBuilder.andWhere('freightRequest."createdAt" >= :startDate', {
+        startDate: new Date(startDate),
+      });
+    }
+    if (endDate) {
+      queryBuilder.andWhere('freightRequest."createdAt" <= :endDate', {
+        endDate: new Date(endDate + 'T23:59:59.999Z'),
+      });
     }
 
     queryBuilder
@@ -371,6 +398,8 @@ export class SdrService {
     neverRequested: boolean = false,
     page: number = 1,
     limit: number = 10,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrDriverRetentionRiskResponseDto> {
     const skip = (page - 1) * limit;
 
@@ -405,6 +434,17 @@ export class SdrService {
       .createQueryBuilder('driver')
       .where('driver."createdAt" <= :cutoffDate', { cutoffDate })
       .orderBy('driver."createdAt"', 'ASC');
+
+    if (startDate) {
+      queryBuilder.andWhere('driver."createdAt" >= :startDate', {
+        startDate: new Date(startDate),
+      });
+    }
+    if (endDate) {
+      queryBuilder.andWhere('driver."createdAt" <= :endDate', {
+        endDate: new Date(endDate + 'T23:59:59.999Z'),
+      });
+    }
 
     const drivers = await queryBuilder.getMany();
 
@@ -582,13 +622,19 @@ export class SdrService {
   async getMarketHeatmap(
     page: number = 1,
     limit: number = 50,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrMarketHeatmapResponseDto> {
     const skip = (page - 1) * limit;
+
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    const whereCondition: any = { isActive: true };
+    if (dateFilter) whereCondition.createdAt = dateFilter;
 
     // Buscar fretes com suas rotas e company (ordenados por data de criação)
     const [freights, total] = await this.freightRepository.findAndCount({
       relations: ['company'],
-      where: { isActive: true }, // Apenas fretes ativos
+      where: whereCondition,
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -686,10 +732,16 @@ export class SdrService {
   async getDriverActivityList(
     page: number = 1,
     limit: number = 50,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrDriverActivityListResponseDto> {
     const skip = (page - 1) * limit;
 
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    const whereCondition: any = dateFilter ? { createdAt: dateFilter } : {};
+
     const [drivers, total] = await this.usersDriveRepository.findAndCount({
+      where: whereCondition,
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -877,13 +929,15 @@ export class SdrService {
     page: number = 1,
     limit: number = 50,
     companyId?: string,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrFirstFreightAnalysisResponseDto> {
     const skip = (page - 1) * limit;
 
-    let whereCondition = {};
-    if (companyId) {
-      whereCondition = { id: companyId };
-    }
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    const whereCondition: any = {};
+    if (companyId) whereCondition.id = companyId;
+    if (dateFilter) whereCondition.createdAt = dateFilter;
 
     const [companies, total] = await this.companyRepository.findAndCount({
       where: whereCondition,
@@ -1035,13 +1089,15 @@ export class SdrService {
     limit: number = 50,
     period: PostingPeriod = PostingPeriod.WEEKLY,
     companyId?: string,
+    startDate?: string,
+    endDate?: string,
   ): Promise<SdrPostingFrequencyResponseDto> {
     const skip = (page - 1) * limit;
 
-    let whereCondition = {};
-    if (companyId) {
-      whereCondition = { id: companyId };
-    }
+    const dateFilter = this.buildDateFilter(startDate, endDate);
+    const whereCondition: any = {};
+    if (companyId) whereCondition.id = companyId;
+    if (dateFilter) whereCondition.createdAt = dateFilter;
 
     const [companies, total] = await this.companyRepository.findAndCount({
       where: whereCondition,
@@ -1196,5 +1252,22 @@ export class SdrService {
       lowActivity,
       inactive,
     };
+  }
+
+  private buildDateFilter(
+    startDate?: string,
+    endDate?: string,
+  ) {
+    if (startDate && endDate) {
+      return Between(
+        new Date(startDate),
+        new Date(endDate + 'T23:59:59.999Z'),
+      );
+    } else if (startDate) {
+      return MoreThanOrEqual(new Date(startDate));
+    } else if (endDate) {
+      return LessThanOrEqual(new Date(endDate + 'T23:59:59.999Z'));
+    }
+    return undefined;
   }
 }

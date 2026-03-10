@@ -67,6 +67,9 @@ export class Freight {
   specieOfLoad: SpecieOfLoad;
 
   @Column({ nullable: true })
+  anttLoadType: string;
+
+  @Column({ nullable: true })
   weightOfLoad: string;
 
   @Column({ nullable: true })
@@ -145,6 +148,9 @@ export class Freight {
   @Column({ type: 'simple-array', nullable: true })
   contactCompanyIds: string[];
 
+  @Column({ type: 'simple-array', nullable: true })
+  contactGroupIds: string[];
+
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.freight)
   freightRequest: FreightRequest[];
 
@@ -184,6 +190,9 @@ export class Freight {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ default: true })
+  isPublic: boolean;
 
   @Column({ default: false })
   isFeatured: boolean;

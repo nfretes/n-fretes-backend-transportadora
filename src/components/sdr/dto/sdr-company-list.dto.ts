@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { IsOptional, IsNumber, Min, Max, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SdrCompanyListQueryDto {
@@ -27,6 +27,24 @@ export class SdrCompanyListQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 10;
+
+  @ApiProperty({
+    description: 'Data inicial para filtrar empresas por data de cadastro (formato: YYYY-MM-DD)',
+    example: '2025-01-01',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({
+    description: 'Data final para filtrar empresas por data de cadastro (formato: YYYY-MM-DD)',
+    example: '2025-12-31',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 }
 
 export class SdrContactDto {
@@ -59,59 +77,31 @@ export class SdrContactDto {
 
 export class SdrSubscriptionStatusDto {
   @ApiProperty({
-    description: 'Identificador único da assinatura',
-    example: 'b8b9f9a4-1a23-4d3b-b30c-3b8e780204e7',
-    nullable: true,
+    description: 'Status da assinatura',
+    example: 'Ativo',
+    enum: ['Ativo', 'Inativado', 'Vencido', 'Sem assinatura'],
   })
-  id: string | null;
+  statusLabel: 'Ativo' | 'Inativado' | 'Vencido' | 'Sem assinatura';
 
   @ApiProperty({
-    description: 'Status da assinatura: 1 = Ativo, 2 = Cancelado, 3 = Vencido',
-    example: 1,
-    enum: [1, 2, 3],
-    nullable: true,
+    description: 'Indica se a assinatura está ativa',
+    example: true,
   })
-  status: number | null;
+  isActive: boolean;
 
   @ApiProperty({
     description: 'Nome do plano da assinatura',
-    example: 'Plano Premium',
+    example: 'Plano Ouro',
     nullable: true,
   })
   planName: string | null;
 
   @ApiProperty({
-    description: 'Próxima data de renovação da assinatura',
-    example: '2025-04-01T00:00:00.000Z',
+    description: 'Próxima data de renovação (preenchida apenas quando Ativo)',
+    example: '2026-04-01T00:00:00.000Z',
     nullable: true,
   })
   nextRecurrency: string | null;
-
-  @ApiProperty({
-    description: 'Data de término da assinatura',
-    example: '2025-12-31T00:00:00.000Z',
-    nullable: true,
-  })
-  endDate: string | null;
-
-  @ApiProperty({
-    description: 'Indica se a assinatura está vencida ou próxima de vencer',
-    example: false,
-  })
-  isExpiringSoon: boolean;
-
-  @ApiProperty({
-    description: 'Indica se a empresa está em período de teste',
-    example: false,
-  })
-  isInTrial: boolean;
-
-  @ApiProperty({
-    description: 'Data de fim do período de teste',
-    example: '2025-03-15T00:00:00.000Z',
-    nullable: true,
-  })
-  trialEndDate: Date | null;
 }
 
 export class SdrCompanyDto {

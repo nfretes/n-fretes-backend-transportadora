@@ -70,7 +70,7 @@ export class SdrController {
   async listCompanies(
     @Query() query: SdrCompanyListQueryDto,
   ): Promise<SdrCompanyListResponseDto> {
-    return this.sdrService.listCompanies(query.page, query.limit);
+    return this.sdrService.listCompanies(query.page, query.limit, query.startDate, query.endDate);
   }
 
   @Get('companies/post-history')
@@ -104,6 +104,8 @@ export class SdrController {
       query.companyId,
       query.page,
       query.limit,
+      query.startDate,
+      query.endDate,
     );
   }
 
@@ -134,6 +136,8 @@ export class SdrController {
       query.companyId,
       query.page,
       query.limit,
+      query.startDate,
+      query.endDate,
     );
   }
 
@@ -167,6 +171,8 @@ export class SdrController {
       query.never_requested,
       query.page,
       query.limit,
+      query.startDate,
+      query.endDate,
     );
   }
 
@@ -191,7 +197,7 @@ export class SdrController {
   async getMarketHeatmap(
     @Query() query: SdrMarketHeatmapQueryDto,
   ): Promise<SdrMarketHeatmapResponseDto> {
-    return this.sdrService.getMarketHeatmap(query.page, query.limit);
+    return this.sdrService.getMarketHeatmap(query.page, query.limit, query.startDate, query.endDate);
   }
 
   /**
@@ -216,7 +222,7 @@ export class SdrController {
   async getDriverActivityList(
     @Query() query: SdrDriverActivityListQueryDto,
   ): Promise<SdrDriverActivityListResponseDto> {
-    return this.sdrService.getDriverActivityList(query.page, query.limit);
+    return this.sdrService.getDriverActivityList(query.page, query.limit, query.startDate, query.endDate);
   }
 
   @Get('companies/first-freight-analysis')
@@ -242,6 +248,8 @@ export class SdrController {
       query.page,
       query.limit,
       query.companyId,
+      query.startDate,
+      query.endDate,
     );
   }
 
@@ -270,6 +278,8 @@ export class SdrController {
       query.limit,
       query.period,
       query.companyId,
+      query.startDate,
+      query.endDate,
     );
   }
 }
