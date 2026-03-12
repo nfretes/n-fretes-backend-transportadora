@@ -42,8 +42,6 @@ import {
 
 @ApiTags('SDR - Desenvolvimento de Vendas')
 @Controller('sdr')
-@UseGuards(ApiKeyGuard)
-@ApiSecurity('x-api-key')
 export class SdrController {
   constructor(private readonly sdrService: SdrService) {}
 

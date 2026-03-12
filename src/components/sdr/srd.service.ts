@@ -309,12 +309,12 @@ export class SdrService {
     }
 
     if (startDate) {
-      queryBuilder.andWhere('freightRequest."createdAt" >= :startDate', {
+      queryBuilder.andWhere('freightRequest.createdAt >= :startDate', {
         startDate: new Date(startDate),
       });
     }
     if (endDate) {
-      queryBuilder.andWhere('freightRequest."createdAt" <= :endDate', {
+      queryBuilder.andWhere('freightRequest.createdAt <= :endDate', {
         endDate: new Date(endDate + 'T23:59:59.999Z'),
       });
     }
