@@ -77,4 +77,72 @@ export class CompanyOverviewController {
   async getCriticalFreights(@GetUserId() userId: string) {
     return this.companyOverviewService.getCriticalFreights(userId);
   }
+
+  @Get('geographic-kpis')
+  @ApiQuery({ name: 'startDate', required: false, description: 'DD/MM/YYYY' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'DD/MM/YYYY' })
+  async getGeographicKpis(
+    @GetUserId() userId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.companyOverviewService.getGeographicKpis(
+      userId,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('top-routes-by-volume')
+  @ApiQuery({ name: 'startDate', required: false, description: 'DD/MM/YYYY' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'DD/MM/YYYY' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Quantidade de rotas retornadas (default: 10)',
+  })
+  async getTopRoutesByVolume(
+    @GetUserId() userId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.companyOverviewService.getTopRoutesByVolume(
+      userId,
+      startDate,
+      endDate,
+      limit ? Number(limit) : 10,
+    );
+  }
+
+  @Get('performance-kpis')
+  @ApiQuery({ name: 'startDate', required: false, description: 'DD/MM/YYYY' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'DD/MM/YYYY' })
+  async getPerformanceKpis(
+    @GetUserId() userId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.companyOverviewService.getPerformanceKpis(
+      userId,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('top-drivers-ranking')
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Quantidade de motoristas retornados (default: 10)',
+  })
+  async getTopDriversRanking(
+    @GetUserId() userId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.companyOverviewService.getTopDriversRanking(
+      userId,
+      limit ? Number(limit) : 10,
+    );
+  }
 }

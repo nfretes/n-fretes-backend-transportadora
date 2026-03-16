@@ -699,4 +699,395 @@ export class CompanyOverviewService {
       );
     }
   }
+
+  async getGeographicKpis(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<any> {
+    try {
+      const dateRange = this.buildDateFilter(startDate, endDate);
+      const dateFreightFilter = dateRange
+        ? 'AND f."createdAt" BETWEEN $2 AND $3'
+        : '';
+      const dateRouteFilter = dateRange
+        ? 'AND fr."startedAt" BETWEEN $2 AND $3'
+        : '';
+      const p = dateRange
+        ? [companyId, dateRange.start, dateRange.end]
+        : [companyId];
+
+      const [avgDistanceResult, routesInProgressResult, activeStatesResult] =
+        await Promise.all([
+          this.freightRepository.manager.query(
+            `
+            SELECT
+              AVG(CAST(f.distance AS FLOAT)) AS avg_distance,
+              COUNT(f.id)                    AS total_with_distance
+            FROM freight f
+            WHERE f."companyId" = $1
+              AND f."isExclude" = false
+              AND f.distance IS NOT NULL
+              AND f.distance <> ''
+              AND f.distance ~ '^[0-9]+(\\.[0-9]+)?$'
+              ${dateFreightFilter}
+            `,
+            p,
+          ),
+
+  
+          this.freightRoutesRepository.manager.query(
+            `
+            SELECT COUNT(fr.id) AS total_in_progress
+            FROM freight_routes fr
+            WHERE fr."companyId" = $1
+              AND fr.status = 'PROGUESS'
+              ${dateRouteFilter}
+            `,
+            p,
+          ),
+
+  
+          this.freightRoutesRepository.manager.query(
+            `
+            SELECT DISTINCT unnest(ARRAY[f."originState", f."destinyState"]) AS state
+            FROM freight_routes fr
+            INNER JOIN freight f ON f.id = fr."freightId"
+            WHERE fr."companyId" = $1
+              AND fr.status = 'PROGUESS'
+              AND f."originState" IS NOT NULL
+              AND f."destinyState" IS NOT NULL
+              ${dateRouteFilter}
+            ORDER BY state
+            `,
+            p,
+          ),
+        ]);
+
+      const avgDistance = Number(
+        Number(avgDistanceResult[0]?.avg_distance ?? 0).toFixed(2),
+      );
+      const totalWithDistance = Number(
+        avgDistanceResult[0]?.total_with_distance ?? 0,
+      );
+      const totalInProgress = Number(
+        routesInProgressResult[0]?.total_in_progress ?? 0,
+      );
+      const states: string[] = activeStatesResult
+        .map((r: { state: string }) => r.state)
+        .filter(Boolean);
+
+      return {
+        period: dateRange ? { startDate, endDate } : null,
+        avgDistance: {
+          km: avgDistance,
+          freightsComputed: totalWithDistance,
+        },
+        routesInProgress: {
+          total: totalInProgress,
+        },
+        activeStates: {
+          total: states.length,
+          states,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar KPIs geográficos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getTopRoutesByVolume(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+    limit = 10,
+  ): Promise<any> {
+    try {
+      const dateRange = this.buildDateFilter(startDate, endDate);
+      const dateFilter = dateRange
+        ? 'AND f."createdAt" BETWEEN $2 AND $3'
+        : '';
+      const limitParam = dateRange ? '$4' : '$2';
+      const p = dateRange
+        ? [companyId, dateRange.start, dateRange.end, limit]
+        : [companyId, limit];
+
+      const rows = await this.freightRepository.manager.query(
+        `
+        SELECT
+          f."originCity"    AS origin_city,
+          f."originState"   AS origin_state,
+          f."destinyCity"   AS destiny_city,
+          f."destinyState"  AS destiny_state,
+          COUNT(f.id)        AS total
+        FROM freight f
+        WHERE f."companyId" = $1
+          AND f."isExclude" = false
+          AND f."originCity" IS NOT NULL
+          AND f."destinyCity" IS NOT NULL
+          ${dateFilter}
+        GROUP BY f."originCity", f."originState", f."destinyCity", f."destinyState"
+        ORDER BY total DESC
+        LIMIT ${limitParam}
+        `,
+        p,
+      );
+
+      return {
+        period: dateRange ? { startDate, endDate } : null,
+        total: rows.length,
+        data: rows.map((r: any, index: number) => ({
+          rank: index + 1,
+          route: `${r.origin_city}/${r.origin_state} → ${r.destiny_city}/${r.destiny_state}`,
+          originCity: r.origin_city,
+          originState: r.origin_state,
+          destinyCity: r.destiny_city,
+          destinyState: r.destiny_state,
+          total: Number(r.total),
+        })),
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar top rotas por volume',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getPerformanceKpis(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<any> {
+    try {
+      const dateRange = this.buildDateFilter(startDate, endDate);
+      const dateRouteFilter = dateRange
+        ? 'AND fr."startedAt" BETWEEN $2 AND $3'
+        : '';
+      const dateFreightFilter = dateRange
+        ? 'AND f."createdAt" BETWEEN $2 AND $3'
+        : '';
+      const p = dateRange
+        ? [companyId, dateRange.start, dateRange.end]
+        : [companyId];
+
+      const [activeDriversResult, vehicleTypesResult, loadTypeResult] =
+        await Promise.all([
+          // Motoristas ativos (com rota em progresso)
+          this.freightRepository.manager.query(
+            `
+            SELECT COUNT(DISTINCT fr."userDriveId") AS active_drivers
+            FROM freight_routes fr
+            WHERE fr."companyId" = $1
+              AND fr.status = 'PROGUESS'
+              AND fr."userDriveId" IS NOT NULL
+              ${dateRouteFilter}
+            `,
+            p,
+          ),
+
+          // Tipos de veículo distintos nos fretes
+          this.freightRepository.manager.query(
+            `
+            SELECT
+              TRIM(vtype) AS vehicle_type,
+              COUNT(*)     AS total
+            FROM freight f,
+                 LATERAL unnest(string_to_array(f."vehicleTypes", ',')) AS vtype
+            WHERE f."companyId" = $1
+              AND f."isExclude" = false
+              AND f."vehicleTypes" IS NOT NULL
+              AND f."vehicleTypes" <> ''
+              ${dateFreightFilter}
+            GROUP BY TRIM(vtype)
+            ORDER BY total DESC
+            `,
+            p,
+          ),
+
+          // Distribuição por tipo de carga (Completa x Complemento)
+          this.freightRepository.manager.query(
+            `
+            SELECT
+              f."typeOfLoad" AS load_type,
+              COUNT(f.id)    AS total
+            FROM freight f
+            WHERE f."companyId" = $1
+              AND f."isExclude" = false
+              ${dateFreightFilter}
+            GROUP BY f."typeOfLoad"
+            ORDER BY total DESC
+            `,
+            p,
+          ),
+        ]);
+
+      const activeDrivers = Number(activeDriversResult[0]?.active_drivers ?? 0);
+
+      const vehicleTypes = vehicleTypesResult.map((r: any) => ({
+        vehicleType: r.vehicle_type,
+        total: Number(r.total),
+      }));
+
+      const totalFreightsForVehicle = vehicleTypes.reduce(
+        (acc: number, v: any) => acc + v.total,
+        0,
+      );
+
+      const loadTypes = loadTypeResult.map((r: any) => ({
+        loadType: r.load_type,
+        total: Number(r.total),
+      }));
+
+      const totalFreightsForLoad = loadTypes.reduce(
+        (acc: number, l: any) => acc + l.total,
+        0,
+      );
+
+      return {
+        period: dateRange ? { startDate, endDate } : null,
+        activeDrivers: {
+          total: activeDrivers,
+        },
+        vehicleTypes: {
+          totalFreights: totalFreightsForVehicle,
+          breakdown: vehicleTypes.map((v: any) => ({
+            ...v,
+            percentage:
+              totalFreightsForVehicle > 0
+                ? Number(((v.total / totalFreightsForVehicle) * 100).toFixed(2))
+                : 0,
+          })),
+        },
+        loadTypes: {
+          totalFreights: totalFreightsForLoad,
+          breakdown: loadTypes.map((l: any) => ({
+            ...l,
+            percentage:
+              totalFreightsForLoad > 0
+                ? Number(((l.total / totalFreightsForLoad) * 100).toFixed(2))
+                : 0,
+          })),
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar KPIs de desempenho',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getTopDriversRanking(
+    companyId: string,
+    limit = 10,
+  ): Promise<any> {
+    try {
+      const rows = await this.freightRepository.manager.query(
+        `
+        SELECT
+          ud.id                                                                          AS driver_id,
+          ud.name                                                                        AS driver_name,
+          ud."photoFaceURL"                                                              AS photo,
+
+          -- Total de entregas concluídas
+          COUNT(DISTINCT fr.id)                                                          AS total_deliveries,
+
+          -- Entregas no prazo
+          COUNT(DISTINCT CASE
+            WHEN fr."completedAt" <= f."dateReceiver"
+             AND f."dateReceiver" IS NOT NULL
+            THEN fr.id
+          END)                                                                           AS on_time_deliveries,
+
+          -- Percentual no prazo
+          CASE WHEN COUNT(DISTINCT fr.id) > 0
+            THEN ROUND(
+              COUNT(DISTINCT CASE
+                WHEN fr."completedAt" <= f."dateReceiver"
+                 AND f."dateReceiver" IS NOT NULL
+                THEN fr.id
+              END)::numeric / COUNT(DISTINCT fr.id) * 100, 2
+            )
+            ELSE 0
+          END                                                                            AS on_time_rate,
+
+          -- Avaliação média (só reviews da empresa para o motorista)
+          ROUND(AVG(rv.rating)::numeric, 2)                                              AS avg_rating,
+          COUNT(DISTINCT rv.id)                                                          AS total_reviews,
+
+          -- Taxa de aceite: solicitações aceitas / total recebidas pelo motorista para esta empresa
+          COUNT(DISTINCT freq.id)                                                        AS total_requests,
+          COUNT(DISTINCT CASE WHEN freq.status = 'ACCEPTED' THEN freq.id END)           AS accepted_requests,
+          CASE WHEN COUNT(DISTINCT freq.id) > 0
+            THEN ROUND(
+              COUNT(DISTINCT CASE WHEN freq.status = 'ACCEPTED' THEN freq.id END)::numeric
+              / COUNT(DISTINCT freq.id) * 100, 2
+            )
+            ELSE 0
+          END                                                                            AS acceptance_rate,
+
+          -- Tempo médio de resposta (entre envio da solicitação e aceite)
+          ROUND(
+            AVG(
+              CASE WHEN freq.status = 'ACCEPTED'
+                THEN EXTRACT(EPOCH FROM (freq."updatedAt" - freq."createdAt")) / 60
+              END
+            )::numeric, 2
+          )                                                                              AS avg_response_time_minutes
+
+        FROM freight_routes fr
+        INNER JOIN users_drive ud ON ud.id = fr."userDriveId"
+        INNER JOIN freight f ON f.id = fr."freightId"
+        LEFT JOIN reviews_user_drive rv
+          ON rv."userDriveId" = ud.id
+         AND rv."companyId" = $1
+         AND rv."isCompanyReviewingUser" = true
+         AND rv.rating IS NOT NULL
+        LEFT JOIN freight_requests freq
+          ON freq."userDriveId" = ud.id
+         AND freq."companyId" = $1
+        WHERE fr."companyId" = $1
+          AND fr.status = 'COMPLETED'
+        GROUP BY ud.id, ud.name, ud."photoFaceURL"
+        ORDER BY
+          total_deliveries DESC,
+          avg_rating       DESC,
+          on_time_rate     DESC
+        LIMIT $2
+        `,
+        [companyId, limit],
+      );
+
+      return {
+        total: rows.length,
+        data: rows.map((r: any, index: number) => ({
+          rank: index + 1,
+          driverId: r.driver_id,
+          name: r.driver_name,
+          photo: r.photo ?? null,
+          totalDeliveries: Number(r.total_deliveries),
+          onTimeDeliveries: Number(r.on_time_deliveries),
+          onTimeRate: Number(r.on_time_rate),
+          avgRating: r.avg_rating !== null ? Number(r.avg_rating) : null,
+          totalReviews: Number(r.total_reviews),
+          acceptanceRate: Number(r.acceptance_rate),
+          totalRequests: Number(r.total_requests),
+          acceptedRequests: Number(r.accepted_requests),
+          avgResponseTimeMinutes:
+            r.avg_response_time_minutes !== null
+              ? Number(r.avg_response_time_minutes)
+              : null,
+        })),
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao buscar ranking de motoristas',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

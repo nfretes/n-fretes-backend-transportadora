@@ -1,11 +1,14 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CompanyUsersContacts } from '@entities/company-users-contacts.entity';
 import { ContactCompany } from '@entities/contact-company.entity';
 import { Freight } from '@entities/freight.entity';
 import { ContactGroup } from '@entities/contact-group.entity';
 import { FreightRoutes } from '@entities/freight-routes.entity';
+import { DriverDocument } from '@entities/driver-documents.entity';
+import { AwsService } from '@components/aws/aws.service';
 import {
   CompanyUsersContactsDto,
   updateCompanyUsersContactsDto,
@@ -32,7 +35,11 @@ export class UsersContactCompanyService {
     private contactGroupRepository: Repository<ContactGroup>,
     @InjectRepository(FreightRoutes)
     private freightRoutesRepository: Repository<FreightRoutes>,
+    @InjectRepository(DriverDocument)
+    private driverDocumentRepository: Repository<DriverDocument>,
     private readonly paginationService: PaginationService,
+    private readonly awsService: AwsService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createUsersContactCompany(
@@ -407,6 +414,101 @@ export class UsersContactCompanyService {
     } catch (error) {
       throw new HttpException(
         error?.message || 'Erro ao buscar informações do contato da empresa',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // ───────────────────────── DOCUMENTOS DO MOTORISTA ─────────────────────────
+
+  async uploadDriverDocument(
+    companyId: string,
+    driverId: string,
+    file: Express.Multer.File,
+    description?: string,
+  ): Promise<DriverDocument> {
+    try {
+     
+      const contact = await this.usersContactCompanyRepository.findOne({
+        where: { companyId, userId: driverId, isActive: true },
+      });
+      if (!contact) {
+        throw new HttpException(
+          'Motorista não encontrado na empresa',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const bucket = this.configService.get<string>('AWS_S3_BUCKET_NAME');
+      const ext = file.originalname.split('.').pop();
+      const fileKey = `driver-documents/${companyId}/${driverId}/${Date.now()}.${ext}`;
+
+      const fileUrl = await this.awsService.uploadDocument(
+        bucket,
+        fileKey,
+        file.buffer,
+        file.mimetype,
+      );
+
+      const doc = this.driverDocumentRepository.create({
+        companyId,
+        userId: driverId,
+        fileName: file.originalname,
+        fileKey,
+        fileUrl,
+        mimeType: file.mimetype,
+        fileSizeBytes: file.size,
+        description: description ?? null,
+        isActive: true,
+      });
+
+      return this.driverDocumentRepository.save(doc);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error?.message || 'Erro ao fazer upload do documento',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async listDriverDocuments(
+    companyId: string,
+    driverId: string,
+  ): Promise<DriverDocument[]> {
+    try {
+      return this.driverDocumentRepository.find({
+        where: { companyId, userId: driverId, isActive: true },
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao listar documentos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async deleteDriverDocument(
+    companyId: string,
+    documentId: string,
+  ): Promise<{ message: string }> {
+    try {
+      const doc = await this.driverDocumentRepository.findOne({
+        where: { id: documentId, companyId, isActive: true },
+      });
+      if (!doc) {
+        throw new HttpException('Documento não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      doc.isActive = false;
+      await this.driverDocumentRepository.save(doc);
+
+      return { message: 'Documento removido com sucesso' };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error?.message || 'Erro ao remover documento',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
