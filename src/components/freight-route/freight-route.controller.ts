@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -18,10 +20,33 @@ import { RouteStatus } from '@entities/freight-routes.entity';
 export class FreightRouteController {
   constructor(private readonly freightRouteService: FreightRouteService) {}
 
+  @Post('create')
+  @UseGuards(JwtAuthGuard)
+  async createRouteInProgress(
+    @GetUserId() companyId: string,
+    @Body('freightId') freightId: string,
+    @Body('userDriveId') userDriveId: string,
+  ) {
+    return this.freightRouteService.createRouteInProgress(
+      companyId,
+      freightId,
+      userDriveId,
+    );
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(@GetUserId() userId: string, @Query() params: ParamsFreightRoute) {
     return this.freightRouteService.findAll(userId, params);
+  }
+
+  @Get('overdue')
+  @UseGuards(JwtAuthGuard)
+  findAllOverdue(
+    @GetUserId() userId: string,
+    @Query() params: ParamsFreightRoute,
+  ) {
+    return this.freightRouteService.findAllOverdue(userId, params);
   }
 
   @Patch(':id/status')
@@ -31,6 +56,15 @@ export class FreightRouteController {
     @Body('status') status: RouteStatus,
   ) {
     return this.freightRouteService.updateStatus(routeId, status);
+  }
+
+  @Delete(':id/hard-delete')
+  @UseGuards(JwtAuthGuard)
+  async hardDeleteRoute(
+    @Param('id') routeId: string,
+    @GetUserId() companyId: string,
+  ) {
+    return this.freightRouteService.hardDeleteRoute(routeId, companyId);
   }
 
   @Get(':userId/statics')

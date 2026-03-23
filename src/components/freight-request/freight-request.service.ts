@@ -459,4 +459,94 @@ export class FreightRequestService {
       );
     }
   }
+
+  async acceptFreightRequestDirect(freightRequestId: string) {
+    try {
+      const freightRequest = await this.freightRequestRepository.findOne({
+        where: { id: freightRequestId },
+        relations: ['freight', 'company'],
+      });
+
+      if (!freightRequest) {
+        throw new HttpException(
+          'Freight request not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (!freightRequest.userDriveId) {
+        throw new HttpException(
+          'Solicitação sem motorista vinculado.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const activeRoute = await this.freightRoutesRepository.findOne({
+        where: {
+          userDriveId: freightRequest.userDriveId,
+          status: RouteStatus.IN_PROGRESS,
+          isActive: true,
+        },
+      });
+
+      if (activeRoute) {
+        throw new HttpException(
+          'Motorista já possui rota ativa.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const userDrive = await this.userDriveRepository.findOne({
+        where: { id: freightRequest.userDriveId },
+      });
+
+      if (!userDrive) {
+        throw new HttpException('Motorista não encontrado.', HttpStatus.NOT_FOUND);
+      }
+
+      userDrive.isOnRoute = true;
+      await this.userDriveRepository.save(userDrive);
+
+      const newFreightRoute = this.freightRoutesRepository.create({
+        freightId: freightRequest.freightId,
+        userDriveId: freightRequest.userDriveId,
+        companyId: freightRequest.companyId,
+        status: RouteStatus.IN_PROGRESS,
+        isActive: true,
+      });
+
+      await this.freightRoutesRepository.save(newFreightRoute);
+
+      if (freightRequest.freight) {
+        freightRequest.freight.isActive = false;
+        freightRequest.freight.openSolicitations = false;
+        await this.freightRepository.save(freightRequest.freight);
+      }
+
+      freightRequest.status = FreightRequestStatus.ACCEPTED;
+      freightRequest.expiresAt = null;
+      await this.freightRequestRepository.save(freightRequest);
+
+      return {
+        success: true,
+        message: 'Solicitação aceita e rota iniciada com sucesso.',
+        status: FreightRequestStatus.ACCEPTED,
+        routeId: newFreightRoute.id,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        return {
+          success: false,
+          error: error.getResponse(),
+          code: error.getStatus(),
+        };
+      }
+
+      console.error('Erro ao aceitar solicitação diretamente:', error);
+      throw new HttpException(
+        error.message || 'Erro interno ao aceitar solicitação de frete.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

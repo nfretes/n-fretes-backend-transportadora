@@ -14,6 +14,9 @@ import { SQSService } from '@components/sqs/sqs.service';
 import { FeatureLog } from '@entities/feature-logs.entity';
 import { FreightIsFeatured, SharingFreightDto } from './dto/sharing.dto';
 import { DistanceService } from '@components/distance/distance.service';
+import { FreightDocument } from '@entities/freight-documents.entity';
+import { AwsService } from '@components/aws/aws.service';
+import { ConfigService } from '@nestjs/config';
 export class FreightService {
   constructor(
     @InjectRepository(Freight)
@@ -28,10 +31,24 @@ export class FreightService {
     private featureUsageRepository: Repository<FeatureUsage>,
     @InjectRepository(FeatureLog)
     private featureLogsRepository: Repository<FeatureLog>,
+    @InjectRepository(FreightDocument)
+    private freightDocumentRepository: Repository<FreightDocument>,
     private readonly paginationService: PaginationService,
     private readonly sqsService: SQSService,
     private readonly distanceService: DistanceService,
+    private readonly awsService: AwsService,
+    private readonly configService: ConfigService,
   ) {}
+
+  private normalizeTags(tags: string[] = []): string[] {
+    return Array.from(
+      new Set(
+        tags
+          .map((tag) => (tag || '').trim())
+          .filter((tag) => tag.length > 0),
+      ),
+    );
+  }
 
   /****************************************CREATE FREIGHT****************************************** */
   async createFreightCompany(
@@ -42,6 +59,7 @@ export class FreightService {
       const data = {
         ...createFreightDto,
         companyId: userId,
+        tags: this.normalizeTags(createFreightDto.tags ?? []),
       };
 
       console.log(data, 'Retorno do data');
@@ -92,10 +110,19 @@ export class FreightService {
         throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
       }
 
-      await this.freightRepository.update(freight.id, update);
+      const payload = {
+        ...update,
+        tags:
+          update.tags !== undefined
+            ? this.normalizeTags(update.tags as string[])
+            : freight.tags,
+      };
+
+      await this.freightRepository.update(freight.id, payload);
       const updatedFreight = await this.freightRepository.findOne({
         where: { id },
       });
+
       return updatedFreight;
     } catch (error) {
       throw new HttpException(
@@ -1077,6 +1104,177 @@ export class FreightService {
     } catch (error) {
       throw new HttpException(
         error?.message || 'Erro ao buscar o frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async uploadFreightDocument(
+    companyId: string,
+    freightId: string,
+    file: Express.Multer.File,
+    description?: string,
+    tags?: string[],
+  ): Promise<FreightDocument> {
+    try {
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId },
+      });
+
+      if (!freight) {
+        throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const bucket = this.configService.get<string>('AWS_S3_BUCKET_NAME');
+      const ext = file.originalname.split('.').pop();
+      const fileKey = `freight-documents/${companyId}/${freightId}/${Date.now()}.${ext}`;
+
+      const fileUrl = await this.awsService.uploadDocument(
+        bucket,
+        fileKey,
+        file.buffer,
+        file.mimetype,
+      );
+
+      const normalizedTags = this.normalizeTags(tags ?? []);
+
+      const doc = this.freightDocumentRepository.create({
+        companyId,
+        freightId,
+        fileName: file.originalname,
+        fileKey,
+        fileUrl,
+        mimeType: file.mimetype,
+        fileSizeBytes: file.size,
+        description: description ?? null,
+        tags: normalizedTags,
+        isActive: true,
+      });
+
+      const savedDoc = await this.freightDocumentRepository.save(doc);
+
+      return savedDoc;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        error?.message || 'Erro ao fazer upload do documento do frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async listFreightDocuments(
+    companyId: string,
+    freightId: string,
+  ): Promise<FreightDocument[]> {
+    try {
+      return this.freightDocumentRepository.find({
+        where: { companyId, freightId, isActive: true },
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Erro ao listar documentos do frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async deleteFreightDocument(
+    companyId: string,
+    documentId: string,
+  ): Promise<{ message: string }> {
+    try {
+      const doc = await this.freightDocumentRepository.findOne({
+        where: { id: documentId, companyId, isActive: true },
+      });
+
+      if (!doc) {
+        throw new HttpException('Documento não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      doc.isActive = false;
+      await this.freightDocumentRepository.save(doc);
+
+      return { message: 'Documento removido com sucesso' };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        error?.message || 'Erro ao remover documento do frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async addFreightTags(
+    companyId: string,
+    freightId: string,
+    tags: string[],
+  ): Promise<{ tags: string[] }> {
+    try {
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId },
+      });
+
+      if (!freight) {
+        throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const currentTags = this.normalizeTags(freight.tags ?? []);
+      const newTags = this.normalizeTags(tags);
+      const mergedTags = this.normalizeTags([...currentTags, ...newTags]);
+
+      freight.tags = mergedTags;
+      await this.freightRepository.save(freight);
+
+      return { tags: mergedTags };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        error?.message || 'Erro ao adicionar tags no frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async removeFreightTag(
+    companyId: string,
+    freightId: string,
+    tag: string,
+  ): Promise<{ tags: string[] }> {
+    try {
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId },
+      });
+
+      if (!freight) {
+        throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const currentTags = this.normalizeTags(freight.tags ?? []);
+      const targetTag = (tag || '').trim();
+      const updatedTags = currentTags.filter((item) => item !== targetTag);
+
+      freight.tags = updatedTags;
+      await this.freightRepository.save(freight);
+
+      return { tags: updatedTags };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        error?.message || 'Erro ao remover tag do frete',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

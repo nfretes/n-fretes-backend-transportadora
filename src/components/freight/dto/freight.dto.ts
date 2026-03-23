@@ -288,6 +288,18 @@ export class CreateFreightDto {
   contactCompanyId?: string;
 
   @ApiProperty({
+    description: 'Tags do frete',
+    required: false,
+    isArray: true,
+    type: 'string',
+    example: ['urgente', 'refrigerado'],
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiProperty({
     description: 'IDs dos contatos da empresa',
     required: false,
     isArray: true,

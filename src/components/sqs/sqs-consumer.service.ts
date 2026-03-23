@@ -25,9 +25,6 @@ export class SQSConsumerService implements OnModuleInit, OnModuleDestroy {
 
   private readonly queueUrlFreightSharing =
     process.env.QUEUE_SHARING_NOTIFICATION_FREIGHT;
-  private readonly queueSharingFreightUsers =
-    process.env.QUEUE_SHARIGIN_FREIGHT_USERS;
-  private readonly freightScraperQueue = process.env.FREIGHT_SCRAPER_QUEUE;
 
   constructor(private configService: ConfigService) {
     this.initializeSQSClient();
@@ -61,21 +58,7 @@ export class SQSConsumerService implements OnModuleInit, OnModuleDestroy {
       this.pollingPromises.push(promise);
     }
 
-    if (this.queueSharingFreightUsers) {
-      const promise = this.startPollingWithRetry(
-        this.queueSharingFreightUsers,
-        'FREIGHT_USERS',
-      );
-      this.pollingPromises.push(promise);
-    }
-
-    if (this.freightScraperQueue) {
-      const promise = this.startPollingWithRetry(
-        this.freightScraperQueue,
-        'FREIGHT_SCRAPER',
-      );
-      this.pollingPromises.push(promise);
-    }
+ 
 
     this.startHeartbeat();
   }

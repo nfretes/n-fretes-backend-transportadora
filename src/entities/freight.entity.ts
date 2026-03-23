@@ -24,6 +24,7 @@ import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
 import { RouteCache } from './route-cache.entity';
+import { FreightDocument } from './freight-documents.entity';
 
 @Entity({ schema: 'public', name: 'freight' })
 export class Freight {
@@ -151,6 +152,9 @@ export class Freight {
   @Column({ type: 'simple-array', nullable: true })
   contactGroupIds: string[];
 
+  @Column({ type: 'simple-array', nullable: true })
+  tags: string[];
+
   @OneToMany(() => FreightRequest, (freightRequest) => freightRequest.freight)
   freightRequest: FreightRequest[];
 
@@ -184,6 +188,9 @@ export class Freight {
   @ManyToOne(() => RouteCache, { nullable: true, eager: false })
   @JoinColumn({ name: 'routeCacheId' })
   routeCache: RouteCache;
+
+  @OneToMany(() => FreightDocument, (document) => document.freight)
+  documents: FreightDocument[];
 
   @CreateDateColumn()
   createdAt: Date;

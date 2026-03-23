@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { FreightRoutes, RouteStatus } from '@entities/freight-routes.entity';
 import { ParamsFreightRoute } from './interface/IFreightRoute';
 import { UsersDrive } from '@entities/users-drive.entity';
+import { Freight } from '@entities/freight.entity';
 
 @Injectable()
 export class FreightRouteService {
@@ -12,7 +13,103 @@ export class FreightRouteService {
     private readonly freightRoutesRepository: Repository<FreightRoutes>,
     @InjectRepository(UsersDrive)
     private readonly userDriveRepository: Repository<UsersDrive>,
+    @InjectRepository(Freight)
+    private readonly freightRepository: Repository<Freight>,
   ) {}
+
+  async createRouteInProgress(
+    companyId: string,
+    freightId: string,
+    userDriveId: string,
+  ) {
+    try {
+      if (!freightId || !userDriveId) {
+        throw new HttpException(
+          'freightId e userDriveId são obrigatórios',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId },
+      });
+
+      if (!freight) {
+        throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const userDrive = await this.userDriveRepository.findOne({
+        where: { id: userDriveId },
+      });
+
+      if (!userDrive) {
+        throw new HttpException('Motorista não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const routeForDriver = await this.freightRoutesRepository.findOne({
+        where: {
+          userDriveId,
+          status: RouteStatus.IN_PROGRESS,
+          isActive: true,
+        },
+      });
+
+      if (routeForDriver) {
+        throw new HttpException(
+          'Motorista já possui rota em progresso',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const routeForFreight = await this.freightRoutesRepository.findOne({
+        where: {
+          freightId,
+          status: RouteStatus.IN_PROGRESS,
+          isActive: true,
+        },
+      });
+
+      if (routeForFreight) {
+        throw new HttpException(
+          'Este frete já possui rota em progresso',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const newRoute = this.freightRoutesRepository.create({
+        companyId,
+        freightId,
+        userDriveId,
+        status: RouteStatus.IN_PROGRESS,
+        isActive: true,
+      });
+
+      const savedRoute = await this.freightRoutesRepository.save(newRoute);
+
+      userDrive.isOnRoute = true;
+      await this.userDriveRepository.save(userDrive);
+
+      freight.isActive = false;
+      freight.openSolicitations = false;
+      await this.freightRepository.save(freight);
+
+      return {
+        success: true,
+        message: 'Rota criada com sucesso em progresso.',
+        route: savedRoute,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('Erro ao criar rota em progresso:', error);
+      throw new HttpException(
+        'Erro ao criar rota em progresso',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   async findAll(userId: string, params: ParamsFreightRoute = {}) {
     try {
@@ -97,6 +194,95 @@ export class FreightRouteService {
     }
   }
 
+  async findAllOverdue(userId: string, params: ParamsFreightRoute = {}) {
+    try {
+      const take = params.take ?? 10;
+      const page = params.page ?? 1;
+
+      const queryBuilder = this.freightRoutesRepository
+        .createQueryBuilder('freight_routes')
+        .leftJoinAndSelect('freight_routes.freight', 'freight')
+        .leftJoin('freight.contactCompany', 'contact_company')
+        .leftJoin('freight_routes.userDrive', 'users_drive')
+        .leftJoin('users_drive.vehicles', 'vehicle')
+        .leftJoin('users_drive.locations', 'location')
+        .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
+        .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts')
+        .loadRelationCountAndMap(
+          'freight_routes.reviewCount',
+          'users_drive.reviewUserDrive',
+        )
+        .addSelect([
+          'contact_company.name',
+          'contact_company.phoneNumber',
+          'users_drive.name',
+          'users_drive.cnh',
+          'users_drive.antt',
+          'users_drive.pushToken',
+          'users_drive.city',
+          'users_drive.cpf',
+          'users_drive.similiary',
+          'users_drive.photoFaceURL',
+          'users_drive.phoneNumber',
+          'users_drive.isOnRoute',
+          'users_drive.id',
+          'users_drive.street',
+          'users_drive.number',
+          'users_drive.state',
+          'users_drive.zipcode',
+          'vehicle.vehicleType',
+          'vehicle.bodyType',
+          'vehicle.plateState',
+          'vehicle.isPlateValid',
+          'vehicle.isRenavamValid',
+          'vehicle.tracker',
+          'vehicle.locator',
+          'vehicle.plateNumber',
+          'location.city',
+          'location.latitude',
+          'location.longitude',
+          'CompanyUsersContacts.isActive',
+        ])
+        .where('freight_routes.companyId = :companyId', { companyId: userId })
+        .andWhere('freight_routes.isActive = :isActive', { isActive: true })
+        .andWhere('freight_routes.status = :status', {
+          status: RouteStatus.IN_PROGRESS,
+        })
+        .andWhere('freight.dateReceiver IS NOT NULL')
+        .andWhere('freight.dateReceiver < NOW()');
+
+      if (params.name) {
+        queryBuilder.andWhere(
+          '(unaccent(LOWER(users_drive.name)) ILIKE unaccent(LOWER(:name)))',
+          { name: `%${params.name}%` },
+        );
+      }
+
+      if (params.freightId) {
+        queryBuilder.andWhere('freight_routes.freightId = :freightId', {
+          freightId: params.freightId,
+        });
+      }
+
+      if (params.userDriveId) {
+        queryBuilder.andWhere('freight_routes.userDriveId = :userDriveId', {
+          userDriveId: params.userDriveId,
+        });
+      }
+
+      const [result, total] = await queryBuilder
+        .orderBy('freight.dateReceiver', 'ASC')
+        .skip((page - 1) * take)
+        .take(take)
+        .getManyAndCount();
+
+      return { data: result, count: total };
+    } catch (error) {
+      console.error('Erro no findAllOverdueRoutes:', error);
+      throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async updateStatus(routeId: string, status: RouteStatus) {
     try {
       if (![RouteStatus.CANCELED, RouteStatus.COMPLETED].includes(status)) {
@@ -131,6 +317,46 @@ export class FreightRouteService {
       console.error('Erro ao atualizar status do frete:', error);
       throw new HttpException(
         'Erro ao atualizar status do frete',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async hardDeleteRoute(routeId: string, companyId: string) {
+    try {
+      const freightRoute = await this.freightRoutesRepository.findOne({
+        where: { id: routeId, companyId },
+      });
+
+      if (!freightRoute) {
+        throw new HttpException('Rota não encontrada', HttpStatus.NOT_FOUND);
+      }
+
+      if (freightRoute.userDriveId) {
+        const userDrive = await this.userDriveRepository.findOne({
+          where: { id: freightRoute.userDriveId },
+        });
+
+        if (userDrive) {
+          userDrive.isOnRoute = false;
+          await this.userDriveRepository.save(userDrive);
+        }
+      }
+
+      await this.freightRoutesRepository.delete({ id: routeId, companyId });
+
+      return {
+        success: true,
+        message: 'Rota excluída permanentemente com sucesso.',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('Erro ao excluir rota permanentemente:', error);
+      throw new HttpException(
+        'Erro ao excluir rota permanentemente',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

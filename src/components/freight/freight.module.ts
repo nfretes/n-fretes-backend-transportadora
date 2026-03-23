@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { PaginationService } from '@components/pagination/pagination.service';
 import { Freight } from '@entities/freight.entity';
@@ -12,9 +13,12 @@ import { FeatureUsage } from '@entities/feature-usage.entity';
 import { SQSService } from '@components/sqs/sqs.service';
 import { FeatureLog } from '@entities/feature-logs.entity';
 import { DistanceModule } from '@components/distance/distance.module';
+import { FreightDocument } from '@entities/freight-documents.entity';
+import { AwsService } from '@components/aws/aws.service';
 
 @Module({
   imports: [
+    ConfigModule,
     TypeOrmModule.forFeature([
       Freight,
       Company,
@@ -22,11 +26,12 @@ import { DistanceModule } from '@components/distance/distance.module';
       SubscriptionCompany,
       FeatureUsage,
       FeatureLog,
+      FreightDocument,
     ]),
     DistanceModule,
   ],
   exports: [TypeOrmModule],
   controllers: [FreightController],
-  providers: [FreightService, PaginationService, SQSService],
+  providers: [FreightService, PaginationService, SQSService, AwsService, ConfigService],
 })
 export class FreightModule {}

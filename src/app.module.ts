@@ -44,6 +44,7 @@ import { UIFeaturesModule } from '@components/ui-features/ui-features.module';
 import { SdrModule } from '@components/sdr/srd.module';
 import { RouteCacheModule } from '@components/route-cache/route-cache.module';
 import { CompanyOverviewModule } from '@components/company-overview/company-overview.module';
+import { GeocodingModule } from '@components/geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { CompanyOverviewModule } from '@components/company-overview/company-over
     SdrModule,
     RouteCacheModule,
     CompanyOverviewModule,
+    GeocodingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

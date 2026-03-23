@@ -35,6 +35,11 @@ export class FreightRequestController {
     return this.freightRequestService.acceptFreightRequest(id);
   }
 
+  @Patch(':id/accept-direct')
+  async acceptFreightRequestDirect(@Param('id') id: string) {
+    return this.freightRequestService.acceptFreightRequestDirect(id);
+  }
+
   @Patch(':id/accept-user')
   async acceptFreightRequestUserDrive(
     @Param('id') id: string,
