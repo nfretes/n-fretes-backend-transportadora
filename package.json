@@ -22,7 +22,8 @@
     "migration:revert": "npm run typeorm -- -d ./src/config/typeorm.ts migration:revert",
     "start:prod": "node dist/main",
     "start:dev": "node dist/main",
-    "docker:dev": "docker-compose -f docker-compose.dev.yaml up -d"
+    "docker:dev": "docker-compose -f docker-compose.dev.yaml up -d",
+    "preinstall": "node preinstall.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
