@@ -3,14 +3,20 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 import { FreightService } from './freight.service';
 import { CreateFreightDto, UpdateFreightDto } from './dto/freight.dto';
@@ -18,6 +24,7 @@ import { ParamsFreight } from './interface/IFreight';
 import { GetUserId } from 'src/decorators/get-user-decorator';
 import { JwtAuthGuard } from 'src/guards/jwt-auth-guard';
 import { Freight } from '@entities/freight.entity';
+import { FreightIsFeatured, SharingFreightDto } from './dto/sharing.dto';
 
 @ApiTags('freight')
 @Controller('freight')
@@ -115,6 +122,17 @@ export class FreightController {
   }
 
   /********************************************************************************** */
+  @Get('/suggested-drivers')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Filtra os motorista por perto',
+  })
+  async getSuggestedDrivers(@Query() params: ParamsFreight) {
+    const result = await this.freightService.getSuggestedDrivers(params);
+    return result;
+  }
+
+  /********************************************************************************** */
   @ApiOperation({
     summary: 'Desativa o frete da empresa',
   })
@@ -145,6 +163,36 @@ export class FreightController {
   }
 
   /********************************************************************************** */
+  @ApiOperation({
+    summary: 'Exclusão do frete (soft delete)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID do frete a ser excluído',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Frete excluído com sucesso',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Frete não encontrado',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Frete já foi excluído',
+  })
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/exclude')
+  async excludeFreight(
+    @Param('id') id: string,
+    @GetUserId() userId: string,
+  ): Promise<string> {
+    return this.freightService.excludeFreight(id, userId);
+  }
+
+  /********************************************************************************** */
 
   @ApiOperation({
     summary:
@@ -160,6 +208,23 @@ export class FreightController {
   async getFiltersDestinyOrCity(@GetUserId() userId: string) {
     const result = await this.freightService.classifyRegionByState(userId);
     return result;
+  }
+
+  @ApiOperation({
+    summary: 'Mapeamento completo de regiões de todos os fretes ativos',
+  })
+  @Get('all-regions-mapping')
+  async getAllFreightsRegionsMapping() {
+    return this.freightService.getAllFreightsRegionsMapping();
+  }
+
+  @ApiOperation({
+    summary: 'Mapeamento completo de regiões dos fretes ativos da empresa',
+  })
+  @Get('company-regions-mapping')
+  @UseGuards(JwtAuthGuard)
+  async getAllFreightsRegionsMappingByCompany(@GetUserId() userId: string) {
+    return this.freightService.getAllFreightsRegionsMappingByCompany(userId);
   }
 
   /********************************************************************************** */
@@ -211,6 +276,120 @@ export class FreightController {
     return this.freightService.freightCountCompany(userId);
   }
 
+  /************************************* SHARING********************************************* */
 
-  
+  @UseGuards(JwtAuthGuard)
+  @Post('/sharing')
+  async sharingFreightUsers(
+    @Body() body: SharingFreightDto,
+    @GetUserId() userId: string,
+  ) {
+    return this.freightService.sharingFreightUsers(body, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/sharing/isFeatured')
+  async freightIsFeatured(
+    @Body() body: FreightIsFeatured,
+    @GetUserId() userId: string,
+  ) {
+    return this.freightService.freightIsFeatured(body, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':freightId/documents')
+  @ApiOperation({ summary: 'Upload de documento para um frete' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          'image/png',
+          'image/jpeg',
+          'image/jpg',
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        if (allowed.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new Error('Tipo de arquivo não permitido. Use PNG, JPG, PDF ou DOCX.'),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadFreightDocument(
+    @GetUserId() companyId: string,
+    @Param('freightId') freightId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('description') description?: string,
+    @Body('tags') tagsRaw?: string,
+  ) {
+    const tags =
+      typeof tagsRaw === 'string' && tagsRaw.trim().length > 0
+        ? tagsRaw
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0)
+        : [];
+
+    return this.freightService.uploadFreightDocument(
+      companyId,
+      freightId,
+      file,
+      description,
+      tags,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':freightId/documents')
+  @ApiOperation({ summary: 'Lista documentos de um frete' })
+  async listFreightDocuments(
+    @GetUserId() companyId: string,
+    @Param('freightId') freightId: string,
+  ) {
+    return this.freightService.listFreightDocuments(companyId, freightId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('documents/:documentId')
+  @ApiOperation({ summary: 'Remove (soft delete) um documento do frete' })
+  async deleteFreightDocument(
+    @GetUserId() companyId: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.freightService.deleteFreightDocument(companyId, documentId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':freightId/tags')
+  @ApiOperation({ summary: 'Adiciona tags ao frete' })
+  async addFreightTags(
+    @GetUserId() companyId: string,
+    @Param('freightId') freightId: string,
+    @Body('tags') tags: string[],
+  ) {
+    if (!Array.isArray(tags) || tags.length === 0) {
+      throw new HttpException('tags é obrigatório', HttpStatus.BAD_REQUEST);
+    }
+
+    return this.freightService.addFreightTags(companyId, freightId, tags);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':freightId/tags/:tag')
+  @ApiOperation({ summary: 'Remove uma tag do frete' })
+  async removeFreightTag(
+    @GetUserId() companyId: string,
+    @Param('freightId') freightId: string,
+    @Param('tag') tag: string,
+  ) {
+    return this.freightService.removeFreightTag(companyId, freightId, tag);
+  }
 }

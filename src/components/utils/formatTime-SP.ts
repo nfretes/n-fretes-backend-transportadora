@@ -11,6 +11,6 @@ export function convertToSaoPauloTime(date: Date): Date {
 
 export function addHoursToSaoPauloTime(date: Date, hours: number): Date {
   const saoPauloTime = convertToSaoPauloTime(date);
-  
+
   return addHours(saoPauloTime, hours);
 }

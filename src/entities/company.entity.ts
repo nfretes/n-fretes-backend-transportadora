@@ -16,6 +16,9 @@ import { CompanyUsersContacts } from './company-users-contacts.entity';
 import { FreightRequest } from './freight-requests.entity';
 import { FreightRoutes } from './freight-routes.entity';
 import { ReviewUserDrive } from './review-users-drive.entity';
+import { UsersFavoritesCompany } from './users-favorites-company.entity';
+import { Transactions } from './transactions.entity';
+import { CreditCard } from './credit-card.entity';
 
 @Entity({ schema: 'public', name: 'company' })
 export class Company {
@@ -28,12 +31,14 @@ export class Company {
   @Column({ nullable: true })
   nameFantasy: string;
 
-  @Column({ nullable: true })
-  @Column({ unique: true })
+  @Column({ nullable: true, unique: true })
   email: string;
 
   @Column({ nullable: true })
   phoneNumber: string;
+
+  @Column({ type: 'json', nullable: true })
+  phoneNumberJson?: { number?: string; contact?: string };
 
   @Column({ nullable: true })
   phoneContact: string;
@@ -62,6 +67,9 @@ export class Company {
 
   @Column({ default: false })
   isCompleted: boolean;
+
+  @Column({ default: false })
+  isSucess: boolean;
 
   @Column({ default: false })
   isOn: boolean;
@@ -108,8 +116,30 @@ export class Company {
   @Column({ nullable: true })
   photoUrl: string;
 
+  @Column({ nullable: true })
+  assas_id: string;
+
+  @Column({ nullable: true })
+  siimpUsername: string;
+
+  @Column({ nullable: true })
+  siimpPassword: string;
+
+  @Column({ nullable: true })
+  userPhotoURL: string;
+
+
+  @Column({ default: false })
+  siimpIntegrationActive: boolean;
+
   @OneToMany(() => ContactCompany, (contact) => contact.company)
   contacts: ContactCompany[];
+
+  @OneToMany(
+    () => UsersFavoritesCompany,
+    (userFavorites) => userFavorites.company,
+  )
+  usersFavoritesCompany: UsersFavoritesCompany[];
 
   @OneToMany(() => Freight, (freight) => freight.company)
   freights: Freight[];
@@ -131,4 +161,10 @@ export class Company {
     (reviewUserDrive) => reviewUserDrive.company,
   )
   reviewUserDrive: ReviewUserDrive[];
+
+  @OneToMany(() => Transactions, (transaction) => transaction.company)
+  transactions: Transactions[];
+
+  @OneToMany(() => CreditCard, (creditCard) => creditCard.company)
+  creditCard: CreditCard[];
 }

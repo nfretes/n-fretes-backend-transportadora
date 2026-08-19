@@ -7,10 +7,20 @@ import { PaginationService } from '@components/pagination/pagination.service';
 import { FreightRoutes } from '@entities/freight-routes.entity';
 import { Freight } from '@entities/freight.entity';
 import { UsersDrive } from '@entities/users-drive.entity';
+import { SQSService } from '@components/sqs/sqs.service';
+import { Notification } from '@entities/notifications.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FreightRequest, FreightRoutes, Freight, UsersDrive])],
+  imports: [
+    TypeOrmModule.forFeature([
+      FreightRequest,
+      FreightRoutes,
+      Freight,
+      UsersDrive,
+      Notification,
+    ]),
+  ],
   controllers: [FreightRequestController],
-  providers: [FreightRequestService, PaginationService],
+  providers: [FreightRequestService, PaginationService, SQSService],
 })
 export class FreightRequestModule {}

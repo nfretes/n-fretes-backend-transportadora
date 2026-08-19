@@ -11,6 +11,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 @Injectable()
 export class FreightRequestCronService {
   private readonly logger = new Logger(FreightRequestCronService.name);
+  private readonly backgroundJobsEnabled =
+    (process.env.BACKGROUND_JOBS_ENABLED ?? 'true').toLowerCase() !== 'false';
 
   constructor(
     @InjectRepository(FreightRequest)
@@ -20,6 +22,10 @@ export class FreightRequestCronService {
   //*/10 * * * * *
   @Cron('0 */30 * * * *')
   async checkExpiredRequests() {
+    if (!this.backgroundJobsEnabled) {
+      return;
+    }
+
     const now = new Date();
     this.logger.log('Verificando status de expiração de solicitações...');
 
@@ -42,7 +48,7 @@ export class FreightRequestCronService {
     for (const request of expiredRequests) {
       request.status = FreightRequestStatus.PENDING;
       request.expiresAt = null;
-      request.solicitationsOrder = 1
+      request.solicitationsOrder = 1;
       await this.freightRequestRepository.save(request);
 
       this.logger.log(`Solicitação ${request.id} foi revertida para PENDING.`);

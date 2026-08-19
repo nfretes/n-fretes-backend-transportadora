@@ -40,4 +40,13 @@ export class ContactCompany {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  email: string;
+
+  @Column({ nullable: true })
+  cpf: string;
+
+  @Column({ nullable: true })
+  password: string;
 }

@@ -1,0 +1,178 @@
+{
+  "info": {
+    "name": "Geocoding - NFretes Backend",
+    "description": "Collection dos endpoints de geocoding migrados do front para o backend NestJS.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Autocomplete",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/geocoding/autocomplete?input=Av%20Paulista&region=BR&language=pt-BR&country=BR",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "geocoding",
+            "autocomplete"
+          ],
+          "query": [
+            {
+              "key": "input",
+              "value": "Av Paulista"
+            },
+            {
+              "key": "region",
+              "value": "BR"
+            },
+            {
+              "key": "language",
+              "value": "pt-BR"
+            },
+            {
+              "key": "country",
+              "value": "BR"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Coordenadas por placeId",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/geocoding/place/ChIJ0WGkg4FEzpQRrlsz_whLqZs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "geocoding",
+            "place",
+            "ChIJ0WGkg4FEzpQRrlsz_whLqZs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Distância Haversine",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/geocoding/distance?lat1=-23.561684&lng1=-46.655981&lat2=-22.906847&lng2=-43.172897",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "geocoding",
+            "distance"
+          ],
+          "query": [
+            {
+              "key": "lat1",
+              "value": "-23.561684"
+            },
+            {
+              "key": "lng1",
+              "value": "-46.655981"
+            },
+            {
+              "key": "lat2",
+              "value": "-22.906847"
+            },
+            {
+              "key": "lng2",
+              "value": "-43.172897"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Geocode (endereço -> coordenadas)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"address\": \"Av. Paulista, 1000 - São Paulo\",\n  \"region\": \"BR\",\n  \"language\": \"pt-BR\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/geocoding/geocode",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "geocoding",
+            "geocode"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Reverse geocode (coordenadas -> endereço)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"lat\": -23.561684,\n  \"lng\": -46.655981,\n  \"language\": \"pt-BR\",\n  \"result_type\": \"street_address\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/geocoding/reverse-geocode",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "geocoding",
+            "reverse-geocode"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Validar endereço",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/geocoding/validate?address=Av%20Paulista%201000%20Sao%20Paulo",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "geocoding",
+            "validate"
+          ],
+          "query": [
+            {
+              "key": "address",
+              "value": "Av Paulista 1000 Sao Paulo"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001"
+    }
+  ]
+}

@@ -27,9 +27,13 @@ export class UserDriveAchievement {
   @JoinColumn({ name: 'userDriveId' })
   userDrive: UsersDrive;
 
-  @ManyToOne(() => Achievement, (achivement) => achivement.userDriveAchievement, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(
+    () => Achievement,
+    (achivement) => achivement.userDriveAchievement,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   @JoinColumn({ name: 'achievementId' })
   achievement: Achievement;
 

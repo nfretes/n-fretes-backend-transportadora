@@ -1,3 +1,3 @@
-export interface EmailJson {
-  email: string;
+export interface PhoneJson {
+  phoneNumber: string;
 }

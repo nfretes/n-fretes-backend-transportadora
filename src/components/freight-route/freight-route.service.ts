@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { FreightRoutes, RouteStatus } from '@entities/freight-routes.entity';
 import { ParamsFreightRoute } from './interface/IFreightRoute';
 import { UsersDrive } from '@entities/users-drive.entity';
+import { Freight } from '@entities/freight.entity';
 
 @Injectable()
 export class FreightRouteService {
@@ -12,7 +13,103 @@ export class FreightRouteService {
     private readonly freightRoutesRepository: Repository<FreightRoutes>,
     @InjectRepository(UsersDrive)
     private readonly userDriveRepository: Repository<UsersDrive>,
+    @InjectRepository(Freight)
+    private readonly freightRepository: Repository<Freight>,
   ) {}
+
+  async createRouteInProgress(
+    companyId: string,
+    freightId: string,
+    userDriveId: string,
+  ) {
+    try {
+      if (!freightId || !userDriveId) {
+        throw new HttpException(
+          'freightId e userDriveId são obrigatórios',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const freight = await this.freightRepository.findOne({
+        where: { id: freightId, companyId },
+      });
+
+      if (!freight) {
+        throw new HttpException('Frete não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const userDrive = await this.userDriveRepository.findOne({
+        where: { id: userDriveId },
+      });
+
+      if (!userDrive) {
+        throw new HttpException('Motorista não encontrado', HttpStatus.NOT_FOUND);
+      }
+
+      const routeForDriver = await this.freightRoutesRepository.findOne({
+        where: {
+          userDriveId,
+          status: RouteStatus.IN_PROGRESS,
+          isActive: true,
+        },
+      });
+
+      if (routeForDriver) {
+        throw new HttpException(
+          'Motorista já possui rota em progresso',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const routeForFreight = await this.freightRoutesRepository.findOne({
+        where: {
+          freightId,
+          status: RouteStatus.IN_PROGRESS,
+          isActive: true,
+        },
+      });
+
+      if (routeForFreight) {
+        throw new HttpException(
+          'Este frete já possui rota em progresso',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const newRoute = this.freightRoutesRepository.create({
+        companyId,
+        freightId,
+        userDriveId,
+        status: RouteStatus.IN_PROGRESS,
+        isActive: true,
+      });
+
+      const savedRoute = await this.freightRoutesRepository.save(newRoute);
+
+      userDrive.isOnRoute = true;
+      await this.userDriveRepository.save(userDrive);
+
+      freight.isActive = false;
+      freight.openSolicitations = false;
+      await this.freightRepository.save(freight);
+
+      return {
+        success: true,
+        message: 'Rota criada com sucesso em progresso.',
+        route: savedRoute,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('Erro ao criar rota em progresso:', error);
+      throw new HttpException(
+        'Erro ao criar rota em progresso',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   async findAll(userId: string, params: ParamsFreightRoute = {}) {
     try {
@@ -61,7 +158,7 @@ export class FreightRouteService {
           'location.city',
           'location.latitude',
           'location.longitude',
-          'CompanyUsersContacts.isActive'
+          'CompanyUsersContacts.isActive',
         ])
         .where('freight_routes.companyId = :companyId', { companyId: userId });
 
@@ -93,6 +190,95 @@ export class FreightRouteService {
       return { data: result, count: total };
     } catch (error) {
       console.error('Erro no findAllRoutes:', error);
+      throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async findAllOverdue(userId: string, params: ParamsFreightRoute = {}) {
+    try {
+      const take = params.take ?? 10;
+      const page = params.page ?? 1;
+
+      const queryBuilder = this.freightRoutesRepository
+        .createQueryBuilder('freight_routes')
+        .leftJoinAndSelect('freight_routes.freight', 'freight')
+        .leftJoin('freight.contactCompany', 'contact_company')
+        .leftJoin('freight_routes.userDrive', 'users_drive')
+        .leftJoin('users_drive.vehicles', 'vehicle')
+        .leftJoin('users_drive.locations', 'location')
+        .leftJoinAndSelect('users_drive.reviewUserDrive', 'reviewUserDrive')
+        .leftJoin('users_drive.CompanyUsersContacts', 'CompanyUsersContacts')
+        .loadRelationCountAndMap(
+          'freight_routes.reviewCount',
+          'users_drive.reviewUserDrive',
+        )
+        .addSelect([
+          'contact_company.name',
+          'contact_company.phoneNumber',
+          'users_drive.name',
+          'users_drive.cnh',
+          'users_drive.antt',
+          'users_drive.pushToken',
+          'users_drive.city',
+          'users_drive.cpf',
+          'users_drive.similiary',
+          'users_drive.photoFaceURL',
+          'users_drive.phoneNumber',
+          'users_drive.isOnRoute',
+          'users_drive.id',
+          'users_drive.street',
+          'users_drive.number',
+          'users_drive.state',
+          'users_drive.zipcode',
+          'vehicle.vehicleType',
+          'vehicle.bodyType',
+          'vehicle.plateState',
+          'vehicle.isPlateValid',
+          'vehicle.isRenavamValid',
+          'vehicle.tracker',
+          'vehicle.locator',
+          'vehicle.plateNumber',
+          'location.city',
+          'location.latitude',
+          'location.longitude',
+          'CompanyUsersContacts.isActive',
+        ])
+        .where('freight_routes.companyId = :companyId', { companyId: userId })
+        .andWhere('freight_routes.isActive = :isActive', { isActive: true })
+        .andWhere('freight_routes.status = :status', {
+          status: RouteStatus.IN_PROGRESS,
+        })
+        .andWhere('freight.dateReceiver IS NOT NULL')
+        .andWhere('freight.dateReceiver < NOW()');
+
+      if (params.name) {
+        queryBuilder.andWhere(
+          '(unaccent(LOWER(users_drive.name)) ILIKE unaccent(LOWER(:name)))',
+          { name: `%${params.name}%` },
+        );
+      }
+
+      if (params.freightId) {
+        queryBuilder.andWhere('freight_routes.freightId = :freightId', {
+          freightId: params.freightId,
+        });
+      }
+
+      if (params.userDriveId) {
+        queryBuilder.andWhere('freight_routes.userDriveId = :userDriveId', {
+          userDriveId: params.userDriveId,
+        });
+      }
+
+      const [result, total] = await queryBuilder
+        .orderBy('freight.dateReceiver', 'ASC')
+        .skip((page - 1) * take)
+        .take(take)
+        .getManyAndCount();
+
+      return { data: result, count: total };
+    } catch (error) {
+      console.error('Erro no findAllOverdueRoutes:', error);
       throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -136,53 +322,139 @@ export class FreightRouteService {
     }
   }
 
+  async hardDeleteRoute(routeId: string, companyId: string) {
+    try {
+      const freightRoute = await this.freightRoutesRepository.findOne({
+        where: { id: routeId, companyId },
+      });
+
+      if (!freightRoute) {
+        throw new HttpException('Rota não encontrada', HttpStatus.NOT_FOUND);
+      }
+
+      if (freightRoute.userDriveId) {
+        const userDrive = await this.userDriveRepository.findOne({
+          where: { id: freightRoute.userDriveId },
+        });
+
+        if (userDrive) {
+          userDrive.isOnRoute = false;
+          await this.userDriveRepository.save(userDrive);
+        }
+      }
+
+      await this.freightRoutesRepository.delete({ id: routeId, companyId });
+
+      return {
+        success: true,
+        message: 'Rota excluída permanentemente com sucesso.',
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      console.error('Erro ao excluir rota permanentemente:', error);
+      throw new HttpException(
+        'Erro ao excluir rota permanentemente',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async getStaticsUserRoute(userId: string) {
     try {
       const freightRoutes = await this.freightRoutesRepository.find({
         where: { userDriveId: userId },
         relations: ['freight', 'freight.company'],
       });
-  
+
       const values = freightRoutes
         .map((route) => Number(route.freight?.Valuefreight) || 0)
         .filter((value) => value > 0);
-  
+
       const distinctCompanies = new Set(
-        freightRoutes.map((route) => route.freight?.company?.id).filter(Boolean),
+        freightRoutes
+          .map((route) => route.freight?.company?.id)
+          .filter(Boolean),
       ).size;
-  
+
       const count = values.length;
       const mediaFreights = count
         ? (values.reduce((sum, v) => sum + v, 0) / count).toFixed(2)
         : '0.00';
       const maiorFreight = count ? Math.max(...values).toFixed(2) : '0.00';
-  
-    
+
       const destinationCount: Record<string, number> = {};
       freightRoutes.forEach((route) => {
         const destination = route.freight?.destinyCity;
         if (destination) {
-          destinationCount[destination] = (destinationCount[destination] || 0) + 1;
+          destinationCount[destination] =
+            (destinationCount[destination] || 0) + 1;
         }
       });
-  
-   
+
       const principalRoute = Object.entries(destinationCount).reduce(
         (max, entry) => (entry[1] > max[1] ? entry : max),
         ['', 0],
       )[0];
-  
+
       return {
         count,
         distinctCompanies,
         mediaFreights,
         maiorFreight,
-        principalRoute, 
+        principalRoute,
       };
     } catch (error) {
       console.error('Erro no getStaticsUserRoute:', error);
       throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-  
+
+  async getAvalatiation(userId: string, params: ParamsFreightRoute = {}) {
+    try {
+      const take = params.take ?? 10;
+      const page = params.page ?? 1;
+
+      const queryBuilder = this.freightRoutesRepository
+        .createQueryBuilder('freight_routes')
+        .leftJoinAndSelect('freight_routes.freight', 'freight')
+        .leftJoinAndSelect('freight_routes.userDrive', 'userDrive')
+        .leftJoinAndSelect(
+          'freight_routes.reviewUserDrive',
+          'reviewUserDrive',
+          'reviewUserDrive.routeId = freight_routes.id',
+        )
+        .leftJoin('freight.freightRequest', 'freightRequest')
+        .leftJoin('freight.company', 'company')
+        .addSelect([
+          'company.id',
+          'company.name',
+          'company.photoUrl',
+          'company.phoneNumber',
+          'company.createdAt',
+          'company.city',
+          'freightRequest.status',
+          'freightRequest.id',
+        ])
+
+        .where('freight_routes.companyId = :companyId', {
+          companyId: userId,
+        })
+        .where('freight_routes.avalationUserDrive = :avalationUserDrive', {
+          avalationUserDrive: false,
+        });
+      const [result, total] = await queryBuilder
+        .skip((page - 1) * take)
+        .take(take)
+        .getManyAndCount();
+      const nextPageExists = total > page * take;
+
+      return { data: result, count: total, next: nextPageExists };
+    } catch (error) {
+      console.error('Erro no findAllRoutes:', error);
+      throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
 }

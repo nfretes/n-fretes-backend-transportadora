@@ -9,6 +9,7 @@ import {
   IsDateString,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   FreightLocal,
   PaymentMethod,
@@ -45,6 +46,13 @@ export class CreateFreightDto {
     format: 'date-time',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value || value === '' || value === null || value === undefined) {
+      return null;
+    }
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  })
   dateOrigin?: Date;
 
   @ApiProperty({ description: 'Cidade de destino', required: false })
@@ -63,6 +71,13 @@ export class CreateFreightDto {
     format: 'date-time',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!value || value === '' || value === null || value === undefined) {
+      return null;
+    }
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  })
   dateReceiver?: Date;
 
   @ApiProperty({
@@ -102,6 +117,14 @@ export class CreateFreightDto {
   @IsNotEmpty()
   specieOfLoad?: SpecieOfLoad;
 
+  @ApiProperty({
+    description: 'Tipo de carga ANTT (ex: Carga Geral, Granel sólido, Frigorificada ou Aquecida...)',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  anttLoadType?: string;
+
   @ApiProperty({ description: 'Peso da carga', required: false })
   @IsString()
   @IsOptional()
@@ -116,33 +139,50 @@ export class CreateFreightDto {
   @IsOptional()
   unityMetric?: UnityMetric;
 
+  @ApiProperty({
+    description: 'Unidade de medida',
+    required: true,
+  })
+  @IsOptional()
+  valueCall?: string;
+
   @ApiProperty({ description: 'Volume da carga', required: false })
   @IsString()
   @IsOptional()
   volume?: string;
 
-
-  @ApiProperty({ description: 'Longitude e Latitude da origem', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude da origem',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   originLongitude?: string;
 
-  @ApiProperty({ description: 'Longitude e Latitude da origem', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude da origem',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   originLatitude?: string;
 
-  @ApiProperty({ description: 'Longitude e Latitude do destino', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude do destino',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   destinyLongitude?: string;
 
-  @ApiProperty({ description: 'Longitude e Latitude do destino', required: false })
+  @ApiProperty({
+    description: 'Longitude e Latitude do destino',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   destinyLatitude?: string;
 
-  
   @ApiProperty({ description: 'Distancia total do percurso', required: false })
   @IsString()
   @IsOptional()
@@ -183,7 +223,7 @@ export class CreateFreightDto {
   })
   @IsNumber()
   @IsOptional()
-  valueFreight?: number;
+  Valuefreight?: number;
 
   @ApiProperty({
     description: 'Método de cálculo do valor',
@@ -246,6 +286,65 @@ export class CreateFreightDto {
   @IsString()
   @IsNotEmpty()
   contactCompanyId?: string;
+
+  @ApiProperty({
+    description: 'Tags do frete',
+    required: false,
+    isArray: true,
+    type: 'string',
+    example: ['urgente', 'refrigerado'],
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiProperty({
+    description: 'IDs dos contatos da empresa',
+    required: false,
+    isArray: true,
+    type: 'string',
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  contactCompanyIds?: string[];
+
+  @ApiProperty({
+    description: 'IDs dos grupos de contato',
+    required: false,
+    isArray: true,
+    type: 'string',
+  })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  contactGroupIds?: string[];
+
+  @ApiProperty({
+    description: 'Frete público (true) ou restrito (false)',
+    required: false,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
+
+  @ApiProperty({
+    description: 'Permitir compartilhamento do frete',
+    required: false,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  isToShare?: boolean;
+
+  
+  @ApiProperty({ description: 'Rota de destino', required: false })
+  @IsString()
+  @IsOptional()
+  routeCacheId?: string;
+  
 }
 
 export class UpdateFreightDto extends PartialType(CreateFreightDto) {}

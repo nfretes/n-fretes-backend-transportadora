@@ -34,6 +34,23 @@ export class AwsService {
     return uploadResult.Location;
   }
 
+  async uploadDocument(
+    bucketName: string,
+    key: string,
+    fileContent: Buffer,
+    mimeType: string,
+  ): Promise<string> {
+    const params = {
+      Bucket: bucketName,
+      Key: key,
+      Body: fileContent,
+      ContentType: mimeType,
+    };
+
+    const uploadResult = await this.s3.upload(params).promise();
+    return uploadResult.Location;
+  }
+
   async compareFaces(sourceImage: Buffer, targetImage: Buffer) {
     const params = {
       SourceImage: { Bytes: sourceImage },

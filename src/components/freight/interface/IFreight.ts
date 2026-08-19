@@ -7,6 +7,7 @@ export interface ParamsFreight {
   take?: number;
   page?: number;
   isActive?: boolean;
+  isExclude?: boolean;
   dateOrigin?: Date;
   destinyCity?: string;
   destinyState?: string;
@@ -18,5 +19,5 @@ export interface ParamsFreight {
   openSolicitations?: boolean;
   createdAt?: Date;
   companyId?: string;
-  id?: string
+  id?: string;
 }

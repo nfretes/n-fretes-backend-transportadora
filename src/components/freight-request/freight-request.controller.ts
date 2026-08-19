@@ -15,38 +15,46 @@ import { GetUserId } from 'src/decorators/get-user-decorator';
 import { ParamsFreightRequest } from './interface/IFreightRequest';
 import { FreightRequestStatus } from '@entities/freight-requests.entity';
 
+@UseGuards(JwtAuthGuard)
 @Controller('freight-request')
 export class FreightRequestController {
   constructor(private readonly freightRequestService: FreightRequestService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   create(@Body() createFreightRequestDto: CreateFreightRequestDto) {
     return this.freightRequestService.create(createFreightRequestDto);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  findAll(@GetUserId() userId: string, @Query()params: ParamsFreightRequest) {
+  findAll(@GetUserId() userId: string, @Query() params: ParamsFreightRequest) {
     return this.freightRequestService.findAll(userId, params);
   }
 
-
   @Patch(':id/accept')
-  @UseGuards(JwtAuthGuard)
-  async acceptFreightRequest(
-    @Param('id') id: string,
-  ) {
+  async acceptFreightRequest(@Param('id') id: string) {
     return this.freightRequestService.acceptFreightRequest(id);
   }
 
+  @Patch(':id/accept-direct')
+  async acceptFreightRequestDirect(@Param('id') id: string) {
+    return this.freightRequestService.acceptFreightRequestDirect(id);
+  }
 
   @Patch(':id/accept-user')
-  @UseGuards(JwtAuthGuard)
   async acceptFreightRequestUserDrive(
     @Param('id') id: string,
-    @Body() status: FreightRequestStatus
+    @Body() status: FreightRequestStatus,
   ) {
-    return this.freightRequestService.acceptFreightRequestUserDrive(id,status);
+    return this.freightRequestService.acceptFreightRequestUserDrive(id, status);
+  }
+
+  @Patch(':id/confirmed')
+  async confirmedFreightRequest(@Param('id') id: string) {
+    return this.freightRequestService.confirmedFreightRequest(id);
+  }
+
+  @Patch(':id/reject')
+  async rejectFreightRequest(@Param('id') id: string) {
+    return this.freightRequestService.rejectFreightRequest(id);
   }
 }
